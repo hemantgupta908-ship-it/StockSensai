@@ -64,12 +64,31 @@ export function LoginForm({ configured }: { configured: boolean }) {
 
     try {
       if (mode === "signup") {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: resolvedEmail,
           password,
           options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         });
         if (signUpError) throw signUpError;
+
+        // If session was created automatically (email confirmation disabled in Supabase)
+        if (signUpData.session) {
+          router.push("/home");
+          router.refresh();
+          return;
+        }
+
+        // Try signing in directly in case email confirmation is turned off
+        const { error: directSignInError } = await supabase.auth.signInWithPassword({
+          email: resolvedEmail,
+          password,
+        });
+        if (!directSignInError) {
+          router.push("/home");
+          router.refresh();
+          return;
+        }
+
         setStatus("check-email");
         return;
       }
@@ -93,13 +112,26 @@ export function LoginForm({ configured }: { configured: boolean }) {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 26 }}
-        className="rounded-card border border-separator/40 bg-bg-secondary p-6 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark"
+        className="space-y-4 rounded-card border border-separator/40 bg-bg-secondary p-6 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark"
       >
-        <CheckCircle2 size={34} className="mx-auto text-green" strokeWidth={2} />
-        <h2 className="mt-3 text-headline font-semibold text-label">Account created</h2>
-        <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">
-          Sign-up complete for <span className="font-semibold text-label">{email}</span>! You can now sign in with your password.
-        </p>
+        <CheckCircle2 size={36} className="mx-auto text-green" strokeWidth={2} />
+        <div>
+          <h2 className="text-headline font-semibold text-label">Account registered</h2>
+          <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">
+            Your account <span className="font-semibold text-label">{email}</span> has been created! If email verification is enabled in your Supabase project, check your inbox. Otherwise, click below to sign in.
+          </p>
+        </div>
+
+        <Button
+          fullWidth
+          size="lg"
+          onClick={() => {
+            setMode("signin");
+            setStatus("idle");
+          }}
+        >
+          Sign in to your account
+        </Button>
       </motion.div>
     );
   }
