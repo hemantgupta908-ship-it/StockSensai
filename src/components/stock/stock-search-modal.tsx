@@ -21,16 +21,17 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 const QUICK_STOCKS = [
+  { symbol: "BSE", label: "BSE Ltd" },
+  { symbol: "WAAREEENER", label: "Waaree Energies" },
+  { symbol: "IREDA", label: "IREDA" },
   { symbol: "RELIANCE", label: "Reliance" },
   { symbol: "TCS", label: "TCS" },
-  { symbol: "INFY", label: "Infosys" },
   { symbol: "HDFCBANK", label: "HDFC Bank" },
-  { symbol: "TATAMOTORS", label: "Tata Motors" },
+  { symbol: "CDSL", label: "CDSL" },
+  { symbol: "MCX", label: "MCX" },
   { symbol: "ZOMATO", label: "Zomato" },
-  { symbol: "IRFC", label: "IRFC" },
   { symbol: "HAL", label: "HAL Defence" },
   { symbol: "SUZLON", label: "Suzlon" },
-  { symbol: "TRENT", label: "Trent (Zudio)" },
 ];
 
 const SECTORS = [
@@ -188,6 +189,31 @@ export function StockSearchModal({
 
         {/* Stock List Body */}
         <div className="max-h-[380px] overflow-y-auto divide-y divide-separator/30 px-2 py-1 dark:divide-white/[0.04]">
+          {query.trim() && !filteredInstruments.some((i) => i.ticker.toLowerCase() === query.trim().toLowerCase()) && (
+            <div
+              onClick={() => handleSelectStock(query.trim())}
+              className="group flex cursor-pointer items-center justify-between rounded-xl bg-purple/[0.08] p-3 transition-colors hover:bg-purple/[0.14] dark:bg-purple/[0.12] dark:hover:bg-purple/[0.20]"
+            >
+              <div className="min-w-0 flex-1 pr-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-subhead font-bold text-label group-hover:text-purple">
+                    {query.trim().toUpperCase()}
+                  </span>
+                  <span className="rounded bg-purple/20 px-1.5 py-0.5 text-caption2 font-semibold text-purple">
+                    Custom Stock / Any Symbol
+                  </span>
+                </div>
+                <p className="truncate text-footnote text-label-secondary/80">
+                  Run live 15-strategy AI screener for &quot;{query.trim().toUpperCase()}&quot;
+                </p>
+              </div>
+
+              <Button size="sm" className="h-8 gap-1.5 bg-purple text-white hover:bg-purple/90">
+                <Sparkles size={13} /> Evaluate Now
+              </Button>
+            </div>
+          )}
+
           {filteredInstruments.length > 0 ? (
             filteredInstruments.map((stock) => (
               <div
@@ -230,7 +256,7 @@ export function StockSearchModal({
                 </div>
               </div>
             ))
-          ) : (
+          ) : !query.trim() ? null : (
             <div className="py-8 text-center">
               <p className="text-subhead font-semibold text-label">
                 Evaluate &quot;{query.toUpperCase()}&quot;
@@ -240,7 +266,7 @@ export function StockSearchModal({
               </p>
               <Button
                 size="sm"
-                className="mt-3 gap-1.5"
+                className="mt-3 gap-1.5 bg-purple text-white hover:bg-purple/90"
                 onClick={() => handleSelectStock(query.toUpperCase())}
               >
                 <Sparkles size={14} /> Evaluate {query.toUpperCase()}

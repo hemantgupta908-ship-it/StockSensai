@@ -418,11 +418,26 @@ export class YahooMarketDataProvider implements MarketDataProvider {
   }
 
   async getInstrument(ticker: string): Promise<Instrument | null> {
-    const seed = SEED_BY_TICKER.get(ticker.toUpperCase());
-    if (!seed) return null;
-    const { sim, ...instrument } = seed;
-    void sim;
-    return { ...instrument, providerToken: toYahooSymbol(instrument.ticker, instrument.exchange) };
+    const symbol = ticker.toUpperCase();
+    const seed = SEED_BY_TICKER.get(symbol);
+    if (seed) {
+      const { sim, ...instrument } = seed;
+      void sim;
+      return { ...instrument, providerToken: toYahooSymbol(instrument.ticker, instrument.exchange) };
+    }
+
+    // Dynamic fallback for any arbitrary Indian equity
+    return {
+      ticker: symbol,
+      name: `${symbol} Ltd`,
+      exchange: "NSE",
+      isin: `INE${symbol}01`,
+      sector: "Services",
+      industry: "Indian Equities",
+      marketCapCr: 25_000,
+      indices: [],
+      providerToken: toYahooSymbol(symbol, "NSE"),
+    };
   }
 
   // --------------------------------------------------------------- quotes
