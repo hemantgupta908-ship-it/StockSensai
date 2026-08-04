@@ -56,10 +56,16 @@ export function LoginForm({ configured }: { configured: boolean }) {
     setStatus("working");
     setError(null);
 
+    // If user enters a username (no @ symbol), automatically append @stocksensei.app domain
+    const cleanInput = email.trim();
+    const resolvedEmail = cleanInput.includes("@")
+      ? cleanInput
+      : `${cleanInput.toLowerCase()}@stocksensei.app`;
+
     try {
       if (mode === "signup") {
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: resolvedEmail,
           password,
           options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         });
@@ -68,7 +74,10 @@ export function LoginForm({ configured }: { configured: boolean }) {
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: resolvedEmail,
+        password,
+      });
       if (signInError) throw signInError;
       router.push("/home");
       router.refresh();
@@ -87,10 +96,9 @@ export function LoginForm({ configured }: { configured: boolean }) {
         className="rounded-card border border-separator/40 bg-bg-secondary p-6 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark"
       >
         <CheckCircle2 size={34} className="mx-auto text-green" strokeWidth={2} />
-        <h2 className="mt-3 text-headline font-semibold text-label">Check your email</h2>
+        <h2 className="mt-3 text-headline font-semibold text-label">Account created</h2>
         <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">
-          We sent a confirmation link to <span className="font-semibold">{email}</span>. Open it to
-          finish creating your account.
+          Sign-up complete for <span className="font-semibold text-label">{email}</span>! You can now sign in with your password.
         </p>
       </motion.div>
     );
@@ -100,12 +108,14 @@ export function LoginForm({ configured }: { configured: boolean }) {
     <form onSubmit={submit} className="space-y-3">
       <div className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
         <input
-          type="email"
+          type="text"
           required
-          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder="Username or Email (e.g. hemant)"
           className="w-full border-b border-separator/40 bg-transparent px-4 py-3.5 text-body text-label placeholder:text-label-quaternary/35 focus:outline-none dark:border-white/[0.06]"
         />
         <input

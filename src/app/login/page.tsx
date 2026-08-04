@@ -37,7 +37,7 @@ export default async function LoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-title1 font-bold tracking-tight text-label">StockPilot</h1>
+          <h1 className="text-title1 font-bold tracking-tight text-label">StockSensei</h1>
           <p className="mt-1.5 text-subhead text-label-secondary/65">
             Rule-based screens for NSE &amp; BSE stocks
           </p>

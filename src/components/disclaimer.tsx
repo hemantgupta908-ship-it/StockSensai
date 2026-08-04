@@ -13,7 +13,7 @@ export const DISCLAIMER_SHORT =
   "Algorithmically generated screens for education and research. Not investment advice.";
 
 export const DISCLAIMER_FULL =
-  "StockPilot is a stock screening and educational tool. Every recommendation shown is generated automatically by rule-based strategies applied to price and fundamental data. Nothing here is personalised financial advice, a solicitation to buy or sell, or a guarantee of any outcome. StockPilot is not a broker, does not execute trades, and is not registered with SEBI as an Investment Adviser or Research Analyst. Do your own research and consider consulting a SEBI-registered investment adviser before acting on anything you see here. Investments in securities are subject to market risks; past performance does not indicate future results.";
+  "StockSensei is a stock screening and educational tool. Every recommendation shown is generated automatically by rule-based strategies applied to price and fundamental data. Nothing here is personalised financial advice, a solicitation to buy or sell, or a guarantee of any outcome. StockSensei is not a broker, does not execute trades, and is not registered with SEBI as an Investment Adviser or Research Analyst. Do your own research and consider consulting a SEBI-registered investment adviser before acting on anything you see here. Investments in securities are subject to market risks; past performance does not indicate future results.";
 
 /** Persistent footer strip, rendered on every screen inside the app shell. */
 export function DisclaimerFooter({ className }: { className?: string }) {
@@ -22,7 +22,7 @@ export function DisclaimerFooter({ className }: { className?: string }) {
       <div className="flex items-start gap-2.5 rounded-[14px] border border-separator/40 bg-fill/[0.05] px-3.5 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
         <ShieldAlert size={15} className="mt-[1px] shrink-0 text-amber" strokeWidth={2.2} />
         <p className="text-caption leading-snug text-label-secondary/65">
-          {DISCLAIMER_SHORT} Not a broker — StockPilot never places trades.{" "}
+          {DISCLAIMER_SHORT} Not a broker — StockSensei never places trades.{" "}
           <Link href="/disclaimer" className="font-semibold text-blue underline-offset-2 hover:underline">
             Read the full disclaimer
           </Link>
