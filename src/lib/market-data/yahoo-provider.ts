@@ -63,8 +63,8 @@ const BENCHMARK_SYMBOL = "^NSEI";
  * dividends per instrument), so these settings largely determine first-load
  * time. Yahoo tolerates this comfortably; raise further at your own risk.
  */
-const RATE_LIMIT_RPS = Number(process.env.YAHOO_RPS ?? 8);
-const CONCURRENCY = Number(process.env.YAHOO_CONCURRENCY ?? 6);
+const RATE_LIMIT_RPS = Number(process.env.YAHOO_RPS ?? 35);
+const CONCURRENCY = Number(process.env.YAHOO_CONCURRENCY ?? 25);
 
 /** Yahoo `range` values wide enough to satisfy each interval's bar count. */
 const RANGE_FOR_INTERVAL: Record<CandleInterval, string> = {
@@ -580,7 +580,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
     const seed = SEED_BY_TICKER.get(symbol);
     if (!seed) return null;
 
-    await this.primeSectorMedians();
+    void this.primeSectorMedians();
     const summary = await this.fetchSummary(symbol);
     if (!summary) {
       this.fundamentalsCache.set(symbol, { day, value: null });
