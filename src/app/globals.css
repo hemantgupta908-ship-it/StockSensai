@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * iOS semantic colour system.
+ * Values are space-separated RGB triplets so Tailwind's `<alpha-value>` works.
+ */
+@layer base {
+  :root {
+    /* Light mode — iOS systemBackground family */
+    --bg: 242 242 247; /* systemGroupedBackground */
+    --bg-secondary: 255 255 255; /* secondarySystemGroupedBackground (cards) */
+    --bg-tertiary: 242 242 247;
+    --bg-elevated: 255 255 255;
+    --fill: 120 120 128; /* used at low alpha for fills */
+
+    --label: 0 0 0;
+    --label-secondary: 60 60 67;
+    --label-tertiary: 60 60 67;
+    --label-quaternary: 60 60 67;
+    --separator: 198 198 200;
+
+    --sys-blue: 0 122 255;
+    --sys-green: 52 199 89;
+    --sys-red: 255 59 48;
+    --sys-orange: 255 149 0;
+    --sys-yellow: 255 204 0;
+    --sys-purple: 175 82 222;
+    --sys-teal: 48 176 199;
+    --sys-indigo: 88 86 214;
+    --sys-pink: 255 45 85;
+
+    --nav-bg: 249 249 249;
+    --chart-grid: 232 232 237;
+
+    color-scheme: light;
+  }
+
+  .dark {
+    /* Dark mode — iOS dark systemBackground family */
+    --bg: 0 0 0;
+    --bg-secondary: 28 28 30;
+    --bg-tertiary: 44 44 46;
+    --bg-elevated: 28 28 30;
+    --fill: 120 120 128;
+
+    --label: 255 255 255;
+    --label-secondary: 235 235 245;
+    --label-tertiary: 235 235 245;
+    --label-quaternary: 235 235 245;
+    --separator: 56 56 58;
+
+    --sys-blue: 10 132 255;
+    --sys-green: 48 209 88;
+    --sys-red: 255 69 58;
+    --sys-orange: 255 159 10;
+    --sys-yellow: 255 214 10;
+    --sys-purple: 191 90 242;
+    --sys-teal: 64 200 224;
+    --sys-indigo: 94 92 230;
+    --sys-pink: 255 55 95;
+
+    --nav-bg: 22 22 24;
+    --chart-grid: 44 44 46;
+
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-bg text-label font-sans antialiased;
+    /* iOS never bounces the page body horizontally */
+    overscroll-behavior-x: none;
+  }
+
+  /* iOS-style thin scrollbars that fade into the background */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--fill) / 0.3);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--fill) / 0.5);
+  }
+
+  /* Focus rings that match the iOS accent rather than the browser default */
+  :focus-visible {
+    outline: 2px solid rgb(var(--sys-blue));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Translucent material used by nav bars, tab bars and sheets */
+  .material {
+    background-color: rgb(var(--nav-bg) / 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  .material-thick {
+    background-color: rgb(var(--bg-elevated) / 0.86);
+    backdrop-filter: saturate(180%) blur(30px);
+    -webkit-backdrop-filter: saturate(180%) blur(30px);
+  }
+
+  /* Hairline separators — 0.5px at 2x like iOS */
+  .hairline-b {
+    box-shadow: inset 0 -0.5px 0 0 rgb(var(--separator) / 0.6);
+  }
+  .hairline-t {
+    box-shadow: inset 0 0.5px 0 0 rgb(var(--separator) / 0.6);
+  }
+
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
