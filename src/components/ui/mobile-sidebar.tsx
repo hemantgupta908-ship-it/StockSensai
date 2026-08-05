@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Search, ShieldAlert, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { isActivePath, NAV_ITEMS } from "./nav-items";
+import { isActivePath, NAV_SECTIONS } from "./nav-items";
+import { EnvironmentSwitcher } from "./environment-switcher";
 import { ThemeToggle } from "./theme-toggle";
 
 interface MobileSidebarProps {
@@ -108,8 +109,13 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
               </button>
             </div>
 
+            {/* Crossing point to the budget environment. */}
+            <div className="pt-1">
+              <EnvironmentSwitcher active="stocks" />
+            </div>
+
             {/* Quick Search Button */}
-            <div className="pb-4 pt-1">
+            <div className="pb-4 pt-3">
               <button
                 onClick={() => {
                   onClose();
@@ -129,45 +135,38 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
 
             {/* Navigation List */}
             <nav className="flex-1 overflow-y-auto pt-1">
-              <ul className="space-y-1">
-                {NAV_ITEMS.map((item) => {
-                  const active = isActivePath(pathname, item.href);
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
-                        className={cn(
-                          "flex items-center gap-3 rounded.xl px-3.5 py-3 transition-colors",
-                          active
-                            ? "bg-blue/15 font-semibold text-blue"
-                            : "text-label-secondary/75 hover:bg-fill/[0.08] hover:text-label",
-                        )}
-                      >
-                        <Icon
-                          size={20}
-                          strokeWidth={active ? 2.4 : 2}
-                          className={cn("shrink-0", active ? "text-blue" : "text-label-secondary/50")}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.title} className="mb-4">
+                  <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
+                    {section.title}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = isActivePath(pathname, item.href);
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
                             className={cn(
-                              "block truncate text-subhead",
-                              active ? "font-bold text-blue" : "font-semibold text-label",
+                              "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
+                              active
+                                ? "bg-blue/10 text-blue dark:bg-blue/15"
+                                : "text-label hover:bg-fill/[0.08]",
                             )}
                           >
-                            {item.label}
-                          </span>
-                          <span className="block truncate text-caption2 text-label-secondary/50">
-                            {item.description}
-                          </span>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+                            <Icon size={20} strokeWidth={active ? 2.3 : 1.9} className="shrink-0" />
+                            <span className={cn("text-subhead", active && "font-semibold")}>
+                              {item.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
             </nav>
 
             {/* Footer with Theme Toggle & Disclaimer */}

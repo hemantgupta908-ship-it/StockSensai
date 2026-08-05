@@ -61,14 +61,14 @@ export function RangeGauge({
         {/* Track */}
         <div
           className={cn(
-            "absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-full",
-            "bg-fill/[0.12] dark:bg-white/[0.08]",
+            "absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-md",
+            "bg-black/[0.04] dark:bg-white/[0.08] shadow-[inset_0_1px_3px_rgb(0,0,0,0.06)] dark:shadow-none",
             compact ? "h-6" : "h-7",
           )}
         >
           {/* Risk zone: everything below the stop */}
           <div
-            className="absolute inset-y-0 left-0 bg-red/25"
+            className="absolute inset-y-0 left-0 bg-red/15 dark:bg-red/25"
             style={{ width: `${stopPos}%` }}
           />
           {/* Accumulation band */}
@@ -78,10 +78,10 @@ export function RangeGauge({
             transition={{ type: "spring", stiffness: 220, damping: 30, delay: 0.05 }}
             style={{
               left: `${buyStart}%`,
-              width: `${Math.max(buyEnd - buyStart, 1.5)}%`,
+              width: `${Math.max(buyEnd - buyStart, 2)}%`,
               transformOrigin: "left",
             }}
-            className="absolute inset-y-0 bg-green/70"
+            className="absolute inset-y-0 rounded-sm bg-green/80 shadow-sm"
           />
           {/* Target band */}
           <motion.div
@@ -90,16 +90,16 @@ export function RangeGauge({
             transition={{ type: "spring", stiffness: 220, damping: 30, delay: 0.12 }}
             style={{
               left: `${sellStart}%`,
-              width: `${Math.max(sellEnd - sellStart, 1.5)}%`,
+              width: `${Math.max(sellEnd - sellStart, 2)}%`,
               transformOrigin: "left",
             }}
-            className="absolute inset-y-0 bg-blue/70"
+            className="absolute inset-y-0 rounded-sm bg-blue/80 shadow-sm"
           />
         </div>
 
         {/* Stop-loss tick */}
         <div
-          className="absolute top-1/2 h-[26px] w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red"
+          className="absolute top-1/2 h-[26px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-red shadow-sm"
           style={{ left: `${stopPos}%` }}
           aria-hidden
         />
@@ -111,11 +111,13 @@ export function RangeGauge({
           transition={{ type: "spring", stiffness: 420, damping: 26, delay: 0.2 }}
           className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
           style={{ left: `${pricePos}%` }}
+          role="img"
+          aria-label={`Trading at ${formatINR(currentPrice)}`}
         >
           <div
             className={cn(
-              "flex items-center justify-center rounded-full border-[2.5px] bg-bg-secondary shadow-pill",
-              "border-label",
+              "flex items-center justify-center rounded-full border-[2.5px] bg-bg-secondary",
+              "border-label shadow-[0_3px_12px_rgb(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgb(0,0,0,0.4)]",
               compact ? "h-[22px] w-[22px]" : "h-[26px] w-[26px]",
             )}
           >
@@ -125,7 +127,17 @@ export function RangeGauge({
       </div>
 
       {!compact && (
-        <div className="mt-2 flex items-start justify-between gap-2 text-caption2">
+        /*
+         * Fixed thirds, not `justify-between`.
+         *
+         * With three intrinsically-sized children, `justify-between` puts the
+         * middle one wherever the outer two leave room — so a narrow "Stop ₹250"
+         * beside a wide target range drags the "Buy zone" label off-centre and
+         * straight under the price marker. A grid gives each label its own third
+         * regardless of the numbers in it, which also lets the eye run down the
+         * same column across every card in the feed.
+         */
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
           <GaugeLabel tone="red" title="Stop" value={formatINR(stopLoss, { decimals: 0 })} align="start" />
           <GaugeLabel
             tone="green"
@@ -143,9 +155,15 @@ export function RangeGauge({
       )}
 
       {!compact && (
-        <p className="mt-2 text-caption text-label-secondary/60">
+        /*
+         * Two lines are reserved because the four possible endings differ in
+         * length; without the floor, cards whose price sits inside the buy zone
+         * render a line shorter than their neighbours and the footers stop
+         * lining up across a row of the grid.
+         */
+        <p className="mt-1.5 min-h-[2.45em] text-[13px] leading-snug text-label-secondary/70">
           Trading at{" "}
-          <span className="font-semibold text-label">{formatINR(currentPrice)}</span>
+          <span className="font-bold text-label text-sm">{formatINR(currentPrice)}</span>
           {priceInBuyZone
             ? " — inside the suggested buy zone."
             : priceAboveTarget
@@ -174,16 +192,21 @@ function GaugeLabel({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-0.5",
+        "flex min-w-0 flex-col",
         align === "center" && "items-center text-center",
         align === "end" && "items-end text-right",
       )}
     >
-      <span className="flex items-center gap-1 text-label-secondary/55">
-        <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+      <span className="flex items-center gap-1 text-[11px] text-label-secondary/60">
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dot)} />
         {title}
       </span>
-      <span className="numeric font-semibold text-label">{value}</span>
+      {/* A range like "₹9,089 – ₹9,254" is the widest thing in a third of a
+          card, so it steps down a point on narrow viewports rather than
+          wrapping mid-number. */}
+      <span className="numeric text-[12px] font-bold tabular-nums text-label sm:text-[13px]">
+        {value}
+      </span>
     </div>
   );
 }

@@ -1723,7 +1723,8 @@ export const SEED_INSTRUMENTS: SeedInstrument[] = [
     },
   },
   {
-    ticker: "OLAEC",
+    // NSE lists this as OLAELEC; "OLAEC" was never a valid symbol.
+    ticker: "OLAELEC",
     name: "Ola Electric Mobility Ltd",
     exchange: "NSE",
     isin: "INE012U01011",

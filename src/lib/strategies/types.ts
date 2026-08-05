@@ -1,18 +1,48 @@
 import type { StockDataBundle } from "@/lib/market-data/types";
 
-export type TradingStyle = "swing" | "short-term" | "long-term";
+export type TradingStyle =
+  | "intraday"
+  | "short-term"
+  | "swing"
+  | "positional"
+  | "long-term";
 
-export const TRADING_STYLES: readonly TradingStyle[] = ["swing", "short-term", "long-term"];
+/**
+ * Ordered shortest holding period to longest — the order the UI presents them
+ * in. Declared as a literal tuple rather than `readonly TradingStyle[]` so it
+ * can be handed straight to `z.enum` at the API edge, which keeps the accepted
+ * query values and the engine's styles from ever drifting apart.
+ */
+export const TRADING_STYLES = [
+  "intraday",
+  "short-term",
+  "swing",
+  "positional",
+  "long-term",
+] as const satisfies readonly TradingStyle[];
 
 export const TRADING_STYLE_LABELS: Record<TradingStyle, string> = {
-  swing: "Swing",
+  intraday: "Intraday",
   "short-term": "Short-Term",
+  swing: "Swing",
+  positional: "Positional",
   "long-term": "Long-Term",
 };
 
+/** Short hold-period caption shown under each label in the style switcher. */
+export const TRADING_STYLE_CAPTIONS: Record<TradingStyle, string> = {
+  intraday: "Same day",
+  "short-term": "1–3 days",
+  swing: "Days–weeks",
+  positional: "1–6 months",
+  "long-term": "1–5 years",
+};
+
 export const TRADING_STYLE_DESCRIPTIONS: Record<TradingStyle, string> = {
-  swing: "Hold a few days to a few weeks, riding one leg of a trend.",
+  intraday: "Open and close inside a single session, squared off before the bell.",
   "short-term": "Intraday to a couple of sessions, driven by momentum and volume.",
+  swing: "Hold a few days to a few weeks, riding one leg of a trend.",
+  positional: "Several months, holding the primary trend through its pullbacks.",
   "long-term": "One to five years, driven by business quality and valuation.",
 };
 
@@ -161,6 +191,12 @@ export interface Strategy {
 }
 
 export type StrategyId =
+  // Intraday
+  | "id-vwap-reversion"
+  | "id-momentum-burst"
+  | "id-range-fade"
+  | "id-previous-day-break"
+  | "id-closing-hour-trend"
   // Swing
   | "swing-ma-crossover"
   | "swing-rsi-reversal"
@@ -173,6 +209,12 @@ export type StrategyId =
   | "st-bollinger-squeeze"
   | "st-relative-strength"
   | "st-opening-range-breakout"
+  // Positional
+  | "pos-stage-two-trend"
+  | "pos-52w-high-breakout"
+  | "pos-ema-pullback"
+  | "pos-golden-cross"
+  | "pos-relative-strength-leader"
   // Long-term
   | "lt-value"
   | "lt-growth"
@@ -207,14 +249,25 @@ export function requiredConditionsMet(conditions: StrategyCondition[]): boolean 
  *
  * Intraday setups carry structurally lower reward-to-risk than positional ones
  * — an opening-range breakout risks the entire opening range by construction —
- * and compensate with frequency and a higher hit rate. Holding all three styles
- * to the same ratio doesn't make the short-term screens safer, it just makes
+ * and compensate with frequency and a higher hit rate. Holding every style to
+ * the same ratio doesn't make the short-horizon screens safer, it just makes
  * them silent. Long-term theses, conversely, should clear a wider bar because
  * the capital is committed for years.
+ *
+ * The factors scale monotonically with holding period, so a same-session trade
+ * and a five-year thesis are each judged against what their own horizon can
+ * realistically offer.
  */
+const REWARD_RISK_FACTORS: Record<TradingStyle, number> = {
+  intraday: 0.7,
+  "short-term": 0.8,
+  swing: 1,
+  positional: 1.1,
+  "long-term": 1.15,
+};
+
 export function minRewardRiskFor(thresholds: Thresholds, style: TradingStyle): number {
-  const factor = style === "short-term" ? 0.8 : style === "long-term" ? 1.15 : 1;
-  return thresholds.minRewardRisk * factor;
+  return thresholds.minRewardRisk * REWARD_RISK_FACTORS[style];
 }
 
 /** Reward-to-risk from the midpoints of the entry and target bands. */
@@ -230,6 +283,52 @@ export function rewardToRisk(
   const risk = direction === "bullish" ? entryMid - stopLoss : stopLoss - entryMid;
   if (risk <= 0) return 0;
   return reward / risk;
+}
+
+/**
+ * Whether the three levels of a setup are ordered as *zones* rather than ticks.
+ *
+ * For a long, every price inside the entry band has to sit above the stop and
+ * below the target band — otherwise a fill at one edge of the band is in a
+ * different trade from a fill at the other. `rewardToRisk` cannot see either
+ * failure because it works from midpoints: a stop sitting inside the entry band
+ * still leaves midpoint risk positive, so the card shows a healthy ratio while
+ * a position filled in the lower half of the band is stopped out on entry.
+ */
+export function bandsAreOrdered(
+  entry: PriceRange,
+  target: PriceRange,
+  stopLoss: number,
+  direction: SignalDirection,
+): boolean {
+  return direction === "bullish"
+    ? stopLoss < entry.low && target.low > entry.high
+    : stopLoss > entry.high && target.high < entry.low;
+}
+
+/**
+ * Move a stop clear of the entry band, leaving `clearancePct` of daylight.
+ *
+ * Stops anchored to a level that moves with the data — a 52-week low, a moving
+ * average, an ATR multiple — can land inside a wide entry band whenever that
+ * level happens to sit close to spot. Clamping is the right response rather
+ * than discarding the setup: the anchor is still the level the thesis breaks
+ * at, it simply has to sit under the whole accumulation zone instead of
+ * halfway through it.
+ *
+ * This only ever moves the stop further from the band, so it can only widen
+ * risk. Callers must therefore run their reward-to-risk floor *after* this,
+ * which is what stops the widening from going past what the tolerance allows.
+ */
+export function stopClearOfEntry(
+  entry: PriceRange,
+  stopLoss: number,
+  direction: SignalDirection,
+  clearancePct = 1,
+): number {
+  return direction === "bullish"
+    ? round2(Math.min(stopLoss, entry.low * (1 - clearancePct / 100)))
+    : round2(Math.max(stopLoss, entry.high * (1 + clearancePct / 100)));
 }
 
 /**

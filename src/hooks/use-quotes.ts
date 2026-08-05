@@ -44,11 +44,13 @@ export function useQuotes(tickers: string[]) {
         cache: "no-store",
       });
       if (!response.ok) throw new Error(response.statusText);
-      const data = (await response.json()) as { quotes: Quote[] };
+      const data = (await response.json()) as { quotes?: Quote[] };
       const map: Record<string, Quote> = {};
-      for (const quote of data.quotes) {
-        map[quote.ticker] = quote;
-        quotesCache[quote.ticker] = quote;
+      if (Array.isArray(data?.quotes)) {
+        for (const quote of data.quotes) {
+          map[quote.ticker] = quote;
+          quotesCache[quote.ticker] = quote;
+        }
       }
       setQuotes(map);
       setLastUpdated(new Date());

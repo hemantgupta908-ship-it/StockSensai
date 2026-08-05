@@ -209,3 +209,35 @@ create policy "recommendations: readable by public"
   on public.cached_recommendations for select
   to public
   using (true);
+
+
+-- ---------------------------------------------------------------------------
+-- Budget environment
+-- ---------------------------------------------------------------------------
+-- The budget side of the app keeps its own store, entirely separate from the
+-- stock tables above. It is local-first: this table is a mirror for users who
+-- are signed in, not the source of truth, so the whole dataset is held as one
+-- JSON document per user rather than normalised. The ported Cashew schema is
+-- nine interlinked tables with its own delete-log consistency model; syncing it
+-- relationally would mean reimplementing that model server-side for no gain
+-- while the client remains authoritative.
+
+create table if not exists public.budget_store (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+
+  -- Serialised BudgetDatabase (see src/lib/budget/types.ts).
+  payload    jsonb not null default '{}'::jsonb,
+  -- Serialised BudgetSettings (see src/lib/budget/defaults.ts).
+  settings   jsonb not null default '{}'::jsonb,
+
+  updated_at timestamptz not null default now()
+);
+
+alter table public.budget_store enable row level security;
+
+drop policy if exists "budget_store: owner full access" on public.budget_store;
+create policy "budget_store: owner full access"
+  on public.budget_store for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

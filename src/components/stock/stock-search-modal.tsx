@@ -160,21 +160,25 @@ export function StockSearchModal({
             Popular:
           </span>
           {QUICK_STOCKS.map((s) => (
-            <button
+            <motion.button
               key={s.symbol}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
               onClick={() => handleSelectStock(s.symbol)}
               className="rounded-full bg-fill/[0.12] px-2.5 py-1 text-caption2 font-semibold text-label-secondary transition-colors hover:bg-blue/15 hover:text-blue dark:bg-white/[0.08] dark:hover:bg-blue/25"
             >
               {s.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
         {/* Sector Filters */}
         <div className="no-scrollbar flex overflow-x-auto border-b border-separator/30 px-4 py-2 gap-1.5 dark:border-white/[0.06]">
           {SECTORS.map((sec) => (
-            <button
+            <motion.button
               key={sec}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
               onClick={() => setSelectedSector(sec)}
               className={`shrink-0 rounded-lg px-2.5 py-1 text-caption2 font-medium transition-colors ${
                 selectedSector === sec
@@ -183,14 +187,16 @@ export function StockSearchModal({
               }`}
             >
               {sec}
-            </button>
+            </motion.button>
           ))}
         </div>
 
         {/* Stock List Body */}
         <div className="max-h-[380px] overflow-y-auto divide-y divide-separator/30 px-2 py-1 dark:divide-white/[0.04]">
           {query.trim() && !filteredInstruments.some((i) => i.ticker.toLowerCase() === query.trim().toLowerCase()) && (
-            <div
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
               onClick={() => handleSelectStock(query.trim())}
               className="group flex cursor-pointer items-center justify-between rounded-xl bg-purple/[0.08] p-3 transition-colors hover:bg-purple/[0.14] dark:bg-purple/[0.12] dark:hover:bg-purple/[0.20]"
             >
@@ -211,7 +217,7 @@ export function StockSearchModal({
               <Button size="sm" className="h-8 gap-1.5 bg-purple text-white hover:bg-purple/90">
                 <Sparkles size={13} /> Evaluate Now
               </Button>
-            </div>
+            </motion.div>
           )}
 
           {filteredInstruments.length > 0 ? (
@@ -219,7 +225,7 @@ export function StockSearchModal({
               <div
                 key={stock.ticker}
                 onClick={() => handleSelectStock(stock.ticker)}
-                className="group flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-fill/[0.08] dark:hover:bg-white/[0.06]"
+                className="group flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-colors active:scale-[0.99] hover:bg-fill/[0.08] dark:hover:bg-white/[0.06]"
               >
                 <div className="min-w-0 flex-1 pr-3">
                   <div className="flex items-center gap-2">

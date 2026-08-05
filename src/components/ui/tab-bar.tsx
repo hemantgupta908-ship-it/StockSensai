@@ -34,11 +34,14 @@ export function TabBar() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className="group flex flex-col items-center gap-[3px] rounded-lg py-1"
+                className={cn(
+                  "group relative flex flex-col items-center gap-[3px] rounded-xl py-1 transition-colors duration-150",
+                  active ? "bg-blue/10 dark:bg-blue/20" : "",
+                )}
               >
                 <motion.span
                   whileTap={{ scale: 0.86 }}
-                  transition={{ type: "spring", stiffness: 600, damping: 26 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
                   className="relative flex h-6 w-6 items-center justify-center"
                 >
                   <Icon
@@ -53,7 +56,7 @@ export function TabBar() {
                 <span
                   className={cn(
                     "text-[10px] font-medium leading-none tracking-tight transition-colors duration-200",
-                    active ? "text-blue" : "text-label-secondary/50",
+                    active ? "text-blue font-semibold" : "text-label-secondary/50",
                   )}
                 >
                   {tab.label}

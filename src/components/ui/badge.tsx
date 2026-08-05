@@ -24,8 +24,8 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-[3px]",
-        "text-caption2 font-semibold tracking-tight",
+        "inline-flex items-center gap-1 rounded-full px-2 py-[2px]",
+        "text-[11px] font-semibold tracking-tight transition-transform duration-150 hover:scale-[1.04]",
         TONES[tone],
         className,
       )}
@@ -38,8 +38,10 @@ export function Badge({
 /** Green / amber / red, used sparingly so the colour still means something. */
 export function RiskBadge({ level, className }: { level: RiskLevel; className?: string }) {
   const tone: Tone = level === "Low" ? "green" : level === "Medium" ? "amber" : "red";
+  const dotColor = level === "Low" ? "bg-green" : level === "Medium" ? "bg-amber" : "bg-red";
   return (
     <Badge tone={tone} className={className}>
+      <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", dotColor)} />
       {level} risk
     </Badge>
   );

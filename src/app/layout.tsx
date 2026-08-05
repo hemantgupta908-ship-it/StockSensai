@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · StockSensei",
   },
   description:
-    "Rule-based screens for NSE and BSE listed stocks across swing, short-term and long-term styles. An educational screener, not investment advice.",
+    "Rule-based screens for NSE and BSE listed stocks across intraday, short-term, swing, positional and long-term styles. An educational screener, not investment advice.",
   applicationName: "StockSensei",
   appleWebApp: { capable: true, title: "StockSensei", statusBarStyle: "default" },
   formatDetection: { telephone: false },

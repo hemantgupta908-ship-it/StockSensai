@@ -1,11 +1,9 @@
-import type { Candle } from "@/lib/market-data/types";
 import {
   atr,
   averageVolume,
   bollinger,
   closes,
   ema,
-  groupBySession,
   last,
   lowestLow,
   percentChange,
@@ -14,8 +12,10 @@ import {
 } from "@/lib/indicators";
 import {
   condition,
+  latestSession,
   longEntryBand,
   money,
+  previousSession,
   ratio,
   sanitiseBand,
   targetBand,
@@ -40,19 +40,6 @@ import {
  * (or the market has not opened yet) those strategies stand down rather than
  * approximating from daily data, which would silently change what they mean.
  */
-
-/** Bars from the most recent session, oldest first. */
-function latestSession(intraday: Candle[]): Candle[] | null {
-  if (intraday.length === 0) return null;
-  const sessions = groupBySession(intraday);
-  const current = sessions[sessions.length - 1];
-  return current && current.length >= 6 ? current : null;
-}
-
-function previousSession(intraday: Candle[]): Candle[] | null {
-  const sessions = groupBySession(intraday);
-  return sessions.length >= 2 ? sessions[sessions.length - 2] : null;
-}
 
 // ---------------------------------------------------------------------------
 // 1. Gap Up / Down Continuation

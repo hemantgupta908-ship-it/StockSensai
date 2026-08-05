@@ -9,6 +9,7 @@ import type { StockDataBundle } from "@/lib/market-data/types";
 import { ALL_STRATEGIES, getStrategiesByStyle } from "@/lib/strategies";
 import {
   THRESHOLD_PRESETS,
+  TRADING_STYLES,
   type RiskTolerance,
   type StrategySignal,
   type TradingStyle,
@@ -147,13 +148,21 @@ export async function generateFeed(
   }
 
   const interleaved: Recommendation[] = [];
+  const seenTickers = new Set<string>();
   const deepest = Math.max(0, ...ranked.map((l) => l.length));
+  
   for (let round = 0; round < deepest; round++) {
     const slice = ranked
       .map((list) => list[round])
       .filter((r): r is Recommendation => Boolean(r))
       .sort((a, b) => b.confidenceScore - a.confidenceScore);
-    interleaved.push(...slice);
+      
+    for (const r of slice) {
+      if (!seenTickers.has(r.ticker)) {
+        seenTickers.add(r.ticker);
+        interleaved.push(r);
+      }
+    }
   }
 
   return {
@@ -209,12 +218,11 @@ export async function analyseStock(
 }
 
 /**
- * Recommendations across all three styles — used by the daily cron job that
+ * Recommendations across every trading style — used by the daily cron job that
  * populates the Supabase cache.
  */
 export async function generateAllFeeds(
   tolerance: RiskTolerance = "moderate",
 ): Promise<RecommendationFeed[]> {
-  const styles: TradingStyle[] = ["swing", "short-term", "long-term"];
-  return Promise.all(styles.map((style) => generateFeed(style, tolerance)));
+  return Promise.all(TRADING_STYLES.map((style) => generateFeed(style, tolerance)));
 }

@@ -53,12 +53,20 @@ export function getSupabaseAdminClient(): SupabaseClient<Database> | null {
 
 /** The signed-in user, or null in demo mode / when signed out. */
 export async function getCurrentUser() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  try {
+    const supabase = await getSupabaseServerClient();
+    if (!supabase) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user;
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE") {
+      throw error;
+    }
+    console.error("[getCurrentUser] error:", error);
+    return null;
+  }
 }
 
 export { isSupabaseConfigured };

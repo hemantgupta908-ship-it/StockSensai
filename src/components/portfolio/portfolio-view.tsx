@@ -14,6 +14,11 @@ import {
   Trash2,
 } from "lucide-react";
 
+import {
+  TRADING_STYLES,
+  TRADING_STYLE_LABELS,
+  type TradingStyle,
+} from "@/lib/strategies/types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useSession } from "@/components/auth/session-provider";
@@ -30,7 +35,7 @@ import { AddPositionSheet } from "./add-position-sheet";
 import { PortfolioAnalytics } from "./portfolio-analytics";
 
 type StatusFilter = "all" | "open" | "closed";
-type StyleFilter = "all" | "swing" | "short-term" | "long-term";
+type StyleFilter = "all" | TradingStyle;
 
 export function PortfolioView() {
   const { entries, loading, remove, close, update, isLocal } = usePortfolio();
@@ -210,7 +215,7 @@ export function PortfolioView() {
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-caption font-semibold capitalize transition-colors",
+                  "rounded-full px-3 py-1 text-caption font-semibold capitalize transition-all duration-150 active:scale-95",
                   statusFilter === tab
                     ? "bg-bg text-label shadow-sm dark:bg-fill/40"
                     : "text-label-secondary/60 hover:text-label",
@@ -231,9 +236,11 @@ export function PortfolioView() {
                 className="bg-transparent text-caption font-semibold text-label focus:outline-none"
               >
                 <option value="all">All Styles</option>
-                <option value="swing">Swing</option>
-                <option value="short-term">Short-Term</option>
-                <option value="long-term">Long-Term</option>
+                {TRADING_STYLES.map((style) => (
+                  <option key={style} value={style}>
+                    {TRADING_STYLE_LABELS[style]}
+                  </option>
+                ))}
               </select>
             </div>
 

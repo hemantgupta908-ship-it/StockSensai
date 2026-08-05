@@ -169,8 +169,16 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const DEFAULT_WATCHLIST: WatchlistValue = {
+  items: [],
+  loading: false,
+  has: () => false,
+  toggle: async () => {},
+  remove: async () => {},
+  isLocal: true,
+};
+
 export function useWatchlist(): WatchlistValue {
   const context = useContext(WatchlistContext);
-  if (!context) throw new Error("useWatchlist must be used inside WatchlistProvider");
-  return context;
+  return context ?? DEFAULT_WATCHLIST;
 }

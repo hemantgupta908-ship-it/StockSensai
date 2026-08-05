@@ -4,13 +4,13 @@ import { cronSecret } from "@/lib/env";
 import { generateFeed } from "@/lib/engine/recommend";
 import { invalidateFeedCache } from "@/lib/engine/cache";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import type { RiskTolerance, TradingStyle } from "@/lib/strategies/types";
+import { TRADING_STYLES, type RiskTolerance } from "@/lib/strategies/types";
 
 export const dynamic = "force-dynamic";
-/** Screening the universe across 3 styles x 3 tolerances needs headroom. */
+/** Screening the universe across 5 styles x 3 tolerances needs headroom. */
 export const maxDuration = 300;
 
-const STYLES: TradingStyle[] = ["swing", "short-term", "long-term"];
+const STYLES = TRADING_STYLES;
 const TOLERANCES: RiskTolerance[] = ["conservative", "moderate", "aggressive"];
 
 /**

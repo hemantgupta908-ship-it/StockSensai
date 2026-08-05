@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "StockSensei — NSE & BSE stock screener",
     short_name: "StockSensei",
     description:
-      "Rule-based screens for Indian stocks across swing, short-term and long-term styles. An educational screener, not investment advice.",
+      "Rule-based screens for Indian stocks across intraday, short-term, swing, positional and long-term styles. An educational screener, not investment advice.",
     start_url: "/home",
     scope: "/",
     display: "standalone",

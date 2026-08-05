@@ -1,5 +1,5 @@
 import type { Candle } from "@/lib/market-data/types";
-import { swingHighs, swingLows } from "@/lib/indicators";
+import { groupBySession, swingHighs, swingLows } from "@/lib/indicators";
 import { round2, type PriceRange, type StrategyCondition } from "./types";
 
 /**
@@ -15,6 +15,32 @@ export function condition(
   required = false,
 ): StrategyCondition {
   return { label, met, detail, weight, required };
+}
+
+/**
+ * Bars from the most recent session, oldest first.
+ *
+ * `minBars` is how much of the session must already have traded for the caller's
+ * logic to mean anything — a VWAP built from two bars, or a "range" measured
+ * before 10 a.m., describes nothing. Returns null rather than a partial session
+ * so the strategy stands down instead of computing on thin air.
+ */
+export function latestSession(intraday: Candle[], minBars = 6): Candle[] | null {
+  if (intraday.length === 0) return null;
+  const sessions = groupBySession(intraday);
+  const current = sessions[sessions.length - 1];
+  return current && current.length >= minBars ? current : null;
+}
+
+export function previousSession(intraday: Candle[]): Candle[] | null {
+  const sessions = groupBySession(intraday);
+  return sessions.length >= 2 ? sessions[sessions.length - 2] : null;
+}
+
+/** Mean volume per bar across a set of intraday bars. */
+export function averageBarVolume(bars: Candle[]): number {
+  if (bars.length === 0) return NaN;
+  return bars.reduce((sum, c) => sum + c.volume, 0) / bars.length;
 }
 
 /** The closest swing-high pivot above `price`, i.e. the next overhead supply. */

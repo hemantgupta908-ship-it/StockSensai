@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  BookOpen,
   FileText,
   Info,
+  LayoutGrid,
+  List,
   LogIn,
   LogOut,
   Moon,
@@ -23,6 +26,9 @@ import { SectionLabel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/ui/page-container";
 import {
+  FEED_VIEW_DESCRIPTIONS,
+  FEED_VIEW_LABELS,
+  FEED_VIEWS,
   RISK_DESCRIPTIONS,
   RISK_LABELS,
   RISK_TOLERANCES,
@@ -37,7 +43,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 export function SettingsView() {
   const router = useRouter();
-  const { riskTolerance, setRiskTolerance } = usePreferences();
+  const { riskTolerance, setRiskTolerance, feedView, setFeedView } = usePreferences();
   const { preference: themePreference, setPreference: setThemePreference } = useTheme();
   const { user, authEnabled, signOut } = useSession();
   const [signingOut, setSigningOut] = useState(false);
@@ -79,6 +85,44 @@ export function SettingsView() {
           This tunes the thresholds every strategy screens against. Conservative surfaces fewer,
           higher-conviction ideas; aggressive surfaces more and earlier. It changes what you see —
           it does not change how risky any individual stock actually is.
+        </ListFooter>
+      </section>
+
+      {/* Strategies */}
+      <section>
+        <SectionLabel>Strategies</SectionLabel>
+        <ListGroup>
+          <ListRow
+            icon={<BookOpen size={17} strokeWidth={2.2} />}
+            title="Strategies & Screen Rules"
+            subtitle="Explore how all 25 screens work, from intraday to long-term"
+            href="/strategies"
+          />
+        </ListGroup>
+      </section>
+
+      {/* Feed layout */}
+      <section>
+        <SectionLabel>Ideas layout</SectionLabel>
+        <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+          <SegmentedControl
+            options={FEED_VIEWS.map((value) => ({ value, label: FEED_VIEW_LABELS[value] }))}
+            value={feedView}
+            onChange={setFeedView}
+          />
+          <div className="mt-3 flex items-start gap-2 text-footnote leading-relaxed text-label-secondary/65">
+            {feedView === "card" ? (
+              <LayoutGrid size={15} strokeWidth={2.2} className="mt-0.5 shrink-0" />
+            ) : (
+              <List size={15} strokeWidth={2.2} className="mt-0.5 shrink-0" />
+            )}
+            {FEED_VIEW_DESCRIPTIONS[feedView]}
+          </div>
+        </div>
+        <ListFooter>
+          Both views show the same screened ideas and the same numbers — only the density
+          changes. Cards draw the stop, buy zone and target to scale so the reward-to-risk shape
+          is visible; the list trades that picture for more ideas on screen at once.
         </ListFooter>
       </section>
 
@@ -159,7 +203,7 @@ export function SettingsView() {
           <ListRow
             icon={<FileText size={17} strokeWidth={2.2} />}
             title="How the strategies work"
-            subtitle="All 15 screens explained"
+            subtitle="All 25 screens explained"
             href="/strategies"
           />
         </ListGroup>

@@ -14,7 +14,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-/** Pre-renders all 15 explainer pages at build time — they are fully static. */
+/** Pre-renders every explainer page at build time — they are fully static. */
 export function generateStaticParams() {
   return ALL_STRATEGIES.map((strategy) => ({ id: strategy.id }));
 }

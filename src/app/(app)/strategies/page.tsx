@@ -18,12 +18,14 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Strategies",
   description:
-    "The 15 rule-based strategies behind StockPilot's screens — five each for swing, short-term and long-term horizons.",
+    "The 25 rule-based strategies behind StockPilot's screens — five each for intraday, short-term, swing, positional and long-term horizons.",
 };
 
 const STYLE_ACCENT: Record<TradingStyle, string> = {
-  swing: "text-blue",
+  intraday: "text-red",
   "short-term": "text-amber",
+  swing: "text-blue",
+  positional: "text-purple",
   "long-term": "text-green",
 };
 
@@ -34,20 +36,22 @@ export default function StrategiesPage() {
         title="Strategies"
         largeTitle
         width="fluid"
-        subtitle="The 15 rules behind every screen"
+        subtitle="The 25 rules behind every screen"
       />
 
       <main className={cn("mx-auto space-y-6 pt-2", CONTAINER_WIDTHS.fluid)}>
         <p className="max-w-3xl text-footnote leading-relaxed text-label-secondary/65">
-          Every recommendation in StockPilot comes from one of these fifteen strategies, applied
+          Every recommendation in StockPilot comes from one of these twenty-five strategies, applied
           mechanically to price and fundamental data. Nothing is discretionary and nothing is
           hand-picked — if a stock doesn&apos;t meet a strategy&apos;s conditions, it doesn&apos;t
           appear. Read these to understand what each screen is actually testing, and just as
           importantly, when it tends to be wrong.
         </p>
 
-        {/* Three style groups side by side once there's room for them. */}
-        <div className="grid gap-6 xl:grid-cols-3 xl:items-start">
+        {/* Style groups side by side once there's room for them. Five columns
+            only at the widest breakpoint — below that they would be too narrow
+            for the strategy names to stay on one line. */}
+        <div className="grid gap-6 xl:grid-cols-2 3xl:grid-cols-3 xl:items-start">
         {TRADING_STYLES.map((style) => {
           const strategies = getStrategiesByStyle(style);
           return (

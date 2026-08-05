@@ -2,7 +2,15 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { RiskTolerance, TradingStyle } from "@/lib/strategies/types";
-import { parseRiskTolerance, RISK_COOKIE, RISK_STORAGE_KEY } from "@/lib/preferences";
+import { TRADING_STYLES } from "@/lib/strategies/types";
+import {
+  FEED_VIEW_STORAGE_KEY,
+  parseFeedView,
+  parseRiskTolerance,
+  RISK_COOKIE,
+  RISK_STORAGE_KEY,
+  type FeedView,
+} from "@/lib/preferences";
 
 const STYLE_STORAGE_KEY = "stockpilot.style";
 
@@ -12,11 +20,18 @@ interface PreferencesValue {
   /** Last trading style the user looked at, so the app reopens where they left. */
   tradingStyle: TradingStyle;
   setTradingStyle: (value: TradingStyle) => void;
+  /** Cards or compact rows in the ideas feed. Display only — see `FeedView`. */
+  feedView: FeedView;
+  setFeedView: (value: FeedView) => void;
   /** False until localStorage has been read, so consumers can avoid flicker. */
   hydrated: boolean;
 }
 
 const PreferencesContext = createContext<PreferencesValue | null>(null);
+
+function isTradingStyle(value: string | null): value is TradingStyle {
+  return value !== null && (TRADING_STYLES as readonly string[]).includes(value);
+}
 
 function writeCookie(name: string, value: string) {
   // One year, site-wide, Lax — this is a UI preference, not a credential.
@@ -32,15 +47,17 @@ export function PreferencesProvider({
 }) {
   const [riskTolerance, setRiskState] = useState<RiskTolerance>(initialRiskTolerance);
   const [tradingStyle, setStyleState] = useState<TradingStyle>("swing");
+  const [feedView, setFeedViewState] = useState<FeedView>("card");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const storedRisk = parseRiskTolerance(localStorage.getItem(RISK_STORAGE_KEY));
-    const storedStyle = localStorage.getItem(STYLE_STORAGE_KEY) as TradingStyle | null;
+    const storedStyle = localStorage.getItem(STYLE_STORAGE_KEY);
     setRiskState(storedRisk);
-    if (storedStyle === "swing" || storedStyle === "short-term" || storedStyle === "long-term") {
-      setStyleState(storedStyle);
-    }
+    // Checked against the live list rather than a hardcoded set, so a style
+    // saved by a newer build is still honoured and a removed one falls back.
+    if (isTradingStyle(storedStyle)) setStyleState(storedStyle);
+    setFeedViewState(parseFeedView(localStorage.getItem(FEED_VIEW_STORAGE_KEY)));
     // Keep the cookie in step in case storage was changed in another tab.
     writeCookie(RISK_COOKIE, storedRisk);
     setHydrated(true);
@@ -57,17 +74,39 @@ export function PreferencesProvider({
     localStorage.setItem(STYLE_STORAGE_KEY, value);
   }, []);
 
+  const setFeedView = useCallback((value: FeedView) => {
+    setFeedViewState(value);
+    localStorage.setItem(FEED_VIEW_STORAGE_KEY, value);
+  }, []);
+
   return (
     <PreferencesContext.Provider
-      value={{ riskTolerance, setRiskTolerance, tradingStyle, setTradingStyle, hydrated }}
+      value={{
+        riskTolerance,
+        setRiskTolerance,
+        tradingStyle,
+        setTradingStyle,
+        feedView,
+        setFeedView,
+        hydrated,
+      }}
     >
       {children}
     </PreferencesContext.Provider>
   );
 }
 
+const DEFAULT_PREFERENCES: PreferencesValue = {
+  riskTolerance: "moderate",
+  setRiskTolerance: () => {},
+  tradingStyle: "swing",
+  setTradingStyle: () => {},
+  feedView: "card",
+  setFeedView: () => {},
+  hydrated: true,
+};
+
 export function usePreferences(): PreferencesValue {
   const context = useContext(PreferencesContext);
-  if (!context) throw new Error("usePreferences must be used inside PreferencesProvider");
-  return context;
+  return context ?? DEFAULT_PREFERENCES;
 }

@@ -53,9 +53,10 @@ export function WatchlistButton({
     >
       <motion.span
         key={saved ? "on" : "off"}
-        initial={{ scale: 0.7 }}
+        initial={{ scale: 0.8 }}
         animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 18 }}
+        whileHover={{ scale: 1.12 }}
+        transition={{ type: "spring", stiffness: 500, damping: 20 }}
         className="flex"
       >
         <Star size={iconSize} strokeWidth={2.3} fill={saved ? "currentColor" : "none"} />

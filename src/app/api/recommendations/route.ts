@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getCachedFeed } from "@/lib/engine/cache";
+import { TRADING_STYLES } from "@/lib/strategies/types";
 
 export const dynamic = "force-dynamic";
 /**
@@ -11,7 +12,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const querySchema = z.object({
-  style: z.enum(["swing", "short-term", "long-term"]).default("swing"),
+  // Derived from TRADING_STYLES so a style the engine knows about can never be
+  // rejected at the edge.
+  style: z.enum(TRADING_STYLES).default("swing"),
   tolerance: z.enum(["conservative", "moderate", "aggressive"]).default("moderate"),
   /** Set by pull-to-refresh to bypass the in-process cache. */
   refresh: z.enum(["0", "1"]).default("0"),

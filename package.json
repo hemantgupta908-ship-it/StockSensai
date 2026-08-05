@@ -9,6 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/smoke-strategies.ts",
+    "check:budget": "tsx scripts/check-budget-period.ts",
+    "check:symbols": "tsx scripts/check-symbols.ts",
     "smoke:yahoo": "tsx --tsconfig scripts/tsconfig.json scripts/smoke-yahoo.ts",
     "debug:scenarios": "tsx scripts/debug-scenarios.ts"
   },

@@ -6,15 +6,21 @@ import { AlertCircle, FlaskConical, Loader2, Radio } from "lucide-react";
 
 import type { RecommendationFeed as FeedPayload } from "@/lib/engine/types";
 import type { TradingStyle } from "@/lib/strategies/types";
-import { TRADING_STYLE_DESCRIPTIONS } from "@/lib/strategies/types";
+import {
+  TRADING_STYLES,
+  TRADING_STYLE_CAPTIONS,
+  TRADING_STYLE_DESCRIPTIONS,
+  TRADING_STYLE_LABELS,
+} from "@/lib/strategies/types";
 import { usePreferences } from "@/components/preferences-provider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { RecommendationCardSkeleton } from "@/components/ui/skeleton";
+import { RecommendationCardSkeleton, RecommendationRowSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/utils";
 import { PageContainer } from "@/components/ui/page-container";
 import { RecommendationCard } from "./recommendation-card";
+import { RecommendationRow } from "./recommendation-row";
 import { RefreshButton } from "@/components/ui/refresh-button";
 
 /**
@@ -25,14 +31,19 @@ import { RefreshButton } from "@/components/ui/refresh-button";
 const FEED_GRID =
   "grid gap-3 md:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 items-start";
 
-const STYLE_OPTIONS: { value: TradingStyle; label: string; caption: string }[] = [
-  { value: "swing", label: "Swing", caption: "Days–weeks" },
-  { value: "short-term", label: "Short-Term", caption: "1–3 days" },
-  { value: "long-term", label: "Long-Term", caption: "1–5 years" },
-];
+/** List view is a single column at any width — the columns inside each row do
+ *  the aligning, and a second column would break the scan down them. */
+const FEED_LIST = "flex flex-col gap-2";
+
+const STYLE_OPTIONS: { value: TradingStyle; label: string; caption: string }[] =
+  TRADING_STYLES.map((value) => ({
+    value,
+    label: TRADING_STYLE_LABELS[value],
+    caption: TRADING_STYLE_CAPTIONS[value],
+  }));
 
 export function RecommendationFeed() {
-  const { riskTolerance, tradingStyle, setTradingStyle, hydrated } = usePreferences();
+  const { riskTolerance, tradingStyle, setTradingStyle, feedView, hydrated } = usePreferences();
   const [feed, setFeed] = useState<FeedPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +85,13 @@ export function RecommendationFeed() {
         const response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
         const data = (await response.json()) as FeedPayload;
+        if (!data || !Array.isArray(data.recommendations)) {
+          throw new Error(
+            typeof (data as any)?.error === "string"
+              ? (data as any).error
+              : "Invalid data received from recommendation engine",
+          );
+        }
         clientFeedCache.current[cacheKey] = data;
         try {
           localStorage.setItem("stocksensei.feed_cache", JSON.stringify(clientFeedCache.current));
@@ -107,13 +125,15 @@ export function RecommendationFeed() {
     <div>
       <PageContainer>
         {/* The switcher shouldn't stretch to full width on a desktop — a
-            segmented control several hundred pixels wide stops reading as one. */}
-        <div className="lg:max-w-md">
+            segmented control several hundred pixels wide stops reading as one.
+            Five styles need more room than three did, but not the whole width. */}
+        <div className="lg:max-w-3xl">
           <SegmentedControl
             options={STYLE_OPTIONS}
             value={tradingStyle}
             onChange={setTradingStyle}
             size="lg"
+            scrollable
           />
         </div>
         <p className="mt-2.5 px-1 text-footnote leading-snug text-label-secondary/60">
@@ -139,11 +159,10 @@ export function RecommendationFeed() {
                 </div>
               </div>
 
-              <div className={FEED_GRID}>
-                <RecommendationCardSkeleton />
-                <RecommendationCardSkeleton />
-                <RecommendationCardSkeleton />
-                <RecommendationCardSkeleton />
+              <div className={feedView === "list" ? FEED_LIST : FEED_GRID}>
+                {feedView === "list"
+                  ? Array.from({ length: 6 }, (_, i) => <RecommendationRowSkeleton key={i} />)
+                  : Array.from({ length: 4 }, (_, i) => <RecommendationCardSkeleton key={i} />)}
               </div>
             </div>
           )}
@@ -174,22 +193,33 @@ export function RecommendationFeed() {
           */}
           {!error && feed && (
             <motion.div
-              key={feed.style}
+              // Keyed on the view too, so switching layout remounts rather than
+              // trying to reconcile cards into rows — the same reasoning as the
+              // style key above.
+              key={`${feed.style}:${feedView}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: loading ? 0.55 : 1, y: 0 }}
               transition={{ duration: 0.18 }}
-              className={FEED_GRID}
+              className={feedView === "list" ? FEED_LIST : FEED_GRID}
             >
-              {feed.recommendations.map((recommendation, index) => (
-                <RecommendationCard
-                  key={recommendation.id}
-                  recommendation={recommendation}
-                  index={index}
-                />
-              ))}
+              {feed.recommendations.map((recommendation, index) =>
+                feedView === "list" ? (
+                  <RecommendationRow
+                    key={recommendation.id}
+                    recommendation={recommendation}
+                    index={index}
+                  />
+                ) : (
+                  <RecommendationCard
+                    key={recommendation.id}
+                    recommendation={recommendation}
+                    index={index}
+                  />
+                ),
+              )}
 
               {feed.recommendations.length === 0 && (
-                <div className="md:col-span-2 2xl:col-span-3 3xl:col-span-4">
+                <div className={feedView === "list" ? "" : "md:col-span-2 2xl:col-span-3 3xl:col-span-4"}>
                   <EmptyState style={feed.style} />
                 </div>
               )}
@@ -260,12 +290,14 @@ function EmptyState({ style }: { style: TradingStyle }) {
     >
       <p className="text-subhead font-semibold text-label">No setups right now</p>
       <p className="mx-auto mt-2 max-w-sm text-footnote leading-relaxed text-label-secondary/60">
-        None of the five {style === "long-term" ? "long-term" : style.replace("-", " ")} strategies
-        found a stock meeting their conditions at your current risk tolerance. That is a normal
-        outcome — a screen that always returns something isn&apos;t screening.
+        None of the five {TRADING_STYLE_LABELS[style].toLowerCase()} strategies found a stock
+        meeting their conditions at your current risk tolerance. That is a normal outcome — a
+        screen that always returns something isn&apos;t screening.
       </p>
       <p className="mt-3 text-caption text-label-secondary/50">
-        Try a different trading style, or loosen the thresholds in Settings.
+        {style === "intraday"
+          ? "Intraday screens need five-minute bars from a live session — outside market hours they will usually be quiet. Try another style, or loosen the thresholds in Settings."
+          : "Try a different trading style, or loosen the thresholds in Settings."}
       </p>
     </motion.div>
   );

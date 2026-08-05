@@ -253,8 +253,17 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const DEFAULT_PORTFOLIO: PortfolioValue = {
+  entries: [],
+  loading: false,
+  add: async () => {},
+  update: async () => {},
+  close: async () => {},
+  remove: async () => {},
+  isLocal: true,
+};
+
 export function usePortfolio(): PortfolioValue {
   const context = useContext(PortfolioContext);
-  if (!context) throw new Error("usePortfolio must be used inside PortfolioProvider");
-  return context;
+  return context ?? DEFAULT_PORTFOLIO;
 }

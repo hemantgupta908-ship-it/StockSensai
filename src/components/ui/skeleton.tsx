@@ -34,3 +34,22 @@ export function RecommendationCardSkeleton() {
     </div>
   );
 }
+
+/** Placeholder matching the compact list row's silhouette. */
+export function RecommendationRowSkeleton() {
+  return (
+    <div className="animate-pulse rounded-[14px] border border-separator/40 bg-bg-secondary px-3.5 py-3 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-[38px] w-[38px] shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-2.5 w-36" />
+        </div>
+        <Skeleton className="hidden h-5 w-40 rounded-full lg:block" />
+        <Skeleton className="hidden h-4 w-20 lg:block" />
+        <Skeleton className="hidden h-6 w-56 lg:block" />
+        <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+      </div>
+    </div>
+  );
+}

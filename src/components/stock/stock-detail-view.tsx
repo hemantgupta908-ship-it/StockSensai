@@ -232,8 +232,12 @@ export function StockDetailView({
         <div className="rounded-card border border-separator/40 bg-bg-secondary px-6 py-10 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
           <p className="text-subhead font-semibold text-label">No setups firing</p>
           <p className="mx-auto mt-2 max-w-sm text-footnote leading-relaxed text-label-secondary/60">
-            None of the 15 strategies currently find a qualifying setup in {instrument.ticker} at
-            your risk tolerance. The chart and fundamentals below are still available.
+            {/* Deliberately not "none of the N strategies": this is a client
+                component, and importing the strategy list to count it would
+                pull all of them, explainer prose included, into the bundle for
+                one number that then goes stale anyway. */}
+            No strategy currently finds a qualifying setup in {instrument.ticker} at your risk
+            tolerance. The chart and fundamentals below are still available.
           </p>
         </div>
       )}

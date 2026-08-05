@@ -12,6 +12,7 @@ import type {
 import { isNseCashMarketOpen } from "./mock-provider";
 import { createLimiter, createRateLimiter, withRetry } from "./rate-limit";
 import { SECTOR_STATS, SEED_BY_TICKER, SEED_INSTRUMENTS } from "./seed/instruments";
+import { toYahooSymbol } from "./yahoo-symbols";
 
 /**
  * Yahoo Finance provider — real NSE/BSE prices and fundamentals, no account.
@@ -197,24 +198,8 @@ function toSessionDate(epochSeconds: number): number {
   );
 }
 
-/**
- * Provider-specific symbol fixes.
- *
- * Corporate actions rename tickers and Yahoo follows its own timeline. Keeping
- * the map here rather than editing the curated universe means the demo data
- * keeps its familiar names while live lookups still resolve.
- *
- * - TATAMOTORS: the group demerged, and Yahoo now lists the passenger-vehicle
- *   entity as TMPV. The old symbol returns "may be delisted".
- */
-const SYMBOL_OVERRIDES: Record<string, string> = {
-  TATAMOTORS: "TMPV.NS",
-};
-
-/** NSE trades in `.NS`, BSE in `.BO`. */
-function toYahooSymbol(ticker: string, exchange: string): string {
-  return SYMBOL_OVERRIDES[ticker] ?? `${ticker}${exchange === "BSE" ? ".BO" : ".NS"}`;
-}
+/* Symbol mapping lives in `./yahoo-symbols` so the validation script — which
+   cannot import this `server-only` module — checks the same table. */
 
 // ------------------------------------------------------------------ provider
 

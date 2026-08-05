@@ -146,6 +146,30 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .pulse-glow-green {
+    animation: pulseGlowGreen 2.2s infinite ease-in-out;
+  }
+  .pulse-glow-blue {
+    animation: pulseGlowBlue 2.2s infinite ease-in-out;
+  }
+}
+
+@keyframes pulseGlowGreen {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(48, 209, 88, 0);
+  }
+}
+
+@keyframes pulseGlowBlue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(10, 132, 255, 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -157,3 +181,4 @@
     transition-duration: 0.01ms !important;
   }
 }
+

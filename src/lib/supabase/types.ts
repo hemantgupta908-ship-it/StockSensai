@@ -79,6 +79,24 @@ export type CachedRecommendationRow = {
   generated_at: string;
 };
 
+/**
+ * The budget environment's remote mirror.
+ *
+ * Stored as one JSON document per user rather than as normalised tables: the
+ * ported Cashew schema is nine interlinked tables with its own delete-log
+ * consistency model, and the source of truth is the local store. A document
+ * keeps the two in sync in one round trip and lets the local side stay
+ * authoritative, which is what the app's offline-first constraint requires.
+ */
+export type BudgetStoreRow = {
+  user_id: string;
+  /** A serialised `BudgetDatabase` from `src/lib/budget/types.ts`. */
+  payload: unknown;
+  /** A serialised `BudgetSettings` from `src/lib/budget/defaults.ts`. */
+  settings: unknown;
+  updated_at: string;
+};
+
 type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
 
 export type Database = {
@@ -123,6 +141,12 @@ export type Database = {
         Row: CachedRecommendationRow;
         Insert: Insert<CachedRecommendationRow, "id">;
         Update: Partial<CachedRecommendationRow>;
+        Relationships: [];
+      };
+      budget_store: {
+        Row: BudgetStoreRow;
+        Insert: Insert<BudgetStoreRow, "updated_at">;
+        Update: Partial<BudgetStoreRow>;
         Relationships: [];
       };
     };

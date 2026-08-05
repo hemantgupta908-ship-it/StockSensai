@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { RiskTolerance, TradingStyle } from "@/lib/strategies/types";
+import { TRADING_STYLES, type RiskTolerance, type TradingStyle } from "@/lib/strategies/types";
 import { generateFeed } from "./recommend";
 import type { RecommendationFeed } from "./types";
 
@@ -56,17 +56,39 @@ export async function getCachedFeed(
 
   inFlight.set(cacheKey, promise);
 
-  // Background pre-warm sibling styles safely without circular recursion
+  // Background pre-warm of the *adjacent* styles, without circular recursion.
+  //
+  // Deliberately not every other style. `getUniverseBundles` is not memoised, so
+  // each screen re-fetches history for the whole universe; warming all four
+  // siblings puts five universe fetches through a rate-limited provider at once
+  // and starves the request the user is actually waiting on — measured at 68
+  // seconds for a tab switch during a cold start. Two neighbours is the same
+  // cost this had when there were three styles, and they are the tabs a tap on
+  // the switcher can reach.
+  //
+  // Sequenced rather than fired together for the same reason: one extra
+  // universe fetch in flight at a time, never two.
   if (!options.force && !options.isPrewarm) {
-    const styles: TradingStyle[] = ["swing", "short-term", "long-term"];
-    for (const s of styles) {
-      if (s !== style) {
-        const sibKey = key(s, tolerance);
-        if (!cache.has(sibKey) && !inFlight.has(sibKey)) {
-          void getCachedFeed(s, tolerance, { isPrewarm: true });
-        }
-      }
-    }
+    const index = TRADING_STYLES.indexOf(style);
+    const neighbours = [TRADING_STYLES[index - 1], TRADING_STYLES[index + 1]].filter(
+      (s): s is TradingStyle => s !== undefined,
+    );
+
+    void promise
+      .then(() =>
+        neighbours.reduce(
+          (chain, sibling) =>
+            chain.then(async () => {
+              const sibKey = key(sibling, tolerance);
+              if (cache.has(sibKey) || inFlight.has(sibKey)) return;
+              await getCachedFeed(sibling, tolerance, { isPrewarm: true });
+            }),
+          Promise.resolve(),
+        ),
+      )
+      .catch((error) => {
+        console.error("[engine] pre-warm failed:", error);
+      });
   }
 
   return promise;

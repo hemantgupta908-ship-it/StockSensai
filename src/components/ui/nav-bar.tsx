@@ -9,10 +9,15 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { CONTAINER_WIDTHS, type ContainerWidth } from "./page-container";
 import { StockSearchModal } from "@/components/stock/stock-search-modal";
+import { EnvironmentSwitcherCompact } from "./environment-switcher";
 import { MobileSidebar } from "./mobile-sidebar";
 
 interface NavBarProps {
-  title: string;
+  /**
+   * Omit on pages whose content already announces itself — the bar then keeps
+   * its controls without repeating a heading the user does not need.
+   */
+  title?: string;
   /** iOS large title that shrinks into the bar as the page scrolls. */
   largeTitle?: boolean;
   showBack?: boolean;
@@ -91,16 +96,18 @@ export function NavBar({
           )}
 
           <div className="flex flex-1 justify-center overflow-hidden px-2">
-            <motion.h1
-              animate={{
-                opacity: largeTitle ? (scrolled ? 1 : 0) : 1,
-                y: largeTitle ? (scrolled ? 0 : 6) : 0,
-              }}
-              transition={{ duration: 0.2 }}
-              className="truncate text-headline font-semibold text-label"
-            >
-              {title}
-            </motion.h1>
+            {title ? (
+              <motion.h1
+                animate={{
+                  opacity: largeTitle ? (scrolled ? 1 : 0) : 1,
+                  y: largeTitle ? (scrolled ? 0 : 6) : 0,
+                }}
+                transition={{ duration: 0.2 }}
+                className="truncate text-headline font-semibold text-label"
+              >
+                {title}
+              </motion.h1>
+            ) : null}
           </div>
 
           <div className="flex min-w-[44px] items-center justify-end gap-1.5">
@@ -113,6 +120,10 @@ export function NavBar({
               <span className="hidden sm:inline">Evaluate Stock</span>
               <kbd className="hidden font-mono text-[10px] opacity-60 md:inline">⌘K</kbd>
             </button>
+            {/* Below `lg` there is no sidebar, so the crossing point lives here. */}
+            <span className="lg:hidden">
+              <EnvironmentSwitcherCompact active="stocks" />
+            </span>
             {trailing}
             <ThemeToggle />
           </div>
@@ -130,7 +141,7 @@ export function NavBar({
       {/* Occupies the fixed bar's height in normal flow. */}
       <div className="h-[44px] safe-top" aria-hidden />
 
-      {largeTitle && (
+      {largeTitle && title && (
         <div className={cn("mx-auto pb-4 pt-1 lg:pt-3", containerWidth)}>
           <h1 className="text-largetitle font-bold tracking-tight text-label lg:text-[40px] lg:leading-[46px]">
             {title}

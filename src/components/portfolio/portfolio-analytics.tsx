@@ -3,11 +3,29 @@
 import { motion } from "framer-motion";
 import { Award, BarChart3, TrendingDown, TrendingUp, PieChart } from "lucide-react";
 import type { PortfolioEntry } from "./portfolio-provider";
+import {
+  TRADING_STYLES,
+  TRADING_STYLE_LABELS,
+  type TradingStyle,
+} from "@/lib/strategies/types";
 import { formatINR } from "@/lib/utils";
 
 interface PortfolioAnalyticsProps {
   entries: PortfolioEntry[];
   quotes: Record<string, { price: number }>;
+}
+
+/** Matches the accent each style is given on the Strategies screen. */
+const STYLE_BAR_COLOUR: Record<TradingStyle, string> = {
+  intraday: "bg-red",
+  "short-term": "bg-amber",
+  swing: "bg-blue",
+  positional: "bg-purple",
+  "long-term": "bg-green",
+};
+
+function isTradingStyle(value: string | null | undefined): value is TradingStyle {
+  return value != null && (TRADING_STYLES as readonly string[]).includes(value);
 }
 
 export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps) {
@@ -42,18 +60,25 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
       ? sortedTrades[sortedTrades.length - 1]
       : null;
 
-  // Trading style allocation (open positions value)
+  // Trading style allocation (open positions value). Positions logged before a
+  // style existed, or against one since removed, fall back to swing rather than
+  // creating a phantom bucket that no legend explains.
   const styleAllocation = openEntries.reduce(
     (acc, e) => {
       const price = quotes[e.ticker]?.price ?? e.entryPrice;
       const val = price * e.quantity;
-      const style = (e.tradingStyle ?? "swing") as "swing" | "short-term" | "long-term";
-      acc[style] = (acc[style] || 0) + val;
+      const style: TradingStyle = isTradingStyle(e.tradingStyle) ? e.tradingStyle : "swing";
+      acc.byStyle[style] += val;
       acc.total += val;
       return acc;
     },
-    { swing: 0, "short-term": 0, "long-term": 0, total: 0 },
+    {
+      byStyle: Object.fromEntries(TRADING_STYLES.map((s) => [s, 0])) as Record<TradingStyle, number>,
+      total: 0,
+    },
   );
+
+  const usedStyles = TRADING_STYLES.filter((s) => styleAllocation.byStyle[s] > 0);
 
   return (
     <motion.div
@@ -106,42 +131,29 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
           </div>
 
           <div className="mt-2.5 flex h-2 w-full overflow-hidden rounded-full bg-separator/30 dark:bg-white/[0.08]">
-            {styleAllocation.swing > 0 && (
-              <div
-                className="bg-blue transition-all"
-                style={{ width: `${(styleAllocation.swing / styleAllocation.total) * 100}%` }}
-                title={`Swing: ${Math.round((styleAllocation.swing / styleAllocation.total) * 100)}%`}
-              />
-            )}
-            {styleAllocation["short-term"] > 0 && (
-              <div
-                className="bg-amber transition-all"
-                style={{ width: `${(styleAllocation["short-term"] / styleAllocation.total) * 100}%` }}
-                title={`Short-term: ${Math.round((styleAllocation["short-term"] / styleAllocation.total) * 100)}%`}
-              />
-            )}
-            {styleAllocation["long-term"] > 0 && (
-              <div
-                className="bg-green transition-all"
-                style={{ width: `${(styleAllocation["long-term"] / styleAllocation.total) * 100}%` }}
-                title={`Long-term: ${Math.round((styleAllocation["long-term"] / styleAllocation.total) * 100)}%`}
-              />
-            )}
+            {usedStyles.map((style) => {
+              const share = (styleAllocation.byStyle[style] / styleAllocation.total) * 100;
+              return (
+                <div
+                  key={style}
+                  className={`${STYLE_BAR_COLOUR[style]} transition-all`}
+                  style={{ width: `${share}%` }}
+                  title={`${TRADING_STYLE_LABELS[style]}: ${Math.round(share)}%`}
+                />
+              );
+            })}
           </div>
 
-          <div className="mt-2.5 flex flex-wrap gap-4 text-caption2 text-label-secondary/70">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-blue" />
-              Swing ({Math.round((styleAllocation.swing / styleAllocation.total) * 100 || 0)}%)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber" />
-              Short-term ({Math.round((styleAllocation["short-term"] / styleAllocation.total) * 100 || 0)}%)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-green" />
-              Long-term ({Math.round((styleAllocation["long-term"] / styleAllocation.total) * 100 || 0)}%)
-            </span>
+          {/* Only styles actually held get a legend entry — five zero-percent
+              rows would push the real numbers off a phone screen. */}
+          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-caption2 text-label-secondary/70">
+            {usedStyles.map((style) => (
+              <span key={style} className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${STYLE_BAR_COLOUR[style]}`} />
+                {TRADING_STYLE_LABELS[style]} (
+                {Math.round((styleAllocation.byStyle[style] / styleAllocation.total) * 100)}%)
+              </span>
+            ))}
           </div>
         </div>
       )}

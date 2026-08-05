@@ -30,3 +30,30 @@ export function parseRiskTolerance(value: string | undefined | null): RiskTolera
     ? value
     : "moderate";
 }
+
+/**
+ * How the ideas feed is laid out.
+ *
+ * Purely a client-side display preference — unlike risk tolerance it does not
+ * change what the engine screens, so it stays in localStorage and never needs a
+ * cookie or a server round-trip.
+ */
+export type FeedView = "card" | "list";
+
+export const FEED_VIEW_STORAGE_KEY = "stocksensei.feed_view";
+
+export const FEED_VIEWS: readonly FeedView[] = ["card", "list"] as const;
+
+export const FEED_VIEW_LABELS: Record<FeedView, string> = {
+  card: "Cards",
+  list: "List",
+};
+
+export const FEED_VIEW_DESCRIPTIONS: Record<FeedView, string> = {
+  card: "Full cards with the price ladder drawn to scale. Best for reading a few ideas closely.",
+  list: "One compact row per idea, with the same numbers in aligned columns. Best for scanning many at once.",
+};
+
+export function parseFeedView(value: string | undefined | null): FeedView {
+  return value === "list" || value === "card" ? value : "card";
+}

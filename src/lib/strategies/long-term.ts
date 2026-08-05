@@ -2,12 +2,14 @@ import type { Fundamentals } from "@/lib/market-data/types";
 import { closes, ema, highestHigh, last, lowestLow, percentChange, rsi } from "@/lib/indicators";
 import { condition, money, ratio, sanitiseBand, targetBand } from "./helpers";
 import {
+  bandsAreOrdered,
   minRewardRiskFor,
   requiredConditionsMet,
   rewardToRisk,
   riskFromStopDistance,
   round2,
   scoreConditions,
+  stopClearOfEntry,
   type Strategy,
   type StrategyCondition,
   type StrategySignal,
@@ -48,7 +50,14 @@ function risingYears(series: number[]): number {
   return series.reduce((count, v, i) => (i > 0 && v > series[i - 1] ? count + 1 : count), 0);
 }
 
-/** Long-horizon accumulation band: wide by design, centred just under spot. */
+/**
+ * Long-horizon accumulation band: wide by design, centred just under spot.
+ *
+ * At roughly 8.5% wide this is far wider than any trading band here, which is
+ * correct for a position built over weeks — but it means a stop derived from a
+ * level near spot can easily fall *inside* it. Every stop in this file is
+ * therefore passed through `stopClearOfEntry` before it is published.
+ */
 function accumulationBand(price: number) {
   return sanitiseBand({ low: round2(price * 0.94), high: round2(price * 1.02) });
 }
@@ -177,9 +186,18 @@ const valueInvesting: Strategy = {
     const fairValue = f.earningsPerShare * reratedPe;
     const entry = accumulationBand(price);
     const target = sanitiseBand(targetBand(fairValue, 8));
-    // Thesis invalidation, not a trading stop — but not unbounded either.
-    const stopLoss = round2(Math.max(price * 0.82, lowestLow(daily, 250) * 0.97));
+    // Thesis invalidation, not a trading stop — but not unbounded either. The
+    // yearly-low anchor ties it to real structure rather than a round
+    // percentage, and it wins the max whenever that low sits near spot — which
+    // is also exactly when it lands inside the accumulation band, so it gets
+    // pulled clear of the band's floor before the reward-to-risk gate sees it.
+    const stopLoss = stopClearOfEntry(
+      entry,
+      Math.max(price * 0.82, lowestLow(daily, 250) * 0.97),
+      "bullish",
+    );
 
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     if (rewardToRisk(entry, target, stopLoss, "bullish") < minRewardRiskFor(thresholds, "long-term"))
       return null;
 
@@ -333,8 +351,9 @@ const growthInvesting: Strategy = {
 
     const entry = accumulationBand(price);
     const target = sanitiseBand(targetBand(fairValue, 9));
-    const stopLoss = round2(price * 0.78);
+    const stopLoss = stopClearOfEntry(entry, price * 0.78, "bullish");
 
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     if (rewardToRisk(entry, target, stopLoss, "bullish") < minRewardRiskFor(thresholds, "long-term"))
       return null;
 
@@ -475,8 +494,9 @@ const dividendGrowth: Strategy = {
     const fairValue = price * growthFactor;
     const entry = accumulationBand(price);
     const target = sanitiseBand(targetBand(fairValue, 8));
-    const stopLoss = round2(price * 0.8);
+    const stopLoss = stopClearOfEntry(entry, price * 0.8, "bullish");
 
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     if (rewardToRisk(entry, target, stopLoss, "bullish") < minRewardRiskFor(thresholds, "long-term"))
       return null;
 
@@ -637,8 +657,9 @@ const thematicGrowth: Strategy = {
     const fairValue = price * projectedGrowth;
     const entry = accumulationBand(price);
     const target = sanitiseBand(targetBand(fairValue, 10));
-    const stopLoss = round2(price * 0.72);
+    const stopLoss = stopClearOfEntry(entry, price * 0.72, "bullish");
 
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     if (rewardToRisk(entry, target, stopLoss, "bullish") < minRewardRiskFor(thresholds, "long-term"))
       return null;
 
@@ -777,8 +798,13 @@ const qualityMomentum: Strategy = {
 
     const entry = accumulationBand(price);
     const target = sanitiseBand(targetBand(fairValue, 8));
-    const stopLoss = round2(Math.max(price * 0.8, ema200Now * 0.92));
+    // The 200 EMA anchor only stays below the accumulation band because price
+    // being above the 200 EMA is a required condition above. That is an
+    // accidental guarantee — it would break the moment that gate were relaxed
+    // — so the clearance is enforced here rather than relied upon.
+    const stopLoss = stopClearOfEntry(entry, Math.max(price * 0.8, ema200Now * 0.92), "bullish");
 
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     if (rewardToRisk(entry, target, stopLoss, "bullish") < minRewardRiskFor(thresholds, "long-term"))
       return null;
 

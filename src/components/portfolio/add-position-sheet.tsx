@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  TRADING_STYLES,
+  TRADING_STYLE_CAPTIONS,
+  TRADING_STYLE_LABELS,
+} from "@/lib/strategies/types";
 import { formatINR } from "@/lib/utils";
 import { usePortfolio } from "./portfolio-provider";
 
@@ -150,9 +155,11 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
               onChange={(e) => setTradingStyle(e.target.value)}
               className={inputClass}
             >
-              <option value="swing">Swing (Days–Weeks)</option>
-              <option value="short-term">Short-Term (1–3 Days)</option>
-              <option value="long-term">Long-Term (1–5 Years)</option>
+              {TRADING_STYLES.map((style) => (
+                <option key={style} value={style}>
+                  {TRADING_STYLE_LABELS[style]} ({TRADING_STYLE_CAPTIONS[style]})
+                </option>
+              ))}
             </select>
           </Field>
         </div>
