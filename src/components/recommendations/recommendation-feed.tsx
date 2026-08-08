@@ -133,7 +133,7 @@ export function RecommendationFeed() {
             value={tradingStyle}
             onChange={setTradingStyle}
             size="lg"
-            scrollable
+            fit
           />
         </div>
         <p className="mt-2.5 px-1 text-footnote leading-snug text-label-secondary/60">

@@ -148,7 +148,7 @@ export function RecommendationRow({
             >
               <Info size={14} strokeWidth={2.2} />
             </button>
-            <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" />
+            <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" currentPrice={r.price} />
             <ChevronRight
               size={16}
               strokeWidth={2.4}

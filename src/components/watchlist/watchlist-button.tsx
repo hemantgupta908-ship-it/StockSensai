@@ -12,6 +12,7 @@ export function WatchlistButton({
   exchange,
   size = "md",
   withLabel = false,
+  currentPrice,
   className,
 }: {
   ticker: string;
@@ -19,6 +20,7 @@ export function WatchlistButton({
   exchange: string;
   size?: "sm" | "md";
   withLabel?: boolean;
+  currentPrice?: number;
   className?: string;
 }) {
   const { has, toggle } = useWatchlist();
@@ -33,7 +35,7 @@ export function WatchlistButton({
         // These buttons sit inside link cards; a tap must not navigate.
         event.preventDefault();
         event.stopPropagation();
-        void toggle({ ticker, name, exchange });
+        void toggle({ ticker, name, exchange, priceAtAddition: currentPrice });
       }}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${ticker} from watchlist` : `Add ${ticker} to watchlist`}

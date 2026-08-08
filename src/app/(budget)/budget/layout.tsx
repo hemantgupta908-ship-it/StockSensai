@@ -2,7 +2,7 @@ import { SessionProvider } from "@/components/auth/session-provider";
 import { BudgetProvider } from "@/components/budget/budget-provider";
 import { BudgetTabBar, BudgetTabBarSpacer, BudgetSidebar } from "@/components/budget/budget-nav";
 import { BudgetThemeScope } from "@/components/budget/budget-theme-scope";
-import { getCurrentUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
 
 /**
  * The budget environment's shell.
@@ -12,7 +12,7 @@ import { getCurrentUser } from "@/lib/supabase/server";
  * providers, navigation and theming and never renders the stock chrome.
  */
 export default async function BudgetLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
+  const user = await requireUser();
 
   return (
     <SessionProvider initialUser={user}>

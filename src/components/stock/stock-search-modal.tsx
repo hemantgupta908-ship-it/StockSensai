@@ -132,7 +132,7 @@ export function StockSearchModal({
 
   return (
     <Sheet open={isOpen} onClose={onClose}>
-      <div className="w-full overflow-hidden rounded-2xl border border-separator/60 bg-bg-primary shadow-modal dark:border-white/10 dark:shadow-2xl">
+      <div className="w-full overflow-hidden rounded-2xl border border-separator/60 bg-bg-elevated shadow-modal dark:border-white/10 dark:shadow-2xl">
         {/* Header Search Input */}
         <div className="relative flex items-center border-b border-separator/40 px-4 py-3 dark:border-white/[0.08]">
           <Search size={19} className="text-label-secondary shrink-0" />
@@ -182,7 +182,7 @@ export function StockSearchModal({
               onClick={() => setSelectedSector(sec)}
               className={`shrink-0 rounded-lg px-2.5 py-1 text-caption2 font-medium transition-colors ${
                 selectedSector === sec
-                  ? "bg-label text-bg-primary font-semibold"
+                  ? "bg-label text-bg-elevated font-semibold"
                   : "text-label-secondary/70 hover:bg-fill/[0.10] hover:text-label"
               }`}
             >

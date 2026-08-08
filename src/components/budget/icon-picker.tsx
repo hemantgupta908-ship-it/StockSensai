@@ -8,7 +8,7 @@
  * which one the close button dismisses.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -173,11 +173,46 @@ export function ColourPicker({
   onChange: (colour: string) => void;
   label?: string;
 }) {
+  const [savedColours, setSavedColours] = useState<string[]>([]);
+  
+  // Load saved colours on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("budget_custom_colours");
+      if (stored) {
+        setSavedColours(JSON.parse(stored));
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleSaveColour = () => {
+    if (!value || savedColours.includes(value)) return;
+    const nextSaved = [value, ...savedColours].slice(0, 10); // Keep max 10
+    setSavedColours(nextSaved);
+    localStorage.setItem("budget_custom_colours", JSON.stringify(nextSaved));
+  };
+
+  // Give fewer default options (e.g. first 15) to make room for custom picker
+  const presetColours = CATEGORY_COLOURS.slice(0, 15);
+  const isCustomActive = value && !presetColours.includes(value) && !savedColours.includes(value);
+
   return (
     <div className="mb-3">
-      <span className="mb-1.5 block text-footnote font-medium text-label-secondary">{label}</span>
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-footnote font-medium text-label-secondary">{label}</span>
+        {isCustomActive ? (
+          <button
+            type="button"
+            onClick={handleSaveColour}
+            className="text-caption2 font-semibold text-blue hover:underline"
+          >
+            Save colour
+          </button>
+        ) : null}
+      </div>
+      
       <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
-        {CATEGORY_COLOURS.map((c) => (
+        {presetColours.map((c) => (
           <button
             key={c}
             type="button"
@@ -186,10 +221,48 @@ export function ColourPicker({
             className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90"
             style={{ backgroundColor: c }}
           >
-            {value === c ? <Check size={15} className="text-white" strokeWidth={3} /> : null}
+            {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" strokeWidth={3} /> : null}
           </button>
         ))}
+
+        {/* Custom Color Picker Input */}
+        <label 
+          className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90 shadow-sm ring-1 ring-black/10 dark:ring-white/10"
+          style={{
+            background: 'conic-gradient(from 180deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000)'
+          }}
+          title="Pick a custom colour"
+        >
+          <input 
+            type="color"
+            value={value && value.startsWith('#') ? value : "#007AFF"}
+            onChange={(e) => onChange(e.target.value)}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+          {isCustomActive ? (
+            <Check size={15} className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" strokeWidth={3} />
+          ) : null}
+        </label>
       </div>
+
+      {savedColours.length > 0 && (
+        <div className="mt-3">
+          <span className="mb-1.5 block text-caption2 font-medium text-label-secondary/60">Saved Colours</span>
+          <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
+            {savedColours.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90"
+                style={{ backgroundColor: c }}
+              >
+                {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" strokeWidth={3} /> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

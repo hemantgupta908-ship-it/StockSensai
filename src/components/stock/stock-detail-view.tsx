@@ -127,6 +127,7 @@ export function StockDetailView({
                 ticker={instrument.ticker}
                 name={instrument.name}
                 exchange={instrument.exchange}
+                currentPrice={quote.price}
               />
             </div>
           </div>

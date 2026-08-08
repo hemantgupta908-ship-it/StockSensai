@@ -9,6 +9,7 @@ export interface WatchlistItem {
   ticker: string;
   name: string;
   exchange: string;
+  priceAtAddition?: number;
   createdAt: string;
 }
 
@@ -79,6 +80,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
             ticker: item.ticker,
             name: item.name,
             exchange: item.exchange,
+            price_at_addition: item.priceAtAddition ?? null,
           })),
           { onConflict: "user_id,ticker", ignoreDuplicates: true },
         );
@@ -87,23 +89,44 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase
         .from("watchlist_items")
-        .select("ticker, name, exchange, created_at")
+        .select("ticker, name, exchange, price_at_addition, created_at")
         .order("created_at", { ascending: false });
 
       if (cancelled) return;
-      if (error) {
+      
+      let finalData = data;
+      
+      if (error && error.message.includes("price_at_addition")) {
+        // Fallback for when the price_at_addition column hasn't been migrated yet
+        const fallback = await supabase
+          .from("watchlist_items")
+          .select("ticker, name, exchange, created_at")
+          .order("created_at", { ascending: false });
+          
+        if (fallback.error) {
+           console.error("[watchlist] load failed:", fallback.error.message);
+           setItems(readLocal());
+           setLoading(false);
+           return;
+        }
+        finalData = fallback.data;
+      } else if (error) {
         console.error("[watchlist] load failed, falling back to local:", error.message);
         setItems(readLocal());
-      } else {
-        setItems(
-          (data ?? []).map((row) => ({
-            ticker: row.ticker,
-            name: row.name,
-            exchange: row.exchange,
-            createdAt: row.created_at,
-          })),
-        );
+        setLoading(false);
+        return;
       }
+      
+      setItems(
+        (finalData ?? []).map((row) => ({
+          ticker: row.ticker,
+          name: row.name,
+          exchange: row.exchange,
+          // @ts-ignore - Handle both schemas
+          priceAtAddition: row.price_at_addition ?? undefined,
+          createdAt: row.created_at,
+        })),
+      );
       setLoading(false);
     }
 
@@ -145,14 +168,24 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
       const supabase = getSupabaseBrowserClient();
       if (supabase && user) {
-        const { error } = await supabase.from("watchlist_items").insert({
+        let insertData: any = {
           user_id: user.id,
           ticker: item.ticker,
           name: item.name,
           exchange: item.exchange,
-        });
-        if (error) {
-          console.error("[watchlist] add failed:", error.message);
+          price_at_addition: item.priceAtAddition ?? null,
+        };
+        
+        let res = await supabase.from("watchlist_items").insert(insertData);
+        
+        // Fallback for when the price_at_addition column hasn't been migrated yet
+        if (res.error && res.error.message.includes("price_at_addition")) {
+            delete insertData.price_at_addition;
+            res = await supabase.from("watchlist_items").insert(insertData);
+        }
+
+        if (res.error) {
+          console.error("[watchlist] add failed:", res.error.message);
           setItems(items); // roll back
         }
       } else {

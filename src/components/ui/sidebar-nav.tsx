@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search, ShieldAlert } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, ShieldAlert, LogOut } from "lucide-react";
+import { useSession } from "@/components/auth/session-provider";
 
 import { cn } from "@/lib/utils";
 import { isActivePath, NAV_SECTIONS } from "./nav-items";
@@ -22,6 +23,8 @@ export const SIDEBAR_WIDTH = 248;
  */
 export function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useSession();
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -39,7 +42,7 @@ export function SidebarNav() {
         <div className="px-3 pb-3">
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex w-full items-center justify-between gap-2 rounded-[11px] border border-separator/40 bg-bg-primary/80 px-3 py-2 text-footnote text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
+            className="flex w-full items-center justify-between gap-2 rounded-[11px] border border-separator/40 bg-bg-elevated/80 px-3 py-2 text-footnote text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
           >
             <span className="flex items-center gap-2">
               <Search size={15} className="text-blue" />
@@ -97,6 +100,26 @@ export function SidebarNav() {
               Educational screener — not investment advice, not a broker.
             </span>
           </Link>
+        </div>
+
+        {/* Profile Section */}
+        <div className="mt-auto border-t border-separator/40 p-3 dark:border-white/[0.06]">
+          <button 
+            onClick={async () => {
+              await signOut();
+              router.refresh();
+            }}
+            className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-fill/10 transition-colors text-left group"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue/10 text-blue shadow-sm ring-1 ring-blue/20 group-hover:bg-blue group-hover:text-white transition-colors">
+              <span className="text-footnote font-bold">{user?.email?.charAt(0).toUpperCase() || "U"}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-footnote font-semibold text-label">{user?.email?.split('@')[0] || "User"}</p>
+              <p className="truncate text-caption2 text-label-secondary/70">{user?.email || "Signed in"}</p>
+            </div>
+            <LogOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
+          </button>
         </div>
       </aside>
 

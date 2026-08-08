@@ -9,9 +9,10 @@
  * sidebar (and in the budget header on mobile) is the only crossing point.
  */
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeftRight,
   CalendarClock,
@@ -25,11 +26,15 @@ import {
   Shapes,
   ShieldCheck,
   Wallet,
+  X,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "@/components/ui/environment-switcher";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useSession } from "@/components/auth/session-provider";
 
 export interface BudgetNavItem {
   href: string;
@@ -179,6 +184,8 @@ export function BudgetTabBarSpacer() {
  */
 export function BudgetSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useSession();
 
   return (
     <aside
@@ -226,7 +233,138 @@ export function BudgetSidebar() {
         ))}
       </nav>
 
+      <div className="mt-auto border-t border-separator/40 p-3 dark:border-white/[0.06]">
+        <button 
+          onClick={async () => {
+            await signOut();
+            router.refresh();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-fill/10 transition-colors text-left group"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green/10 text-green shadow-sm ring-1 ring-green/20 group-hover:bg-green group-hover:text-white transition-colors">
+            <span className="text-footnote font-bold">{user?.email?.charAt(0).toUpperCase() || "U"}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-footnote font-semibold text-label">{user?.email?.split('@')[0] || "User"}</p>
+            <p className="truncate text-caption2 text-label-secondary/70">{user?.email || "Signed in"}</p>
+          </div>
+          <LogOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
+        </button>
+      </div>
     </aside>
+  );
+}
+
+/**
+ * Mobile drawer — the phone's stand-in for the sidebar.
+ *
+ * The tab bar only carries five of the fourteen destinations; without this the
+ * rest are reachable only through "More". Mirrors the stock app's
+ * `MobileSidebar` so the two environments open the same way, in green.
+ */
+export function BudgetMobileSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname();
+
+  // Hold the page still behind the drawer.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:hidden"
+            aria-hidden
+          />
+
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Budget menu"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 350, damping: 35, mass: 0.9 }}
+            className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-separator/40 bg-bg-secondary p-5 shadow-2xl lg:hidden dark:border-white/[0.08]"
+          >
+            <div className="flex items-start justify-between gap-2 pb-4">
+              <div className="min-w-0 flex-1">
+                <EnvironmentSwitcher active="budget" />
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-full p-1.5 text-label-secondary/70 transition-colors hover:bg-fill/[0.12] hover:text-label"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav className="flex-1 overflow-y-auto">
+              {BUDGET_NAV_SECTIONS.map((section) => (
+                <div key={section.title} className="mb-4">
+                  <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
+                    {section.title}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = isBudgetActive(pathname, item.href);
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            aria-current={active ? "page" : undefined}
+                            className={cn(
+                              "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
+                              active
+                                ? "bg-green/10 text-green dark:bg-green/15"
+                                : "text-label hover:bg-fill/[0.08]",
+                            )}
+                          >
+                            <Icon size={20} strokeWidth={active ? 2.3 : 1.9} className="shrink-0" />
+                            <span className={cn("text-subhead", active && "font-semibold")}>
+                              {item.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+
+            <div className="flex items-center justify-between border-t border-separator/30 px-1 pt-3 dark:border-white/[0.06]">
+              <span className="text-footnote font-medium text-label-secondary">Appearance</span>
+              <ThemeToggle />
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 

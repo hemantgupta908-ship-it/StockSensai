@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 type Mode = "signin" | "signup";
 
-export function LoginForm({ configured }: { configured: boolean }) {
+export function LoginForm({ configured, next = "/home" }: { configured: boolean; next?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -73,7 +73,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
 
         // If session was created automatically (email confirmation disabled in Supabase)
         if (signUpData.session) {
-          router.push("/home");
+          router.push(next);
           router.refresh();
           return;
         }
@@ -84,7 +84,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
           password,
         });
         if (!directSignInError) {
-          router.push("/home");
+          router.push(next);
           router.refresh();
           return;
         }
@@ -98,7 +98,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
         password,
       });
       if (signInError) throw signInError;
-      router.push("/home");
+      router.push(next);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -192,14 +192,6 @@ export function LoginForm({ configured }: { configured: boolean }) {
         className="w-full py-2 text-footnote font-medium text-blue"
       >
         {mode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => router.push("/home")}
-        className="w-full py-1 text-footnote text-label-secondary/50"
-      >
-        Skip — browse without an account
       </button>
     </form>
   );

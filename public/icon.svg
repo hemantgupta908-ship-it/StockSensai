@@ -1,7 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="StockPilot">
-  <rect width="512" height="512" rx="114" fill="#007AFF"/>
-  <path d="M96 344 208 208l80 80 128-160" fill="none" stroke="#fff" stroke-width="42"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M328 128h88v88" fill="none" stroke="#fff" stroke-width="42"
-        stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="StockSensei">
+  <!--
+    App mark. The trend line and its corner arrow are the same shape the
+    in-app logo draws (see login page / mobile drawer), so the icon on the
+    home screen and the logo inside the app read as one thing.
+
+    The columns behind it sit at low opacity on purpose: at 16px they melt
+    into the tile and leave a clean, legible line, while at 512px they give
+    the mark enough substance to look drawn rather than clip-art.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#3D9DFF"/>
+      <stop offset="1" stop-color="#0A56CC"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#tile)"/>
+
+  <g fill="#fff" opacity=".17">
+    <rect x="96"  y="336" width="80" height="80"  rx="28"/>
+    <rect x="216" y="288" width="80" height="128" rx="28"/>
+    <rect x="336" y="240" width="80" height="176" rx="28"/>
+  </g>
+
+  <g fill="none" stroke="#fff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M80 360 192 224l80 80 152-176"/>
+    <path d="M328 128h96v96"/>
+  </g>
 </svg>

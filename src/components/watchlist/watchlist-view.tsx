@@ -119,13 +119,26 @@ export function WatchlistView() {
                       </p>
                     </Link>
 
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 flex flex-col items-end">
                       {quote ? (
                         <>
                           <div className="numeric text-subhead font-semibold text-label">
                             {formatINR(quote.price)}
                           </div>
-                          <ChangePill value={quote.changePercent} />
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {item.priceAtAddition && (
+                              <div className="text-[11px] text-label-secondary/60 bg-fill/5 px-1.5 py-0.5 rounded-sm">
+                                added at {formatINR(item.priceAtAddition)}
+                              </div>
+                            )}
+                            <ChangePill 
+                              value={
+                                item.priceAtAddition 
+                                  ? ((quote.price - item.priceAtAddition) / item.priceAtAddition) * 100 
+                                  : quote.changePercent
+                              } 
+                            />
+                          </div>
                         </>
                       ) : (
                         <Skeleton className="h-8 w-20" />

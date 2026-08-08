@@ -120,7 +120,7 @@ export function RecommendationCard({
             >
               <Info size={15} strokeWidth={2.2} />
             </button>
-            <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" />
+            <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" currentPrice={r.price} />
           </div>
         </div>
       </motion.article>

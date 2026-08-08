@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import React, { useMemo, useState, useRef, useEffect, Children, isValidElement } from "react";
-import { ChevronLeft, Plus, Search, X, ChevronDown, Check, type LucideIcon } from "lucide-react";
+import { ChevronLeft, Menu, Plus, Search, X, ChevronDown, Check, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { getIcon } from "@/lib/budget/icons";
 import { useBudget } from "./budget-provider";
 import { EnvironmentSwitcherCompact } from "@/components/ui/environment-switcher";
+import { BudgetMobileSidebar } from "./budget-nav";
 
 // ---------------------------------------------------------------------------
 // Page chrome
@@ -43,8 +44,11 @@ export function BudgetHeader({
   large?: boolean;
   width?: ContainerWidth;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
-    <header className="sticky top-0 z-30 material hairline-b safe-top">
+    <>
+      <header className="sticky top-0 z-30 material hairline-b safe-top">
       <div className={cn("mx-auto flex items-center gap-2 py-3", CONTAINER_WIDTHS[width])}>
         {backHref ? (
           <Link
@@ -54,7 +58,17 @@ export function BudgetHeader({
           >
             <ChevronLeft size={22} strokeWidth={2.4} />
           </Link>
-        ) : null}
+        ) : (
+          // Below `lg` the sidebar is hidden and the tab bar carries only five
+          // of the fourteen destinations, so the drawer is the way to the rest.
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="-ml-2 rounded-lg p-1.5 text-label-secondary transition-colors hover:bg-fill/[0.12] hover:text-label lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu size={22} strokeWidth={2.2} />
+          </button>
+        )}
 
         <div className="min-w-0 flex-1">
           <h1
@@ -80,7 +94,12 @@ export function BudgetHeader({
           ) : null}
         </div>
       </div>
-    </header>
+      </header>
+
+      {/* Outside the header: `sticky` + `z-30` makes a stacking context, and the
+          drawer must sit above the tab bar rather than under it. */}
+      <BudgetMobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+    </>
   );
 }
 
@@ -553,7 +572,7 @@ export function Sheet({
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
         {footer ? (
-          <div className="border-t border-separator/50 px-4 py-3 safe-bottom">{footer}</div>
+          <div className="border-t border-separator/50 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">{footer}</div>
         ) : null}
       </div>
     </div>

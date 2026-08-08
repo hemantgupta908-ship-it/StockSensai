@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -67,6 +68,23 @@ export async function getCurrentUser() {
     console.error("[getCurrentUser] error:", error);
     return null;
   }
+}
+
+/**
+ * The signed-in user, or a redirect to the sign-in screen.
+ *
+ * The middleware already turns away signed-out requests; this is the second
+ * lock, on the rendering side, so a route that somehow skips the middleware
+ * (a matcher gap, a future rewrite) still cannot render account content.
+ *
+ * When Supabase is unconfigured there is no account to require and no way to
+ * create one, so this yields null and the caller renders in demo mode.
+ */
+export async function requireUser() {
+  if (!isSupabaseConfigured) return null;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
 }
 
 export { isSupabaseConfigured };

@@ -11,9 +11,18 @@ export const metadata: Metadata = {
   description: "Sign in to sync your watchlist and journal across devices.",
 };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  // Only ever bounce back to a path inside this app — an absolute URL here
+  // would turn the sign-in screen into an open redirect.
+  const destination = next && next.startsWith("/") && !next.startsWith("//") ? next : "/home";
+
   const user = await getCurrentUser();
-  if (user) redirect("/home");
+  if (user) redirect(destination);
 
   return (
     <main className="flex min-h-dvh flex-col justify-center px-6 py-12">
@@ -43,7 +52,7 @@ export default async function LoginPage() {
           </p>
         </div>
 
-        <LoginForm configured={isSupabaseConfigured} />
+        <LoginForm configured={isSupabaseConfigured} next={destination} />
 
         <p className="mt-6 text-center text-caption leading-relaxed text-label-secondary/50">
           {DISCLAIMER_SHORT}{" "}

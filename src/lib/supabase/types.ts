@@ -23,6 +23,7 @@ export type WatchlistItemRow = {
   name: string;
   exchange: string;
   note: string | null;
+  price_at_addition: number | null;
   created_at: string;
 };
 
@@ -107,7 +108,7 @@ export type Database = {
     Tables: {
       watchlist_items: {
         Row: WatchlistItemRow;
-        Insert: Insert<WatchlistItemRow, "id" | "created_at" | "note">;
+        Insert: Insert<WatchlistItemRow, "id" | "created_at" | "note" | "price_at_addition">;
         Update: Partial<WatchlistItemRow>;
         Relationships: [];
       };

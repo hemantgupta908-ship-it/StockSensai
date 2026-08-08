@@ -15,8 +15,9 @@ create table if not exists public.watchlist_items (
   ticker      text not null,
   name        text not null,
   exchange    text not null check (exchange in ('NSE', 'BSE')),
-  note        text,
-  created_at  timestamptz not null default now(),
+  note               text,
+  price_at_addition  numeric(18, 4),
+  created_at         timestamptz not null default now(),
 
   -- One row per stock per user; the client relies on this for upsert-on-migrate.
   constraint watchlist_items_user_ticker_key unique (user_id, ticker)
@@ -62,7 +63,9 @@ create table if not exists public.portfolio_entries (
 
   -- Which screen surfaced the idea, if it came from a recommendation card.
   strategy_id    text,
-  trading_style  text check (trading_style in ('swing', 'short-term', 'long-term')),
+  -- Must stay in step with `TRADING_STYLES` in src/lib/strategies/types.ts.
+  trading_style  text check (trading_style in
+                   ('intraday', 'short-term', 'swing', 'positional', 'long-term')),
 
   -- Snapshot of the plan at the moment the position was logged. Kept so the
   -- journal can compare intent against execution later, even after the live
@@ -120,7 +123,8 @@ create table if not exists public.user_preferences (
   theme                  text not null default 'system'
                            check (theme in ('light', 'dark', 'system')),
   default_trading_style  text not null default 'swing'
-                           check (default_trading_style in ('swing', 'short-term', 'long-term')),
+                           check (default_trading_style in
+                             ('intraday', 'short-term', 'swing', 'positional', 'long-term')),
   updated_at             timestamptz not null default now()
 );
 
@@ -171,7 +175,8 @@ create table if not exists public.cached_recommendations (
   stock_ticker         text not null,
   strategy_id          text not null,
   trading_style        text not null
-                         check (trading_style in ('swing', 'short-term', 'long-term')),
+                         check (trading_style in
+                           ('intraday', 'short-term', 'swing', 'positional', 'long-term')),
   risk_tolerance       text not null
                          check (risk_tolerance in ('conservative', 'moderate', 'aggressive')),
   buy_range_low        numeric(18, 4) not null,

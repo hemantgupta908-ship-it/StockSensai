@@ -57,7 +57,7 @@ export function RecommendationInfoModal({
 
   return (
     <Sheet open={isOpen} onClose={onClose}>
-      <div className="w-full overflow-hidden rounded-2xl border border-separator/60 bg-bg-primary shadow-modal dark:border-white/10 dark:shadow-2xl">
+      <div className="w-full overflow-hidden rounded-2xl border border-separator/60 bg-bg-elevated shadow-modal dark:border-white/10 dark:shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-separator/40 px-5 py-4 dark:border-white/[0.08]">
           <div className="flex items-center gap-3">

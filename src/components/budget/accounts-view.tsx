@@ -171,14 +171,11 @@ export function AccountsView() {
                   return (
                     <div
                       key={wallet.walletPk}
-                      className="flex flex-col overflow-hidden rounded-[20px] bg-bg-secondary shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                      style={{
-                        background: `linear-gradient(145deg, ${accentColour}12 0%, transparent 100%)`,
-                      }}
+                      className="flex flex-col overflow-hidden rounded-[24px] bg-bg-secondary transition-all shadow-[10px_10px_30px_rgba(0,0,0,0.12),-10px_-10px_30px_rgba(255,255,255,1)] dark:shadow-[10px_10px_30px_rgba(0,0,0,0.4),-10px_-10px_30px_rgba(255,255,255,0.05)] hover:shadow-[14px_14px_40px_rgba(0,0,0,0.16),-14px_-14px_40px_rgba(255,255,255,1)] dark:hover:shadow-[14px_14px_40px_rgba(0,0,0,0.5),-14px_-14px_40px_rgba(255,255,255,0.06)] active:shadow-[inset_6px_6px_16px_rgba(0,0,0,0.1),inset_-6px_-6px_16px_rgba(255,255,255,0.8)] dark:active:shadow-[inset_6px_6px_16px_rgba(0,0,0,0.4),inset_-6px_-6px_16px_rgba(255,255,255,0.06)]"
                     >
                       <Link
                         href={`/budget/accounts/${wallet.walletPk}`}
-                        className="flex-1 p-4 text-left transition-transform active:scale-[0.98]"
+                        className="flex-1 p-5 text-left"
                       >
                         <div className="flex w-full items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -646,24 +643,30 @@ export function AccountsSummary() {
           <Link
             key={wallet.walletPk}
             href={`/budget/accounts/${wallet.walletPk}`}
-            className="min-w-[144px] shrink-0 rounded-[18px] bg-bg-secondary p-3.5 shadow-sm ring-1 ring-black/5 transition-transform active:scale-[0.96] dark:ring-white/10"
-            style={{
-              background: `linear-gradient(135deg, ${accentColour}15 0%, transparent 100%)`,
-            }}
+            className="group relative min-w-[144px] shrink-0 rounded-[18px] bg-bg-secondary p-4 shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.96]"
+            style={{ border: `1px solid ${accentColour}60` }}
           >
-            <p className="truncate text-caption font-medium text-label-secondary/80">{wallet.name}</p>
-            <p
-              className={cn(
-                "mt-0.5 text-title3 font-semibold tracking-tight tabular-nums",
-                balance < 0 ? "text-red" : "text-label",
-                settings.hideAmounts && "blur-[6px]",
-              )}
-            >
-              {formatCurrencyAmount(balance, wallet.currency, {
-                decimals: settings.showDecimals ? wallet.decimals : 0,
-                compact: true,
-              })}
-            </p>
+            <div className="relative z-10 flex flex-col gap-2">
+              <div className="mb-1 flex items-center justify-between">
+                <IconBadge iconName={wallet.iconName} colour={wallet.colour} size={24} fallback={wallet.name} />
+                <div className="h-2 w-2 rounded-full opacity-80" style={{ backgroundColor: accentColour }} />
+              </div>
+              <div>
+                <p className="truncate text-caption font-medium text-label-secondary/80">{wallet.name}</p>
+                <p
+                  className={cn(
+                    "text-title3 font-bold tracking-tight tabular-nums",
+                    balance < 0 ? "text-red" : "text-label",
+                    settings.hideAmounts && "blur-[6px]",
+                  )}
+                >
+                  {formatCurrencyAmount(balance, wallet.currency, {
+                    decimals: settings.showDecimals ? wallet.decimals : 0,
+                    compact: true,
+                  })}
+                </p>
+              </div>
+            </div>
           </Link>
         );
       })}

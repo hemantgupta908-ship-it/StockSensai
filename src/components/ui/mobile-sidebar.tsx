@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, Search, ShieldAlert, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { isActivePath, NAV_SECTIONS } from "./nav-items";
@@ -63,7 +63,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", stiffness: 350, damping: 35, mass: 0.9 }}
-            className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-separator/40 bg-bg-secondary p-5 shadow-2xl dark:border-white/[0.08]"
+            className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-separator/40 bg-bg-elevated p-5 shadow-2xl dark:border-white/[0.08]"
           >
             {/* Header / Brand Wordmark & Close Button */}
             <div className="flex items-center justify-between pb-4">
@@ -121,7 +121,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                   onClose();
                   onOpenSearch();
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-separator/40 bg-bg-primary px-3.5 py-2.5 text-subhead font-medium text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-separator/40 bg-bg-elevated px-3.5 py-2.5 text-subhead font-medium text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
               >
                 <span className="flex items-center gap-2">
                   <Search size={16} className="text-blue" />
@@ -169,25 +169,18 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
               ))}
             </nav>
 
-            {/* Footer with Theme Toggle & Disclaimer */}
-            <div className="space-y-3 pt-3 border-t border-separator/30 dark:border-white/[0.06]">
+            {/* Footer.
+                The disclaimer notice that used to sit here is gone; the drawer
+                still links to the full text under Organise, and every screen
+                carries `DisclaimerFooter`, so the standing requirement to show
+                it is still met. */}
+            <div className="border-t border-separator/30 pt-3 dark:border-white/[0.06]">
               <div className="flex items-center justify-between px-1">
                 <span className="text-footnote font-medium text-label-secondary">
                   Appearance
                 </span>
                 <ThemeToggle />
               </div>
-
-              <Link
-                href="/disclaimer"
-                onClick={onClose}
-                className="flex items-start gap-2 rounded-xl bg-amber/[0.09] px-3 py-2.5 transition-colors hover:bg-amber/[0.14]"
-              >
-                <ShieldAlert size={15} className="mt-[1px] shrink-0 text-amber" strokeWidth={2.3} />
-                <span className="text-caption2 leading-snug text-label-secondary/70">
-                  Educational screener — not investment advice, not a broker.
-                </span>
-              </Link>
             </div>
           </motion.div>
         </>

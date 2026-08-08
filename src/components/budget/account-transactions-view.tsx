@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, CreditCard, Plus, Star } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, CreditCard, Plus, Star, Upload } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ import {
 } from "./budget-ui";
 import { TransactionGroup, TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
+import { ImportPreviewModal } from "./import-preview-modal";
 import { CONTAINER_WIDTHS } from "@/components/ui/page-container";
 
 type DirectionFilter = "all" | "expense" | "income";
@@ -44,6 +45,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState<DirectionFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
   const balance = useMemo(
@@ -197,7 +199,18 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
 
       {/* Content */}
       <main className={cn("mx-auto pb-10 pt-5", CONTAINER_WIDTHS.wide)}>
-        <SearchField value={query} onChange={setQuery} placeholder="Search transactions..." />
+        <div className="flex gap-2 items-center mb-4">
+          <div className="flex-1">
+            <SearchField value={query} onChange={setQuery} placeholder="Search transactions..." />
+          </div>
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex h-11 items-center gap-2 rounded-[14px] bg-fill/5 px-4 text-sm font-semibold text-label transition-colors hover:bg-fill/10 active:scale-[0.98] shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+          >
+            <Upload size={16} />
+            <span className="hidden sm:inline">Upload</span>
+          </button>
+        </div>
 
         <div className="mb-3">
           <SegmentedTabs
@@ -287,6 +300,12 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
         }}
         editing={editing}
         defaults={{ walletFk: walletPk }}
+      />
+
+      <ImportPreviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        defaultWalletFk={walletPk}
       />
     </div>
   );
