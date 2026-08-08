@@ -109,7 +109,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
            setLoading(false);
            return;
         }
-        finalData = fallback.data;
+        finalData = fallback.data as any;
       } else if (error) {
         console.error("[watchlist] load failed, falling back to local:", error.message);
         setItems(readLocal());
