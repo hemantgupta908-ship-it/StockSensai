@@ -291,8 +291,13 @@ export function getTotalTowardsObjective(
     if (!linked) continue;
     total += t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
   }
-  // Savings goals accumulate income (positive); spending goals and loans
-  // accumulate expenses (negative). Report progress as a positive magnitude.
+  // Savings goals accumulate income (positive), spending goals expenses.
+  //
+  // Loans invert that: `income` describes how the money arrived (borrowed =
+  // income), but progress is made by the repayments, which run the *opposite*
+  // direction — so a borrowed loan advances on expenses. Report progress as a
+  // positive magnitude either way.
+  if (objective.type === ObjectiveType.loan) return objective.income ? -total : total;
   return objective.income ? total : -total;
 }
 

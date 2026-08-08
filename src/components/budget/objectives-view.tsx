@@ -21,7 +21,7 @@ import {
   getTotalTowardsObjective,
   isIndefiniteLoan,
 } from "@/lib/budget/calculations";
-import { createObjective } from "@/lib/budget/factory";
+import { createObjective, createTransaction } from "@/lib/budget/factory";
 import { ColourPicker, IconBadge, IconPicker } from "./icon-picker";
 import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { useBudget } from "./budget-provider";
@@ -220,6 +220,7 @@ export function ObjectiveCard({
               <ProgressBar percent={percent} colour={objective.colour} className="mb-2" />
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-footnote text-label-secondary">
+                  {isLoan ? "Paid " : null}
                   <Amount value={total} className="font-semibold text-label" /> of{" "}
                   <Amount value={objective.amount} />
                 </p>
@@ -229,8 +230,8 @@ export function ObjectiveCard({
               </div>
               {!reached ? (
                 <p className="mt-1 text-caption text-label-secondary/50">
-                  <Amount value={objective.amount - total} /> until{" "}
-                  {isLoan ? "loan reached" : "goal reached"}
+                  <Amount value={objective.amount - total} />{" "}
+                  {isLoan ? "left to pay" : "until goal reached"}
                 </p>
               ) : null}
             </>
@@ -299,11 +300,12 @@ function ObjectiveEditor({
   type: ObjectiveType;
   editing?: Objective | null;
 }) {
-  const { objectives, upsertObjective, deleteObjective } = useBudget();
+  const { objectives, upsertObjective, upsertTransaction, deleteObjective } = useBudget();
   const isLoan = type === ObjectiveType.loan;
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [alreadyPaid, setAlreadyPaid] = useState("");
   const [income, setIncome] = useState(true);
   const [endDate, setEndDate] = useState("");
   const [indefinite, setIndefinite] = useState(false);
@@ -315,6 +317,8 @@ function ObjectiveEditor({
   const key = editing?.objectivePk ?? "new";
   if (open && loadedFor !== key) {
     setLoadedFor(key);
+    // Only ever offered on creation, so it starts empty in both branches.
+    setAlreadyPaid("");
     if (editing) {
       setName(editing.name);
       setIndefinite(editing.amount === -1);
@@ -339,10 +343,11 @@ function ObjectiveEditor({
 
   function handleSave() {
     const base = editing ?? createObjective({ type });
+    const finalName = name.trim() || (isLoan ? "Loan" : "Goal");
     upsertObjective({
       ...base,
       type,
-      name: name.trim() || (isLoan ? "Loan" : "Goal"),
+      name: finalName,
       // −1 is Cashew's sentinel for a loan with no fixed total.
       amount: isLoan && indefinite ? -1 : Number(amount) || 0,
       income,
@@ -352,6 +357,24 @@ function ObjectiveEditor({
       colour,
       order: editing?.order ?? objectives.length,
     });
+
+    // Back-fill for a loan that is already part-way repaid. One lump
+    // transaction in the repayment direction — the same shape "Add
+    // transaction" produces — so the progress maths needs no special case.
+    const paid = Number(alreadyPaid);
+    if (!editing && isLoan && !indefinite && paid > 0) {
+      const repaymentIsIncome = !income;
+      upsertTransaction(
+        createTransaction({
+          name: `${finalName} — already paid`,
+          amount: repaymentIsIncome ? paid : -paid,
+          income: repaymentIsIncome,
+          walletFk: base.walletFk,
+          objectiveLoanFk: base.objectivePk,
+        }),
+      );
+    }
+
     onClose();
   }
 
@@ -422,7 +445,7 @@ function ObjectiveEditor({
       ) : null}
 
       {!(isLoan && indefinite) ? (
-        <Field label="Target amount">
+        <Field label={isLoan ? "Total loan amount" : "Target amount"}>
           <TextInput
             type="number"
             inputMode="decimal"
@@ -434,10 +457,33 @@ function ObjectiveEditor({
         </Field>
       ) : null}
 
+      {isLoan && !indefinite && !editing ? (
+        <Field
+          label="Already paid"
+          hint="Optional. For a loan already part-way through — recorded as one past payment you can edit later."
+        >
+          <TextInput
+            type="number"
+            inputMode="decimal"
+            min="0"
+            value={alreadyPaid}
+            onChange={(e) => setAlreadyPaid(e.target.value)}
+            placeholder="0.00"
+          />
+        </Field>
+      ) : null}
+
       <IconPicker value={iconName} colour={colour} onChange={setIconName} />
       <ColourPicker value={colour} onChange={setColour} />
 
-      <Field label="Target date" hint="Optional.">
+      <Field
+        label={isLoan ? "Payoff date" : "Target date"}
+        hint={
+          isLoan
+            ? "Optional. When the whole loan should be cleared — not a monthly due date."
+            : "Optional."
+        }
+      >
         <TextInput type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
       </Field>
 
