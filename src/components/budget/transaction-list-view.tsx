@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ArrowLeftRight, SlidersHorizontal } from "lucide-react";
+import { ArrowsLeftRight, SlidersHorizontal } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { TransactionSpecialType, type Transaction } from "@/lib/budget/types";
@@ -29,7 +29,7 @@ import { TransactionModal } from "./transaction-modal";
 type DirectionFilter = "all" | "expense" | "income";
 
 export function TransactionListView() {
-  const { transactions, categories, wallets, allWallets, settings } = useBudget();
+  const { transactions, categories, wallets, allWallets, settings, objectives } = useBudget();
   const { byPk } = useCategoryLookup();
 
   const [query, setQuery] = useState("");
@@ -39,6 +39,7 @@ export function TransactionListView() {
   const [showFilters, setShowFilters] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(100);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -47,6 +48,11 @@ export function TransactionListView() {
       if (direction === "income" && !t.income) return false;
       if (categoryFk && t.categoryFk !== categoryFk && t.subCategoryFk !== categoryFk) return false;
       if (walletFk && t.walletFk !== walletFk) return false;
+      
+      // In the global "All" view, transfers appear twice (once for each account).
+      // Filter out the income half to show a single unified row.
+      if (!walletFk && direction === "all" && t.pairedTransactionFk && t.income) return false;
+      
       if (!needle) return true;
       const category = byPk.get(t.categoryFk)?.name ?? "";
       return (
@@ -77,11 +83,13 @@ export function TransactionListView() {
     return list;
   }, [transactions, query, direction, categoryFk, walletFk, byPk, settings.sortTransactions]);
 
+  const displayed = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
+
   const summary = useMemo(
-    () => getSpendingSummary(allWallets, filtered),
-    [allWallets, filtered],
+    () => getSpendingSummary(allWallets, displayed, objectives),
+    [allWallets, displayed, objectives],
   );
-  const grouped = useGroupedByDay(filtered);
+  const grouped = useGroupedByDay(displayed);
   const filtersActive = Boolean(categoryFk || walletFk);
 
   function openEdit(t: Transaction) {
@@ -165,7 +173,7 @@ export function TransactionListView() {
 
       {filtered.length === 0 ? (
         <EmptyState
-          icon={ArrowLeftRight}
+          icon={ArrowsLeftRight}
           title="No transactions found"
           description={
             query || filtersActive
@@ -198,11 +206,22 @@ export function TransactionListView() {
             ))
           ) : (
             <TransactionGroup>
-              {filtered.map((t) => (
+              {displayed.map((t) => (
                 <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
               ))}
             </TransactionGroup>
           )}
+
+          {filtered.length > displayLimit ? (
+            <div className="pt-4 pb-12 text-center">
+              <button
+                onClick={() => setDisplayLimit((l) => l + 100)}
+                className="rounded-full bg-fill/5 px-6 py-2.5 text-footnote font-medium text-label-secondary transition-colors hover:bg-fill/10 active:scale-95"
+              >
+                Load more ({filtered.length - displayLimit} remaining)
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -242,7 +261,7 @@ export function RecentTransactions({ limit = 8 }: { limit?: number }) {
   if (recent.length === 0) {
     return (
       <EmptyState
-        icon={ArrowLeftRight}
+        icon={ArrowsLeftRight}
         title="No transactions yet"
         description="Tap the + button to record your first one."
       />

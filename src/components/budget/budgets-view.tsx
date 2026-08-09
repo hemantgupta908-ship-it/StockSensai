@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PieChart, ChevronRight, History } from "lucide-react";
+import { CaretRight, ChartPie, ClockCounterClockwise } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -78,7 +78,7 @@ export function BudgetsListView() {
 
       {visible.length === 0 ? (
         <EmptyState
-          icon={PieChart}
+          icon={ChartPie}
           title="No budgets found"
           description="A budget sets a planned limit for spending or saving within a period."
         />
@@ -98,11 +98,11 @@ export function BudgetsListView() {
 
 /** Summary card: spent, remaining, progress and the period label. */
 export function BudgetCard({ budget, compact = false }: { budget: Budget; compact?: boolean }) {
-  const { transactions, categories, allWallets } = useBudget();
+  const { transactions, categories, allWallets, objectives } = useBudget();
 
   const snapshot = useMemo(
-    () => getBudgetSnapshot(allWallets, transactions, budget, categories),
-    [allWallets, transactions, budget, categories],
+    () => getBudgetSnapshot(allWallets, transactions, budget, categories, undefined, objectives),
+    [allWallets, transactions, budget, categories, objectives],
   );
 
   const over = snapshot.spent > budget.amount;
@@ -118,7 +118,7 @@ export function BudgetCard({ budget, compact = false }: { budget: Budget; compac
             {snapshot.range.end.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
           </p>
         </div>
-        <ChevronRight size={18} className="mt-1 shrink-0 text-label-secondary/30" />
+        <CaretRight size={18} className="mt-1 shrink-0 text-label-secondary/30" />
       </div>
 
       <ProgressBar percent={snapshot.percent} colour={budget.colour} className="mb-2" />
@@ -175,7 +175,7 @@ export function BudgetDetailView({ budgetPk }: { budgetPk: string }) {
   }, [budget, periodIndex, transactions, categories, allWallets]);
 
   if (!budget || !view) {
-    return <EmptyState icon={PieChart} title="Budget not found" />;
+    return <EmptyState icon={ChartPie} title="Budget not found" />;
   }
 
   const percent = budget.amount === 0 ? 0 : view.spent / budget.amount;
@@ -220,7 +220,7 @@ export function BudgetDetailView({ budgetPk }: { budgetPk: string }) {
           onClick={() => setPeriodIndex((i) => i + 1)}
           className="flex items-center gap-1 rounded-ios bg-fill/10 px-3 py-2 text-footnote text-label-secondary transition-colors hover:bg-fill/20"
         >
-          <History size={14} /> Previous period
+          <ClockCounterClockwise size={14} /> Previous period
         </button>
         <button
           type="button"
@@ -276,7 +276,7 @@ export function BudgetDetailView({ budgetPk }: { budgetPk: string }) {
           Transactions ({view.members.length})
         </h2>
         {view.members.length === 0 ? (
-          <EmptyState icon={PieChart} title="Nothing in this period yet" />
+          <EmptyState icon={ChartPie} title="Nothing in this period yet" />
         ) : (
           <TransactionGroup>
             {[...view.members]
@@ -586,7 +586,7 @@ export function PinnedBudgets() {
         className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 transition-transform active:scale-[0.98] dark:ring-white/10"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
-          <PieChart size={20} />
+          <ChartPie size={20} />
         </div>
         <div className="flex-1">
           <span className="block text-subhead font-medium text-label">Create a budget</span>
@@ -594,7 +594,7 @@ export function PinnedBudgets() {
             Set a planned limit for your spending
           </span>
         </div>
-        <ChevronRight size={18} className="text-label-secondary/30" />
+        <CaretRight size={18} className="text-label-secondary/30" />
       </Link>
     );
   }

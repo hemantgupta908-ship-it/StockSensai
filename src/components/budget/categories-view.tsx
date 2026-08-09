@@ -8,11 +8,11 @@
  */
 
 import { useMemo, useState } from "react";
-import { Shapes } from "lucide-react";
+import { Shapes } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
-import { BALANCE_CORRECTION_CATEGORY_PK, type TransactionCategory } from "@/lib/budget/types";
-import { CATEGORY_COLOURS } from "@/lib/budget/defaults";
+import { BALANCE_CORRECTION_CATEGORY_PK, TRANSFER_CATEGORY_PK, type TransactionCategory } from "@/lib/budget/types";
+import { DEFAULT_CATEGORY_COLOUR } from "@/lib/budget/defaults";
 import { ColourPicker, IconPicker } from "./icon-picker";
 import { createCategory } from "@/lib/budget/factory";
 import { useBudget, useCategoryLookup } from "./budget-provider";
@@ -44,15 +44,23 @@ export function CategoriesView() {
     const map = new Map<string, number>();
     for (const t of transactions) {
       if (!t.paid) continue;
-      map.set(t.categoryFk, (map.get(t.categoryFk) ?? 0) + Math.abs(t.amount));
+      const amt = Math.abs(t.amount);
+      map.set(t.categoryFk, (map.get(t.categoryFk) ?? 0) + amt);
+      if (t.subCategoryFk) {
+        map.set(t.subCategoryFk, (map.get(t.subCategoryFk) ?? 0) + amt);
+      }
     }
     return map;
   }, [transactions]);
 
   const visible = main.filter(
-    (c) => c.income === (direction === "income") && c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK,
+    (c) => 
+      c.income === (direction === "income") && 
+      c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK &&
+      c.categoryPk !== TRANSFER_CATEGORY_PK,
   );
   const correction = categories.find((c) => c.categoryPk === BALANCE_CORRECTION_CATEGORY_PK);
+  const transfer = categories.find((c) => c.categoryPk === TRANSFER_CATEGORY_PK);
 
   return (
     <>
@@ -112,11 +120,20 @@ export function CategoriesView() {
                           setEditing(sub);
                           setEditorOpen(true);
                         }}
-                        className="flex w-full items-center justify-between gap-2 text-left"
+                        className="flex w-full items-center justify-between gap-2 text-left py-0.5 hover:bg-fill/5 rounded-md px-1 -mx-1"
                       >
-                        <span className="truncate text-caption text-label-secondary">
-                          {sub.name}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CategoryDot
+                            colour={sub.colour}
+                            label={sub.name}
+                            emoji={sub.emojiIconName}
+                            iconName={sub.iconName}
+                            size={18}
+                          />
+                          <span className="truncate text-caption text-label-secondary">
+                            {sub.name}
+                          </span>
+                        </div>
                         <Amount
                           value={totals.get(sub.categoryPk) ?? 0}
                           className="text-caption text-label-secondary/60"
@@ -131,29 +148,58 @@ export function CategoriesView() {
         </div>
       )}
 
-      {correction ? (
-        <Card
-          className="mt-4 !p-3"
-          onClick={() => {
-            setEditing(correction);
-            setEditorOpen(true);
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <CategoryDot
-              colour={correction.colour}
-              label={correction.name}
-              iconName={correction.iconName}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-subhead text-label">{correction.name}</p>
-              <p className="text-caption text-label-secondary/60">
-                Transactions here don&apos;t count as income or expense, but do move account
-                balances.
-              </p>
-            </div>
+      {(correction || transfer) && direction === "expense" ? (
+        <div className="mt-6">
+          <div className="space-y-3">
+            {transfer ? (
+              <Card
+                className="!p-3"
+                onClick={() => {
+                  setEditing(transfer);
+                  setEditorOpen(true);
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <CategoryDot
+                    colour={transfer.colour}
+                    label={transfer.name}
+                    iconName={transfer.iconName}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-subhead text-label">{transfer.name}</p>
+                    <p className="text-caption text-label-secondary/60">
+                      Moves money between your accounts without affecting income or expense totals.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+
+            {correction ? (
+              <Card
+                className="!p-3"
+                onClick={() => {
+                  setEditing(correction);
+                  setEditorOpen(true);
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <CategoryDot
+                    colour={correction.colour}
+                    label={correction.name}
+                    iconName={correction.iconName}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-subhead text-label">{correction.name}</p>
+                    <p className="text-caption text-label-secondary/60">
+                      Transactions here don&apos;t count as income or expense, but do move account balances.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
           </div>
-        </Card>
+        </div>
       ) : null}
 
       <AddFab
@@ -176,22 +222,25 @@ export function CategoriesView() {
   );
 }
 
-function CategoryEditor({
+export function CategoryEditor({
   open,
   onClose,
   editing,
   defaultIncome,
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   editing?: TransactionCategory | null;
   defaultIncome: boolean;
+  /** Lets a picker select the category it just created. */
+  onCreated?: (category: TransactionCategory) => void;
 }) {
   const { categories, upsertCategory, deleteCategory } = useBudget();
   const { main } = useCategoryLookup();
 
   const [name, setName] = useState("");
-  const [colour, setColour] = useState(CATEGORY_COLOURS[0]);
+  const [colour, setColour] = useState(DEFAULT_CATEGORY_COLOUR);
   const [iconName, setIconName] = useState<string | null>(null);
   const [income, setIncome] = useState(defaultIncome);
   const [mainCategoryPk, setMainCategoryPk] = useState("");
@@ -203,14 +252,14 @@ function CategoryEditor({
     setLoadedFor(key);
     if (editing) {
       setName(editing.name);
-      setColour(editing.colour ?? CATEGORY_COLOURS[0]);
+      setColour(editing.colour ?? DEFAULT_CATEGORY_COLOUR);
       setIconName(editing.iconName);
       setIncome(editing.income);
       setMainCategoryPk(editing.mainCategoryPk ?? "");
       setMoveTo("");
     } else {
       setName("");
-      setColour(CATEGORY_COLOURS[0]);
+      setColour(DEFAULT_CATEGORY_COLOUR);
       setIconName(null);
       setIncome(defaultIncome);
       setMainCategoryPk("");
@@ -219,11 +268,11 @@ function CategoryEditor({
   }
   if (!open && loadedFor !== null) setLoadedFor(null);
 
-  const isReserved = editing?.categoryPk === BALANCE_CORRECTION_CATEGORY_PK;
+  const isReserved = editing?.categoryPk === BALANCE_CORRECTION_CATEGORY_PK || editing?.categoryPk === TRANSFER_CATEGORY_PK;
 
   function handleSave() {
     const base = editing ?? createCategory();
-    upsertCategory({
+    const next = {
       ...base,
       name: name.trim() || "Category",
       colour,
@@ -231,7 +280,9 @@ function CategoryEditor({
       income: isReserved ? base.income : income,
       mainCategoryPk: mainCategoryPk || null,
       order: editing?.order ?? categories.length,
-    });
+    };
+    upsertCategory(next);
+    if (!editing) onCreated?.(next);
     onClose();
   }
 

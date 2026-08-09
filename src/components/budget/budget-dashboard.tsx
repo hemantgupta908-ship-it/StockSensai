@@ -15,7 +15,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { CaretRight } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { getNetWorth } from "@/lib/budget/calculations";
@@ -147,7 +147,7 @@ function SeeAll({ href }: { href: string }) {
       className="flex items-center gap-0.5 text-footnote font-medium text-green transition-opacity hover:opacity-70"
     >
       See all
-      <ChevronRight size={14} />
+      <CaretRight size={14} />
     </Link>
   );
 }

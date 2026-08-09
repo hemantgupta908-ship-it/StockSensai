@@ -2,20 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  BookOpen,
-  FileText,
-  Info,
-  LayoutGrid,
-  List,
-  LogIn,
-  LogOut,
-  Moon,
-  ShieldCheck,
-  Sun,
-  SunMoon,
-  User as UserIcon,
-} from "lucide-react";
+import { BookOpen, FileText, Info, List, Moon, ShieldCheck, SignIn, SignOut, SquaresFour, Sun, SunHorizon, User as UserIcon } from "@phosphor-icons/react";
 
 import { usePreferences } from "@/components/preferences-provider";
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
@@ -93,7 +80,7 @@ export function SettingsView() {
         <SectionLabel>Strategies</SectionLabel>
         <ListGroup>
           <ListRow
-            icon={<BookOpen size={17} strokeWidth={2.2} />}
+            icon={<BookOpen size={17} />}
             title="Strategies & Screen Rules"
             subtitle="Explore how all 25 screens work, from intraday to long-term"
             href="/strategies"
@@ -112,9 +99,9 @@ export function SettingsView() {
           />
           <div className="mt-3 flex items-start gap-2 text-footnote leading-relaxed text-label-secondary/65">
             {feedView === "card" ? (
-              <LayoutGrid size={15} strokeWidth={2.2} className="mt-0.5 shrink-0" />
+              <SquaresFour size={15} className="mt-0.5 shrink-0" />
             ) : (
-              <List size={15} strokeWidth={2.2} className="mt-0.5 shrink-0" />
+              <List size={15} className="mt-0.5 shrink-0" />
             )}
             {FEED_VIEW_DESCRIPTIONS[feedView]}
           </div>
@@ -137,11 +124,11 @@ export function SettingsView() {
           />
           <div className="mt-3 flex items-center gap-2 text-footnote text-label-secondary/60">
             {themePreference === "light" ? (
-              <Sun size={15} strokeWidth={2.2} />
+              <Sun size={15} />
             ) : themePreference === "dark" ? (
-              <Moon size={15} strokeWidth={2.2} />
+              <Moon size={15} />
             ) : (
-              <SunMoon size={15} strokeWidth={2.2} />
+              <SunHorizon size={15} />
             )}
             {themePreference === "system"
               ? "Following your device setting."
@@ -156,19 +143,19 @@ export function SettingsView() {
         <ListGroup>
           {!authEnabled ? (
             <ListRow
-              icon={<Info size={17} strokeWidth={2.2} />}
+              icon={<Info size={17} />}
               title="Running in demo mode"
               subtitle="No Supabase project is configured, so your watchlist and journal are stored in this browser only."
             />
           ) : user ? (
             <>
               <ListRow
-                icon={<UserIcon size={17} strokeWidth={2.2} />}
+                icon={<UserIcon size={17} />}
                 title={user.email ?? "Signed in"}
                 subtitle="Watchlist and journal sync to your account"
               />
               <ListRow
-                icon={<LogOut size={17} strokeWidth={2.2} />}
+                icon={<SignOut size={17} />}
                 title={signingOut ? "Signing out…" : "Sign out"}
                 destructive
                 onClick={async () => {
@@ -181,7 +168,7 @@ export function SettingsView() {
             </>
           ) : (
             <ListRow
-              icon={<LogIn size={17} strokeWidth={2.2} />}
+              icon={<SignIn size={17} />}
               title="Sign in"
               subtitle="Sync your watchlist and journal across devices"
               href="/login"
@@ -195,13 +182,13 @@ export function SettingsView() {
         <SectionLabel>About</SectionLabel>
         <ListGroup>
           <ListRow
-            icon={<ShieldCheck size={17} strokeWidth={2.2} />}
+            icon={<ShieldCheck size={17} />}
             title="Disclaimer & risk disclosure"
             subtitle="What this app is, and what it isn't"
             href="/disclaimer"
           />
           <ListRow
-            icon={<FileText size={17} strokeWidth={2.2} />}
+            icon={<FileText size={17} />}
             title="How the strategies work"
             subtitle="All 25 screens explained"
             href="/strategies"

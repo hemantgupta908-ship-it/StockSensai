@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, Clock, Info, TrendingUp } from "lucide-react";
+import { CaretRight, Clock, Info, TrendUp } from "@phosphor-icons/react";
 
 import type { Recommendation } from "@/lib/engine/types";
 import { cn, formatINR } from "@/lib/utils";
@@ -86,7 +86,7 @@ export function RecommendationRow({
             {/* Strategy — the reason this row is here at all. */}
             <div className="flex min-w-0 shrink-0 items-center gap-1.5 lg:w-[210px]">
               <Badge tone="blue">
-                <TrendingUp size={11} strokeWidth={2.6} />
+                <TrendUp size={11} />
                 <span className="truncate">{r.strategyName}</span>
               </Badge>
             </div>
@@ -129,7 +129,7 @@ export function RecommendationRow({
             <div className="flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1 lg:w-[164px] lg:justify-end">
               <RiskBadge level={r.riskLevel} />
               <span className="flex items-center gap-1 text-[11px] font-medium text-label-secondary/60">
-                <Clock size={11} strokeWidth={2.2} />
+                <Clock size={11} />
                 {r.holdPeriodLabel}
               </span>
               <span className="numeric text-[12px] font-bold text-green/90">
@@ -146,12 +146,11 @@ export function RecommendationRow({
               title="Strategy explanation"
               aria-label={`View strategy explanation for ${r.ticker}`}
             >
-              <Info size={14} strokeWidth={2.2} />
+              <Info size={14} />
             </button>
             <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" currentPrice={r.price} />
-            <ChevronRight
+            <CaretRight
               size={16}
-              strokeWidth={2.4}
               className="hidden shrink-0 text-label-quaternary/30 sm:block"
               aria-hidden
             />

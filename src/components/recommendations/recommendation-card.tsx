@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Clock, Info, TrendingUp, Target } from "lucide-react";
+import { Clock, Info, Target, TrendUp } from "@phosphor-icons/react";
 
 import type { Recommendation } from "@/lib/engine/types";
 import { cn, formatINR } from "@/lib/utils";
@@ -72,7 +72,7 @@ export function RecommendationCard({
               {/* Strategy + Sector badges */}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <Badge tone="blue">
-                  <TrendingUp size={11} strokeWidth={2.6} />
+                  <TrendUp size={11} />
                   {r.strategyName}
                 </Badge>
                 <Badge tone="neutral">{r.sector}</Badge>
@@ -99,11 +99,11 @@ export function RecommendationCard({
           <RiskBadge level={r.riskLevel} />
 
           <span className="flex items-center gap-1 text-xs font-medium text-label-secondary/60">
-            <Clock size={12} strokeWidth={2.2} />
+            <Clock size={12} />
             {r.holdPeriodLabel}
           </span>
           <span className="flex items-center gap-1 text-xs font-bold text-green/90">
-            <Target size={12} strokeWidth={2.5} />
+            <Target size={12} />
             +{estGain.toFixed(1)}%
           </span>
 
@@ -118,7 +118,7 @@ export function RecommendationCard({
               title="Strategy explanation"
               aria-label="View strategy explanation"
             >
-              <Info size={15} strokeWidth={2.2} />
+              <Info size={15} />
             </button>
             <WatchlistButton ticker={r.ticker} name={r.name} exchange={r.exchange} size="sm" currentPrice={r.price} />
           </div>

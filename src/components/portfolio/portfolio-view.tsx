@@ -3,16 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ChevronRight,
-  Download,
-  Edit2,
-  Filter,
-  NotebookPen,
-  Plus,
-  PieChart as AnalyticsIcon,
-  Trash2,
-} from "lucide-react";
+import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Funnel, NotePencil, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 
 import {
   TRADING_STYLES,
@@ -83,7 +74,7 @@ export function PortfolioView() {
           className="inline-flex h-9 items-center gap-1 rounded-full bg-blue px-3 text-caption font-semibold text-white shadow-sm"
           title="Add new position"
         >
-          <Plus size={15} strokeWidth={2.5} />
+          <Plus size={15} />
           <span>Add</span>
         </motion.button>
       </div>
@@ -146,7 +137,7 @@ export function PortfolioView() {
         <PageContainer width="wide">
           <div className="rounded-card border border-separator/40 bg-bg-secondary px-6 py-14 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue/[0.12]">
-              <NotebookPen size={22} className="text-blue" strokeWidth={2.2} />
+              <NotePencil size={22} className="text-blue" />
             </div>
             <p className="mt-3 text-subhead font-semibold text-label">No positions logged yet</p>
             <p className="mx-auto mt-1.5 max-w-xs text-footnote leading-relaxed text-label-secondary/60">
@@ -229,7 +220,7 @@ export function PortfolioView() {
           <div className="flex items-center gap-2">
             {/* Style Selector */}
             <div className="flex items-center gap-1 rounded-lg bg-fill/[0.06] px-2 py-1 text-caption text-label-secondary/70 dark:bg-white/[0.05]">
-              <Filter size={13} />
+              <Funnel size={13} />
               <select
                 value={styleFilter}
                 onChange={(e) => setStyleFilter(e.target.value as StyleFilter)}
@@ -265,7 +256,7 @@ export function PortfolioView() {
               className="inline-flex items-center gap-1 rounded-lg bg-fill/[0.06] px-2.5 py-1 text-caption font-semibold text-label-secondary hover:bg-fill/[0.12] dark:bg-white/[0.05]"
               title="Export portfolio CSV"
             >
-              <Download size={14} />
+              <DownloadSimple size={14} />
               <span className="hidden sm:inline">CSV</span>
             </button>
 
@@ -470,7 +461,7 @@ function JournalCard({
             aria-label={`Edit ${entry.ticker} journal entry`}
             className="rounded-full p-2 text-label-quaternary/40 hover:text-label active:bg-fill/[0.10]"
           >
-            <Edit2 size={15} strokeWidth={2.2} />
+            <PencilSimple size={15} />
           </motion.button>
 
           <motion.button
@@ -479,7 +470,7 @@ function JournalCard({
             aria-label={`Delete ${entry.ticker} journal entry`}
             className="rounded-full p-2 text-label-quaternary/35 active:bg-red/[0.10] active:text-red"
           >
-            <Trash2 size={15} strokeWidth={2.2} />
+            <Trash size={15} />
           </motion.button>
         </div>
       </div>

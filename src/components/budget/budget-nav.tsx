@@ -13,23 +13,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowLeftRight,
-  CalendarClock,
-  CreditCard,
-  Flag,
-  Home,
-  LayoutGrid,
-  PieChart,
-  Repeat,
-  Settings,
-  Shapes,
-  ShieldCheck,
-  Wallet,
-  X,
-  LogOut,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowsLeftRight, CalendarCheck, ChartPie, CreditCard, Flag, Gear, House, Icon, Repeat, Shapes, ShieldCheck, SignOut, SquaresFour, Wallet, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "@/components/ui/environment-switcher";
@@ -40,26 +24,26 @@ export interface BudgetNavItem {
   href: string;
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 /** The five destinations that get a bottom tab on mobile. */
 export const BUDGET_TAB_ITEMS: BudgetNavItem[] = [
-  { href: "/budget", label: "Home", description: "Overview and widgets", icon: Home },
+  { href: "/budget", label: "Home", description: "Overview and widgets", icon: House },
   {
     href: "/budget/transactions",
     label: "Transactions",
     description: "Everything you've recorded",
-    icon: ArrowLeftRight,
+    icon: ArrowsLeftRight,
   },
-  { href: "/budget/budgets", label: "Budgets", description: "Spending limits by period", icon: PieChart },
+  { href: "/budget/budgets", label: "Budgets", description: "Spending limits by period", icon: ChartPie },
   {
     href: "/budget/subscriptions",
     label: "Subscriptions",
     description: "Recurring payments",
     icon: Repeat,
   },
-  { href: "/budget/more", label: "More", description: "Everything else", icon: LayoutGrid },
+  { href: "/budget/more", label: "More", description: "Everything else", icon: SquaresFour },
 ];
 
 /** The full menu, shown in the sidebar and on the "More" screen. */
@@ -67,19 +51,19 @@ export const BUDGET_NAV_SECTIONS: { title: string; items: BudgetNavItem[] }[] = 
   {
     title: "Overview",
     items: [
-      { href: "/budget", label: "Home", description: "Overview and widgets", icon: Home },
+      { href: "/budget", label: "Home", description: "Overview and widgets", icon: House },
       {
         href: "/budget/transactions",
         label: "Transactions",
         description: "Everything you've recorded",
-        icon: ArrowLeftRight,
+        icon: ArrowsLeftRight,
       },
     ],
   },
   {
     title: "Planning",
     items: [
-      { href: "/budget/budgets", label: "Budgets", description: "Spending limits by period", icon: PieChart },
+      { href: "/budget/budgets", label: "Budgets", description: "Spending limits by period", icon: ChartPie },
       { href: "/budget/goals", label: "Goals", description: "Save or spend towards a target", icon: Flag },
       { href: "/budget/loans", label: "Loans", description: "Money lent and borrowed", icon: CreditCard },
       {
@@ -98,7 +82,7 @@ export const BUDGET_NAV_SECTIONS: { title: string; items: BudgetNavItem[] }[] = 
         href: "/budget/upcoming",
         label: "Upcoming & Overdue",
         description: "Unpaid scheduled transactions",
-        icon: CalendarClock,
+        icon: CalendarCheck,
       },
     ],
   },
@@ -107,7 +91,7 @@ export const BUDGET_NAV_SECTIONS: { title: string; items: BudgetNavItem[] }[] = 
     items: [
       { href: "/budget/accounts", label: "Accounts", description: "Where your money sits", icon: Wallet },
       { href: "/budget/categories", label: "Categories", description: "How spending is grouped", icon: Shapes },
-      { href: "/budget/settings", label: "Settings", description: "Budget-only preferences", icon: Settings },
+      { href: "/budget/settings", label: "Settings", description: "Budget-only preferences", icon: Gear },
     ],
   },
 ];
@@ -147,7 +131,6 @@ export function BudgetTabBar() {
                 >
                   <Icon
                     size={23}
-                    strokeWidth={active ? 2.4 : 1.9}
                     className={cn(
                       "transition-colors duration-200",
                       active ? "text-green" : "text-label-secondary/50",
@@ -220,7 +203,7 @@ export function BudgetSidebar() {
                           : "text-label hover:bg-fill/10",
                       )}
                     >
-                      <Icon size={19} strokeWidth={active ? 2.3 : 1.9} />
+                      <Icon size={19} />
                       <span className={cn("text-subhead", active && "font-semibold")}>
                         {item.label}
                       </span>
@@ -248,7 +231,7 @@ export function BudgetSidebar() {
             <p className="truncate text-footnote font-semibold text-label">{user?.email?.split('@')[0] || "User"}</p>
             <p className="truncate text-caption2 text-label-secondary/70">{user?.email || "Signed in"}</p>
           </div>
-          <LogOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
+          <SignOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
         </button>
       </div>
     </aside>
@@ -344,7 +327,7 @@ export function BudgetMobileSidebar({ open, onClose }: { open: boolean; onClose:
                                 : "text-label hover:bg-fill/[0.08]",
                             )}
                           >
-                            <Icon size={20} strokeWidth={active ? 2.3 : 1.9} className="shrink-0" />
+                            <Icon size={20} className="shrink-0" />
                             <span className={cn("text-subhead", active && "font-semibold")}>
                               {item.label}
                             </span>

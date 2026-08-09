@@ -9,11 +9,11 @@
  */
 
 import { useState, useEffect } from "react";
-import { Check, Search, X } from "lucide-react";
+import { Check, MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { getIcon, searchIcons, ICON_COUNT } from "@/lib/budget/icons";
-import { CATEGORY_COLOURS } from "@/lib/budget/defaults";
+import { COLOUR_FAMILIES, COLOUR_FAMILY_INDEX } from "@/lib/budget/defaults";
 
 /** The chosen icon on a coloured disc — the standard way records are shown. */
 export function IconBadge({
@@ -37,7 +37,7 @@ export function IconBadge({
       aria-hidden
     >
       {Icon ? (
-        <Icon size={size * 0.55} strokeWidth={2.1} />
+        <Icon size={size * 0.55} weight="fill" />
       ) : (
         (fallback ?? "").slice(0, 1).toUpperCase()
       )}
@@ -81,7 +81,7 @@ export function IconPicker({
       {open ? (
         <div className="mt-2 rounded-card border border-separator/50 bg-bg-elevated p-3">
           <div className="relative mb-2">
-            <Search
+            <MagnifyingGlass
               size={15}
               className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-label-secondary/40"
             />
@@ -135,7 +135,7 @@ export function IconPicker({
                               : "bg-fill/10 text-label-secondary hover:bg-fill/20 hover:text-label",
                           )}
                         >
-                          <Icon size={17} strokeWidth={2} />
+                          <Icon size={17} weight="fill" />
                         </button>
                       );
                     })}
@@ -192,9 +192,22 @@ export function ColourPicker({
     localStorage.setItem("budget_custom_colours", JSON.stringify(nextSaved));
   };
 
-  // Give fewer default options (e.g. first 15) to make room for custom picker
-  const presetColours = CATEGORY_COLOURS.slice(0, 15);
-  const isCustomActive = value && !presetColours.includes(value) && !savedColours.includes(value);
+  // Which hue's shades to show. Follows the current value when it belongs to a
+  // family, so reopening the editor lands on the colour already chosen rather
+  // than resetting to red.
+  const familyOfValue = value
+    ? COLOUR_FAMILIES.findIndex((f) => f.shades.includes(value))
+    : -1;
+  const [family, setFamily] = useState(familyOfValue >= 0 ? familyOfValue : 0);
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    if (familyOfValue >= 0 && familyOfValue !== family) setFamily(familyOfValue);
+  }
+
+  const shades = COLOUR_FAMILIES[family]?.shades ?? [];
+  const isCustomActive =
+    value && familyOfValue < 0 && !savedColours.includes(value);
 
   return (
     <div className="mb-3">
@@ -211,17 +224,44 @@ export function ColourPicker({
         ) : null}
       </div>
       
+      {/* Hue row: one representative swatch per family. */}
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {COLOUR_FAMILIES.map((f, i) => (
+          <button
+            key={f.name}
+            type="button"
+            onClick={() => {
+              setFamily(i);
+              // Move to the same position in the new hue, so switching hue does
+              // not also silently change how light or dark the colour is.
+              const position = shades.indexOf(value ?? "");
+              onChange(f.shades[position >= 0 ? position : COLOUR_FAMILY_INDEX]);
+            }}
+            aria-label={f.name}
+            title={f.name}
+            className={cn(
+              "h-6 w-6 rounded-full transition-transform hover:scale-110 active:scale-90",
+              i === family
+                ? "ring-2 ring-label ring-offset-2 ring-offset-bg-secondary"
+                : "ring-1 ring-black/10 dark:ring-white/10",
+            )}
+            style={{ backgroundColor: f.shades[COLOUR_FAMILY_INDEX] }}
+          />
+        ))}
+      </div>
+
       <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
-        {presetColours.map((c) => (
+        {/* Shades of the selected hue, light → dark. */}
+        {shades.map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => onChange(c)}
-            aria-label={`Colour ${c}`}
+            aria-label={`${COLOUR_FAMILIES[family].name} ${c}`}
             className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90"
             style={{ backgroundColor: c }}
           >
-            {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" strokeWidth={3} /> : null}
+            {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" /> : null}
           </button>
         ))}
 
@@ -240,7 +280,7 @@ export function ColourPicker({
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
           {isCustomActive ? (
-            <Check size={15} className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" strokeWidth={3} />
+            <Check size={15} className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
           ) : null}
         </label>
       </div>
@@ -257,7 +297,7 @@ export function ColourPicker({
                 className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90"
                 style={{ backgroundColor: c }}
               >
-                {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" strokeWidth={3} /> : null}
+                {value === c ? <Check size={15} className="text-white shadow-sm drop-shadow-md" /> : null}
               </button>
             ))}
           </div>

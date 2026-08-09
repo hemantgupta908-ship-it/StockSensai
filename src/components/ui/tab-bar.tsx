@@ -46,7 +46,6 @@ export function TabBar() {
                 >
                   <Icon
                     size={23}
-                    strokeWidth={active ? 2.4 : 1.9}
                     className={cn(
                       "transition-colors duration-200",
                       active ? "text-blue" : "text-label-secondary/50",

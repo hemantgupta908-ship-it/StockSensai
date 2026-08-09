@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Info, ShieldAlert } from "lucide-react";
+import { Info, ShieldWarning } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,7 +20,7 @@ export function DisclaimerFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("mx-auto w-full max-w-[1180px] px-4 pb-4 pt-6 sm:px-5 lg:px-8", className)}>
       <div className="flex items-start gap-2.5 rounded-[14px] border border-separator/40 bg-fill/[0.05] px-3.5 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
-        <ShieldAlert size={15} className="mt-[1px] shrink-0 text-amber" strokeWidth={2.2} />
+        <ShieldWarning size={15} className="mt-[1px] shrink-0 text-amber"  weight="duotone" />
         <p className="text-caption leading-snug text-label-secondary/65">
           {DISCLAIMER_SHORT} Not a broker — StockSensei never places trades.{" "}
           <Link href="/disclaimer" className="font-semibold text-blue underline-offset-2 hover:underline">
@@ -42,7 +42,7 @@ export function DisclaimerNotice({ className }: { className?: string }) {
         className,
       )}
     >
-      <Info size={15} className="mt-[1px] shrink-0 text-amber" strokeWidth={2.4} />
+      <Info size={15} className="mt-[1px] shrink-0 text-amber"  weight="duotone" />
       <p className="text-caption leading-snug text-label-secondary/75">
         These levels are produced by a rule-based model from historical price and
         fundamental data. They are not predictions, not personalised advice, and carry

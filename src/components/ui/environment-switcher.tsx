@@ -13,14 +13,14 @@
  */
 
 import Link from "next/link";
-import { CandlestickChart, Wallet } from "lucide-react";
+import { ChartLineUp, Wallet } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 
 export type Environment = "stocks" | "budget";
 
 const ENVIRONMENTS = {
-  stocks: { href: "/home", label: "Stocks", icon: CandlestickChart, accent: "text-blue" },
+  stocks: { href: "/home", label: "Stocks", icon: ChartLineUp, accent: "text-blue" },
   budget: { href: "/budget", label: "Budget", icon: Wallet, accent: "text-green" },
 } as const;
 

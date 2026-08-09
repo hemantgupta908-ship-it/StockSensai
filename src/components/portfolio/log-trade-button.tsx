@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { NotebookPen } from "lucide-react";
+import { NotePencil } from "@phosphor-icons/react";
 
 import type { StrategySignal } from "@/lib/strategies/types";
 import { Sheet } from "@/components/ui/sheet";
@@ -78,7 +78,7 @@ export function LogTradeButton({
         aria-label={`Log a trade in ${ticker}`}
         className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-fill/[0.10] text-label-secondary/60 dark:bg-white/[0.09]"
       >
-        <NotebookPen size={17} strokeWidth={2.2} />
+        <NotePencil size={17} />
       </motion.button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title={`Log ${ticker}`}>

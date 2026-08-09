@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Download, Upload, X, Trash2, CheckCircle2 } from "lucide-react";
+import { CheckCircle, DownloadSimple, Trash, UploadSimple, X } from "@phosphor-icons/react";
 import * as XLSX from "xlsx";
 
 import { cn } from "@/lib/utils";
@@ -202,7 +202,7 @@ export function ImportPreviewModal({
           {step === "upload" && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue/10 text-blue">
-                <Upload size={32} strokeWidth={2.5} />
+                <UploadSimple size={32} />
               </div>
               <h3 className="mb-2 text-title2 font-bold text-label">Upload Excel File</h3>
               <p className="mb-8 max-w-sm text-subhead text-label-secondary/70">
@@ -214,12 +214,12 @@ export function ImportPreviewModal({
                   onClick={handleDownloadTemplate}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fill/5 px-4 py-3.5 text-subhead font-semibold text-label transition-colors hover:bg-fill/10 active:scale-[0.98]"
                 >
-                  <Download size={18} />
+                  <DownloadSimple size={18} />
                   Download Template
                 </button>
                 
                 <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue px-4 py-3.5 text-subhead font-semibold text-white transition-colors hover:bg-blue/90 active:scale-[0.98]">
-                  <Upload size={18} />
+                  <UploadSimple size={18} />
                   Upload File
                   <input
                     type="file"
@@ -307,7 +307,7 @@ export function ImportPreviewModal({
                                 onClick={() => handleRemovePending(p.id)}
                                 className="rounded p-1 text-label-secondary/50 hover:bg-red/10 hover:text-red transition-colors"
                               >
-                                <Trash2 size={16} />
+                                <Trash size={16} />
                               </button>
                             </td>
                           </tr>
@@ -322,7 +322,7 @@ export function ImportPreviewModal({
 
           {step === "success" && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <CheckCircle2 size={48} className="mb-4 text-green" />
+              <CheckCircle size={48} className="mb-4 text-green" />
               <h3 className="text-title3 font-bold text-label">Imported Successfully!</h3>
               <p className="mt-2 text-label-secondary/70">Your transactions have been added.</p>
             </div>

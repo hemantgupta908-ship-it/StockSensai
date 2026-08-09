@@ -25,45 +25,53 @@ import {
  * legible behind white iconography in both light and dark mode — the icon
  * badges draw white glyphs on these, so pale tints are deliberately absent.
  */
-export const CATEGORY_COLOURS = [
-  // Reds
-  "#F44336", "#C62828", "#D32F2F", "#B71C1C",
-  // Pinks → roses
-  "#E91E63", "#AD1457", "#C2185B", "#880E4F",
-  // Corals → salmons
-  "#FF6B6B", "#E74C3C", "#FF5252",
-  // Purples → magentas
-  "#9C27B0", "#6A1B9A", "#8E24AA", "#4A148C",
-  // Deep purples → violets
-  "#673AB7", "#4527A0", "#512DA8", "#311B92",
-  // Indigos
-  "#3F51B5", "#283593", "#303F9F", "#1A237E",
-  // Blues
-  "#2196F3", "#1565C0", "#1976D2", "#0D47A1",
-  // Sky blues → periwinkles
-  "#03A9F4", "#0277BD", "#0288D1", "#4FC3F7",
-  // Cyans → teals
-  "#00BCD4", "#00838F", "#0097A7", "#006064",
-  "#009688", "#00695C", "#00796B", "#004D40",
-  // Greens
-  "#4CAF50", "#2E7D32", "#388E3C", "#1B5E20",
-  // Light greens → mints
-  "#8BC34A", "#558B2F", "#689F38",
-  // Limes → yellows
-  "#CDDC39", "#9E9D24", "#AFB42B",
-  // Ambers → golds
-  "#FFC107", "#FF8F00", "#FFA000", "#FF6F00",
-  // Oranges
-  "#FF9800", "#EF6C00", "#F57C00", "#E65100",
-  // Deep oranges
-  "#FF5722", "#D84315", "#BF360C",
-  // Browns → coppers
-  "#795548", "#4E342E", "#5D4037", "#3E2723",
-  // Blue-greys → slates
-  "#607D8B", "#37474F", "#455A64", "#263238",
-  // Neutrals
-  "#9E9E9E", "#546E7A", "#78909C",
+export interface ColourFamily {
+  name: string;
+  /** Light → dark. The middle entry is the family's representative swatch. */
+  shades: string[];
+}
+
+/**
+ * The colour palette, grouped by hue.
+ *
+ * Grouped rather than a flat list because a flat list forced the picker to show
+ * an arbitrary prefix of it — which meant every swatch on offer was a red, pink
+ * or purple while two thirds of the palette was unreachable. Each family runs
+ * light to dark so picking a *hue* and picking a *shade* are separate choices.
+ */
+export const COLOUR_FAMILIES: ColourFamily[] = [
+  { name: "Red", shades: ["#EF9A9A", "#E57373", "#F44336", "#D32F2F", "#B71C1C"] },
+  { name: "Coral", shades: ["#FFAB91", "#FF8A65", "#FF6B6B", "#E74C3C", "#BF360C"] },
+  { name: "Pink", shades: ["#F48FB1", "#F06292", "#E91E63", "#C2185B", "#880E4F"] },
+  { name: "Purple", shades: ["#CE93D8", "#BA68C8", "#9C27B0", "#7B1FA2", "#4A148C"] },
+  { name: "Violet", shades: ["#B39DDB", "#9575CD", "#673AB7", "#512DA8", "#311B92"] },
+  { name: "Indigo", shades: ["#9FA8DA", "#7986CB", "#3F51B5", "#303F9F", "#1A237E"] },
+  { name: "Blue", shades: ["#90CAF9", "#64B5F6", "#2196F3", "#1976D2", "#0D47A1"] },
+  { name: "Sky", shades: ["#81D4FA", "#4FC3F7", "#03A9F4", "#0288D1", "#01579B"] },
+  { name: "Cyan", shades: ["#80DEEA", "#4DD0E1", "#00BCD4", "#0097A7", "#006064"] },
+  { name: "Teal", shades: ["#80CBC4", "#4DB6AC", "#009688", "#00796B", "#004D40"] },
+  { name: "Green", shades: ["#A5D6A7", "#81C784", "#4CAF50", "#388E3C", "#1B5E20"] },
+  { name: "Lime", shades: ["#C5E1A5", "#AED581", "#8BC34A", "#689F38", "#33691E"] },
+  { name: "Yellow", shades: ["#E6EE9C", "#DCE775", "#CDDC39", "#AFB42B", "#827717"] },
+  { name: "Amber", shades: ["#FFE082", "#FFD54F", "#FFC107", "#FFA000", "#FF6F00"] },
+  { name: "Orange", shades: ["#FFCC80", "#FFB74D", "#FF9800", "#F57C00", "#E65100"] },
+  { name: "Rust", shades: ["#FFAB91", "#FF8A65", "#FF5722", "#D84315", "#BF360C"] },
+  { name: "Brown", shades: ["#BCAAA4", "#A1887F", "#795548", "#5D4037", "#3E2723"] },
+  { name: "Slate", shades: ["#B0BEC5", "#90A4AE", "#607D8B", "#455A64", "#263238"] },
+  { name: "Grey", shades: ["#E0E0E0", "#BDBDBD", "#9E9E9E", "#757575", "#424242"] },
 ];
+
+/** The swatch that represents each family in the hue row. */
+export const COLOUR_FAMILY_INDEX = 2;
+
+/** Flat palette, kept for callers that just want the whole list. */
+export const CATEGORY_COLOURS = COLOUR_FAMILIES.flatMap((f) => f.shades);
+
+/**
+ * Named rather than `CATEGORY_COLOURS[0]`: the flat list now starts at the
+ * lightest red, which is too pale to be a sensible default for a new category.
+ */
+export const DEFAULT_CATEGORY_COLOUR = COLOUR_FAMILIES[0].shades[COLOUR_FAMILY_INDEX];
 
 const now = () => new Date().toISOString();
 

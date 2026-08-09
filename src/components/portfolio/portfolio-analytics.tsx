@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Award, BarChart3, TrendingDown, TrendingUp, PieChart } from "lucide-react";
+import { ChartBar, ChartPie, Medal, TrendDown, TrendUp } from "@phosphor-icons/react";
 import type { PortfolioEntry } from "./portfolio-provider";
 import {
   TRADING_STYLES,
@@ -89,27 +89,27 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
     >
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <StatCard
-          icon={BarChart3}
+          icon={ChartBar}
           label="Closed Win Rate"
           value={closedEntries.length > 0 ? `${winRatePct}%` : "N/A"}
           subText={closedEntries.length > 0 ? `${winningTrades.length} of ${closedEntries.length} won` : "No closed trades"}
           tone={closedEntries.length > 0 && winRatePct >= 50 ? "green" : undefined}
         />
         <StatCard
-          icon={Award}
+          icon={Medal}
           label="Total Positions"
           value={String(entries.length)}
           subText={`${openEntries.length} open · ${closedEntries.length} closed`}
         />
         <StatCard
-          icon={TrendingUp}
+          icon={TrendUp}
           label="Best Trade"
           value={bestTrade ? `${bestTrade.entry.ticker}` : "N/A"}
           subText={bestTrade ? `+${formatINR(bestTrade.pnl, { decimals: 0 })} (+${bestTrade.pnlPct.toFixed(1)}%)` : "No gains logged"}
           tone={bestTrade ? "green" : undefined}
         />
         <StatCard
-          icon={TrendingDown}
+          icon={TrendDown}
           label="Worst Trade"
           value={worstTrade ? `${worstTrade.entry.ticker}` : "N/A"}
           subText={worstTrade ? `${formatINR(worstTrade.pnl, { decimals: 0 })} (${worstTrade.pnlPct.toFixed(1)}%)` : "No losses logged"}
@@ -122,7 +122,7 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
         <div className="rounded-card border border-separator/40 bg-bg-secondary p-3.5 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
           <div className="flex items-center justify-between text-caption font-semibold text-label">
             <span className="flex items-center gap-1.5">
-              <PieChart size={14} className="text-blue" />
+              <ChartPie size={14} className="text-blue" />
               Style Allocation
             </span>
             <span className="text-caption2 text-label-secondary/60">

@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import React, { useMemo, useState, useRef, useEffect, Children, isValidElement } from "react";
-import { ChevronLeft, Menu, Plus, Search, X, ChevronDown, Check, type LucideIcon } from "lucide-react";
+import { CaretDown, CaretLeft, Check, Icon, List, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -56,7 +56,7 @@ export function BudgetHeader({
             className="-ml-2 flex items-center gap-0.5 rounded-full p-1.5 text-green transition-colors hover:bg-fill/10"
             aria-label="Back"
           >
-            <ChevronLeft size={22} strokeWidth={2.4} />
+            <CaretLeft size={22} />
           </Link>
         ) : (
           // Below `lg` the sidebar is hidden and the tab bar carries only five
@@ -66,7 +66,7 @@ export function BudgetHeader({
             className="-ml-2 rounded-lg p-1.5 text-label-secondary transition-colors hover:bg-fill/[0.12] hover:text-label lg:hidden"
             aria-label="Open menu"
           >
-            <Menu size={22} strokeWidth={2.2} />
+            <List size={22} />
           </button>
         )}
 
@@ -180,14 +180,14 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon: LucideIcon;
+  icon: Icon;
   title: string;
   description?: string;
   action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center rounded-card bg-bg-secondary px-6 py-12 text-center">
-      <Icon size={34} className="mb-3 text-label-secondary/30" strokeWidth={1.6} />
+      <Icon size={34} className="mb-3 text-label-secondary/30" />
       <p className="text-headline text-label">{title}</p>
       {description ? (
         <p className="mt-1 max-w-xs text-subhead text-label-secondary/60">{description}</p>
@@ -206,7 +206,7 @@ export function AddFab({ onClick, label = "Add" }: { onClick: () => void; label?
       aria-label={label}
       className="fixed bottom-[80px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green text-white shadow-pill transition-transform active:scale-95 lg:bottom-8 lg:right-8"
     >
-      <Plus size={26} strokeWidth={2.4} />
+      <Plus size={26} />
     </button>
   );
 }
@@ -320,7 +320,7 @@ export function SearchField({
 }) {
   return (
     <div className="relative mb-3">
-      <Search
+      <MagnifyingGlass
         size={16}
         className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label-secondary/40"
       />
@@ -349,22 +349,24 @@ export function Field({
   label,
   children,
   hint,
+  className,
 }: {
   label: string;
   children: React.ReactNode;
   hint?: string;
+  className?: string;
 }) {
   return (
-    <label className="mb-3 block">
-      <span className="mb-1.5 block text-footnote font-medium text-label-secondary">{label}</span>
+    <label className={cn("block mb-3", className)}>
+      <span className="mb-1 block px-1 text-[11px] font-semibold uppercase tracking-wider text-label-secondary/50">{label}</span>
       {children}
-      {hint ? <span className="mt-1 block text-caption text-label-secondary/50">{hint}</span> : null}
+      {hint ? <span className="mt-1 block px-1 text-caption text-label-secondary/40">{hint}</span> : null}
     </label>
   );
 }
 
 export const inputClass =
-  "w-full rounded-ios border border-separator/50 bg-bg-elevated px-3 py-2.5 text-body text-label outline-none focus:border-green focus:ring-2 focus:ring-green/25";
+  "w-full rounded-[14px] bg-fill/5 px-3.5 py-2.5 text-body text-label outline-none transition-all placeholder:text-label-secondary/30 focus:bg-fill/10 focus:ring-2 focus:ring-green/20";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputClass, props.className)} />;
@@ -385,11 +387,13 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
   }, []);
 
   // Parse children into an array of options
-  const options: { value: string; label: string }[] = [];
+  const options: { value: string; label: string; group?: string }[] = [];
   let selectedLabel = props.value as string;
 
   Children.forEach(props.children, (child) => {
-    if (isValidElement(child) && child.type === "option") {
+    if (!isValidElement(child)) return;
+
+    if (child.type === "option") {
       const element = child as React.ReactElement<any>;
       const val = element.props.value;
       const label = element.props.children;
@@ -397,11 +401,25 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
       if (val === props.value) {
         selectedLabel = label as string;
       }
+    } else if (child.type === "optgroup") {
+      const groupElement = child as React.ReactElement<any>;
+      const groupLabel = groupElement.props.label;
+      Children.forEach(groupElement.props.children, (groupChild) => {
+        if (isValidElement(groupChild) && groupChild.type === "option") {
+          const element = groupChild as React.ReactElement<any>;
+          const val = element.props.value;
+          const label = element.props.children;
+          options.push({ value: val as string, label: label as string, group: groupLabel });
+          if (val === props.value) {
+            selectedLabel = label as string;
+          }
+        }
+      });
     }
   });
 
   return (
-    <div className={cn("relative w-full", props.className)} ref={containerRef}>
+    <div className={cn("relative w-full", open && "z-50", props.className)} ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -412,7 +430,7 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
         )}
       >
         <span className="truncate">{selectedLabel || "Select..."}</span>
-        <ChevronDown size={16} className="shrink-0 text-label-secondary/50" />
+        <CaretDown size={16} className="shrink-0 text-label-secondary/50" />
       </button>
 
       <AnimatePresence>
@@ -425,29 +443,38 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
             className="absolute z-50 mt-2 w-full overflow-hidden rounded-[16px] bg-bg-secondary p-1.5 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
           >
             <div className="max-h-60 overflow-y-auto space-y-0.5">
-              {options.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    if (props.onChange) {
-                      const event = {
-                        target: { value: opt.value },
-                        currentTarget: { value: opt.value },
-                      } as React.ChangeEvent<HTMLSelectElement>;
-                      props.onChange(event);
-                    }
-                    setOpen(false);
-                  }}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left text-body transition-colors hover:bg-fill/10",
-                    props.value === opt.value ? "text-green font-medium" : "text-label"
-                  )}
-                >
-                  <span className="truncate">{opt.label}</span>
-                  {props.value === opt.value && <Check size={16} className="shrink-0 text-green" />}
-                </button>
-              ))}
+              {options.map((opt, i) => {
+                const showGroup = opt.group && (i === 0 || options[i - 1].group !== opt.group);
+                return (
+                  <React.Fragment key={opt.value}>
+                    {showGroup && (
+                      <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-label-secondary/50">
+                        {opt.group}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (props.onChange) {
+                          const event = {
+                            target: { value: opt.value },
+                            currentTarget: { value: opt.value },
+                          } as React.ChangeEvent<HTMLSelectElement>;
+                          props.onChange(event);
+                        }
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left text-body transition-colors hover:bg-fill/10",
+                        props.value === opt.value ? "text-green font-medium" : "text-label"
+                      )}
+                    >
+                      <span className="truncate">{opt.label}</span>
+                      {props.value === opt.value && <Check size={16} className="shrink-0 text-green" />}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </motion.div>
         )}
@@ -541,12 +568,14 @@ export function Sheet({
   title,
   children,
   footer,
+  maxWidth = "sm:max-w-lg",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  maxWidth?: string;
 }) {
   if (!open) return null;
 
@@ -558,7 +587,7 @@ export function Sheet({
         onClick={onClose}
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
       />
-      <div className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-sheet bg-bg-elevated shadow-sheet animate-sheet-in sm:max-w-lg sm:rounded-sheet">
+      <div className={cn("relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-sheet bg-bg-elevated shadow-sheet animate-sheet-in sm:rounded-sheet", maxWidth)}>
         <div className="flex items-center justify-between border-b border-separator/50 px-4 py-3">
           <h2 className="text-headline text-label">{title}</h2>
           <button
@@ -675,7 +704,7 @@ export function CategoryDot({
       aria-hidden
     >
       {Icon ? (
-        <Icon size={size * 0.55} strokeWidth={2.1} />
+        <Icon size={size * 0.55} weight="fill" />
       ) : (
         emoji || (label ? label.slice(0, 1).toUpperCase() : "")
       )}

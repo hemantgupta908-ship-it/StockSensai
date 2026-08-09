@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CheckCircle2, Info } from "lucide-react";
+import { ArrowRight, CheckCircle, Info } from "@phosphor-icons/react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
     return (
       <div className="space-y-4">
         <div className="flex items-start gap-2.5 rounded-[14px] bg-blue/[0.08] px-4 py-3.5">
-          <Info size={16} className="mt-[1px] shrink-0 text-blue" strokeWidth={2.2} />
+          <Info size={16} className="mt-[1px] shrink-0 text-blue" />
           <div>
             <p className="text-subhead font-semibold text-label">Demo mode</p>
             <p className="mt-1 text-footnote leading-relaxed text-label-secondary/65">
@@ -42,7 +42,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         </div>
         <Button fullWidth size="lg" onClick={() => router.push("/home")}>
           Continue to app
-          <ArrowRight size={17} strokeWidth={2.6} />
+          <ArrowRight size={17} />
         </Button>
       </div>
     );
@@ -114,7 +114,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         transition={{ type: "spring", stiffness: 320, damping: 26 }}
         className="space-y-4 rounded-card border border-separator/40 bg-bg-secondary p-6 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark"
       >
-        <CheckCircle2 size={36} className="mx-auto text-green" strokeWidth={2} />
+        <CheckCircle size={36} className="mx-auto text-green" />
         <div>
           <h2 className="text-headline font-semibold text-label">Account registered</h2>
           <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">

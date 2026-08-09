@@ -8,7 +8,7 @@ import { ConfidenceRing } from "@/components/ui/confidence";
 import { RangeGauge } from "@/components/ui/range-gauge";
 import type { Recommendation } from "@/lib/engine/types";
 import { formatINR } from "@/lib/utils";
-import { CheckCircle2, Clock, Globe2, Info, ShieldAlert, Sparkles, TrendingUp, X } from "lucide-react";
+import { CheckCircle, Clock, Globe, Info, ShieldWarning, Sparkle, TrendUp, X } from "@phosphor-icons/react";
 import Link from "next/link";
 
 interface RecommendationInfoModalProps {
@@ -62,7 +62,7 @@ export function RecommendationInfoModal({
         <div className="flex items-center justify-between border-b border-separator/40 px-5 py-4 dark:border-white/[0.08]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue/15 text-blue">
-              <Info size={20} strokeWidth={2.4} />
+              <Info size={20} />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -92,7 +92,7 @@ export function RecommendationInfoModal({
               </div>
               <div className="mt-1 flex items-center gap-1.5">
                 <Badge tone="blue">
-                  <TrendingUp size={11} strokeWidth={2.6} />
+                  <TrendUp size={11} />
                   {r.strategyName}
                 </Badge>
                 <Badge tone="neutral">{r.sector}</Badge>
@@ -111,7 +111,7 @@ export function RecommendationInfoModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="flex items-center gap-1.5 text-caption1 font-semibold text-label-secondary uppercase tracking-wider">
-                <Globe2 size={14} className="text-blue" />
+                <Globe size={14} className="text-blue" />
                 Strategy Analysis Explanation
               </span>
               <div className="flex rounded-lg bg-fill/[0.12] p-0.5 dark:bg-white/[0.08]">
@@ -143,7 +143,7 @@ export function RecommendationInfoModal({
                 <div className="space-y-2">
                   <p className="font-medium text-label">{hinglishText}</p>
                   <div className="flex items-center gap-1.5 text-caption2 text-blue font-semibold pt-1">
-                    <Sparkles size={13} />
+                    <Sparkle size={13} />
                     <span>Hinglish summary for easy Indian trader understanding</span>
                   </div>
                 </div>
@@ -151,7 +151,7 @@ export function RecommendationInfoModal({
                 <div className="space-y-2">
                   <p className="font-medium text-label">{r.reason}</p>
                   <div className="flex items-center gap-1.5 text-caption2 text-label-secondary/60 pt-1">
-                    <CheckCircle2 size={13} className="text-green" />
+                    <CheckCircle size={13} className="text-green" />
                     <span>Algorithmic strategy breakdown &amp; volume analysis</span>
                   </div>
                 </div>
@@ -179,7 +179,7 @@ export function RecommendationInfoModal({
             <div className="flex items-center gap-2">
               <RiskBadge level={r.riskLevel} />
               <span className="flex items-center gap-1 text-caption font-medium text-label-secondary">
-                <Clock size={13} strokeWidth={2.4} />
+                <Clock size={13} />
                 Hold {r.holdPeriodLabel}
               </span>
             </div>

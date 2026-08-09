@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 import { getStrategiesByStyle } from "@/lib/strategies";
 import {
@@ -36,8 +36,7 @@ export default function StrategiesPage() {
         title="Strategies"
         largeTitle
         width="fluid"
-        subtitle="The 25 rules behind every screen"
-      />
+        subtitle="The 25 rules behind every screen" />
 
       <main className={cn("mx-auto space-y-6 pt-2", CONTAINER_WIDTHS.fluid)}>
         <p className="max-w-3xl text-footnote leading-relaxed text-label-secondary/65">
@@ -87,11 +86,10 @@ export default function StrategiesPage() {
                         Typical hold: {strategy.holdPeriodLabel}
                       </p>
                     </div>
-                    <ChevronRight
+                    <CaretRight
                       size={17}
-                      strokeWidth={2.6}
                       className="shrink-0 text-label-quaternary/30"
-                    />
+                     weight="duotone" />
                   </Link>
                 ))}
               </div>

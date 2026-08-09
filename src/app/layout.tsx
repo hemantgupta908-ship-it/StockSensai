@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
 import { PreferencesProvider } from "@/components/preferences-provider";
+import { IconProvider } from "@/components/icon-provider";
 import { parseRiskTolerance, RISK_COOKIE } from "@/lib/preferences";
 
 export const metadata: Metadata = {
@@ -41,7 +42,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
-          <PreferencesProvider initialRiskTolerance={riskTolerance}>{children}</PreferencesProvider>
+          <IconProvider>
+            <PreferencesProvider initialRiskTolerance={riskTolerance}>
+              {children}
+            </PreferencesProvider>
+          </IconProvider>
         </ThemeProvider>
       </body>
     </html>

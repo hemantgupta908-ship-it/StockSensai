@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Star, Trash2 } from "lucide-react";
+import { CaretRight, Star, Trash } from "@phosphor-icons/react";
 
 import { formatINR } from "@/lib/utils";
 import { useQuotes } from "@/hooks/use-quotes";
@@ -55,7 +55,7 @@ export function WatchlistView() {
         <PageContainer width="wide">
           <div className="rounded-card border border-separator/40 bg-bg-secondary px-6 py-14 text-center shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber/[0.14]">
-              <Star size={22} className="text-amber" strokeWidth={2.2} />
+              <Star size={22} className="text-amber" />
             </div>
             <p className="mt-3 text-subhead font-semibold text-label">Nothing saved yet</p>
             <p className="mx-auto mt-1.5 max-w-xs text-footnote leading-relaxed text-label-secondary/60">
@@ -66,7 +66,7 @@ export function WatchlistView() {
               className="mt-4 inline-flex items-center gap-1 text-subhead font-semibold text-blue"
             >
               Browse ideas
-              <ChevronRight size={16} strokeWidth={2.6} />
+              <CaretRight size={16} />
             </Link>
           </div>
         </PageContainer>
@@ -151,7 +151,7 @@ export function WatchlistView() {
                       aria-label={`Remove ${item.ticker} from watchlist`}
                       className="shrink-0 rounded-full p-2 text-label-quaternary/35 active:bg-red/[0.10] active:text-red"
                     >
-                      <Trash2 size={16} strokeWidth={2.2} />
+                      <Trash size={16} />
                     </motion.button>
                   </div>
                 </motion.div>

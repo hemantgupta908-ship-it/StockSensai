@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Check, X } from "lucide-react";
+import { Check, X } from "@phosphor-icons/react/dist/ssr";
 
 import { ALL_STRATEGIES, getStrategy } from "@/lib/strategies";
 import { TRADING_STYLE_LABELS } from "@/lib/strategies/types";
@@ -83,7 +83,7 @@ export default async function StrategyPage({ params }: PageProps) {
             {explainer.signalConditions.map((condition) => (
               <li key={condition} className="flex items-start gap-2.5">
                 <span className="mt-[3px] flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-green/[0.16] text-green">
-                  <Check size={10} strokeWidth={3.6} />
+                  <Check size={10}  weight="duotone" />
                 </span>
                 <span className="text-footnote leading-relaxed text-label-secondary/75">
                   {condition}
@@ -117,7 +117,7 @@ export default async function StrategyPage({ params }: PageProps) {
             {explainer.worksBestWhen.map((item) => (
               <li key={item} className="flex items-start gap-2.5">
                 <span className="mt-[3px] flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-green/[0.16] text-green">
-                  <Check size={10} strokeWidth={3.6} />
+                  <Check size={10}  weight="duotone" />
                 </span>
                 <span className="text-footnote leading-relaxed text-label-secondary/75">{item}</span>
               </li>
@@ -130,7 +130,7 @@ export default async function StrategyPage({ params }: PageProps) {
             {explainer.failsWhen.map((item) => (
               <li key={item} className="flex items-start gap-2.5">
                 <span className="mt-[3px] flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-red/[0.16] text-red">
-                  <X size={10} strokeWidth={3.6} />
+                  <X size={10}  weight="duotone" />
                 </span>
                 <span className="text-footnote leading-relaxed text-label-secondary/75">{item}</span>
               </li>

@@ -9,13 +9,13 @@
  */
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, CreditCard, Plus, Star, Upload } from "lucide-react";
+import { ArrowLeft, ArrowsLeftRight, CreditCard, Plus, Star, UploadSimple } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { type Transaction } from "@/lib/budget/types";
 import { getWalletBalance, getSpendingSummary } from "@/lib/budget/calculations";
-import { getCreditCardStatus, isCreditCard } from "@/lib/budget/credit";
+import { getCreditCardStatus, isCreditCard, dayInMonth } from "@/lib/budget/credit";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import { IconBadge } from "./icon-picker";
@@ -35,8 +35,61 @@ import { CONTAINER_WIDTHS } from "@/components/ui/page-container";
 
 type DirectionFilter = "all" | "expense" | "income";
 
+type CycleGroup = {
+  key: string;
+  cycleStart: Date;
+  cycleEnd: Date;
+  spend: number;
+  payments: number;
+  items: Transaction[];
+};
+
+function useGroupedByCycle(transactions: Transaction[], statementDay: number | null) {
+  return useMemo(() => {
+    if (statementDay === null) return null;
+    
+    const groups = new Map<string, CycleGroup>();
+    
+    for (const t of transactions) {
+      const d = new Date(t.dateCreated);
+      const dMonthStatement = dayInMonth(d.getFullYear(), d.getMonth(), statementDay);
+      
+      let cycleEnd: Date;
+      if (d.getTime() <= dMonthStatement.getTime()) {
+        cycleEnd = dMonthStatement;
+      } else {
+        cycleEnd = dayInMonth(d.getFullYear(), d.getMonth() + 1, statementDay);
+      }
+      
+      const cycleStart = dayInMonth(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, statementDay);
+      const key = `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth() + 1).padStart(2, "0")}-${String(cycleEnd.getDate()).padStart(2, "0")}`;
+      
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          cycleStart,
+          cycleEnd,
+          spend: 0,
+          payments: 0,
+          items: [],
+        });
+      }
+      
+      const group = groups.get(key)!;
+      group.items.push(t);
+      if (t.paid && !t.income) {
+        group.spend += Math.abs(t.amount);
+      } else if (t.paid && t.income) {
+        group.payments += Math.abs(t.amount);
+      }
+    }
+    
+    return [...groups.values()].sort((a, b) => b.cycleEnd.getTime() - a.cycleEnd.getTime());
+  }, [transactions, statementDay]);
+}
+
 export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
-  const { wallets, transactions, allWallets, settings } = useBudget();
+  const { wallets, transactions, allWallets, settings, objectives } = useBudget();
   const { byPk } = useCategoryLookup();
 
   const wallet = wallets.find((w) => w.walletPk === walletPk);
@@ -47,6 +100,8 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [modalDefaults, setModalDefaults] = useState<Partial<Transaction> | undefined>(undefined);
+  const [modalDefaultTab, setModalDefaultTab] = useState<"expense" | "income" | "transfer" | undefined>(undefined);
 
   const balance = useMemo(
     () => (wallet ? getWalletBalance(transactions, wallet.walletPk) : 0),
@@ -80,10 +135,21 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   }, [transactions, walletPk, query, direction, byPk]);
 
   const summary = useMemo(
-    () => getSpendingSummary(allWallets, filtered),
-    [allWallets, filtered],
+    () => getSpendingSummary(allWallets, filtered, objectives),
+    [allWallets, filtered, objectives],
   );
-  const grouped = useGroupedByDay(filtered);
+  const dayGroups = useGroupedByDay(filtered);
+  const cycleGroups = useGroupedByCycle(filtered, wallet && isCreditCard(wallet) ? (wallet.statementDay ?? null) : null);
+
+  const cycleGroupsWithUnpaid = useMemo(() => {
+    if (!cycleGroups || !card) return cycleGroups;
+    let accumulatedSpend = 0;
+    return cycleGroups.map(group => {
+      const unpaidAmount = Math.max(0, Math.min(group.spend, card.outstanding - accumulatedSpend));
+      accumulatedSpend += group.spend;
+      return { ...group, unpaidAmount };
+    });
+  }, [cycleGroups, card]);
 
   const isPrimary = wallet?.walletPk === settings.primaryWalletPk;
 
@@ -95,7 +161,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   if (!wallet) {
     return (
       <div className={cn("mx-auto pb-10 pt-5", CONTAINER_WIDTHS.wide)}>
-        <EmptyState icon={ArrowLeftRight} title="Account not found" />
+        <EmptyState icon={ArrowsLeftRight} title="Account not found" />
       </div>
     );
   }
@@ -126,7 +192,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
               aria-label="Back"
               style={{ color: accent }}
             >
-              <ArrowLeft size={22} strokeWidth={2.4} />
+              <ArrowLeft size={22} />
             </Link>
 
             <IconBadge
@@ -207,7 +273,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
             onClick={() => setImportOpen(true)}
             className="flex h-11 items-center gap-2 rounded-[14px] bg-fill/5 px-4 text-sm font-semibold text-label transition-colors hover:bg-fill/10 active:scale-[0.98] shrink-0 ring-1 ring-black/5 dark:ring-white/10"
           >
-            <Upload size={16} />
+            <UploadSimple size={16} />
             <span className="hidden sm:inline">Upload</span>
           </button>
         </div>
@@ -223,6 +289,36 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
             ]}
           />
         </div>
+
+        {/* Statement card */}
+        {card && card.remainingStatementBalance > 0 ? (
+          <div className="mb-4 rounded-[20px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-caption2 uppercase tracking-wide text-label-secondary/50">Statement Balance</p>
+              <Amount value={card.remainingStatementBalance} className="text-title3 font-semibold text-red" />
+              {card.nextDueDate ? (
+                <p className="text-caption text-label-secondary mt-0.5">
+                  Due {new Date(card.nextDueDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              ) : null}
+            </div>
+            <button
+              onClick={() => {
+                setEditing(null);
+                setModalDefaultTab("transfer");
+                setModalDefaults({
+                  amount: card.remainingStatementBalance,
+                  toWalletFk: walletPk,
+                  name: `Statement Payment`,
+                } as any);
+                setModalOpen(true);
+              }}
+              className="rounded-[10px] bg-green px-4 py-2 text-subhead font-semibold text-white transition-transform active:scale-[0.98] whitespace-nowrap"
+            >
+              Pay Bill
+            </button>
+          </div>
+        ) : null}
 
         {/* Summary card */}
         <div className="mb-4 rounded-[20px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
@@ -244,7 +340,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
 
         {filtered.length === 0 ? (
           <EmptyState
-            icon={ArrowLeftRight}
+            icon={ArrowsLeftRight}
             title="No transactions found"
             description={
               query
@@ -252,9 +348,55 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                 : "No transactions recorded for this account yet."
             }
           />
+        ) : cycleGroupsWithUnpaid ? (
+          <div className="space-y-6">
+            {cycleGroupsWithUnpaid.map((group) => (
+              <div key={group.key} className="relative">
+                <div className="mb-2 flex items-center justify-between rounded-md bg-fill/5 px-3 py-2">
+                  <div>
+                    <h3 className="text-subhead font-semibold text-label">
+                      {group.cycleStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - {group.cycleEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Spend</p>
+                      <Amount value={group.spend} className="text-footnote font-medium text-label" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Payments</p>
+                      <Amount value={group.payments} className="text-footnote font-medium text-green" />
+                    </div>
+                    {group.unpaidAmount !== undefined && group.unpaidAmount > 0 ? (
+                      <button
+                        onClick={() => {
+                          setEditing(null);
+                          setModalDefaultTab("transfer");
+                          setModalDefaults({
+                            amount: group.unpaidAmount,
+                            toWalletFk: walletPk,
+                            name: `Cycle Payment`,
+                          } as any);
+                          setModalOpen(true);
+                        }}
+                        className="ml-1 rounded-[8px] bg-green/15 px-2.5 py-1 text-[12px] font-semibold text-green transition-colors hover:bg-green/25 active:scale-95"
+                      >
+                        Pay
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <TransactionGroup>
+                  {group.items.map((t) => (
+                    <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
+                  ))}
+                </TransactionGroup>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="space-y-4">
-            {grouped.map(([day, items]) => (
+            {dayGroups.map(([day, items]) => (
               <div key={day}>
                 <div className="mb-1.5 flex items-baseline justify-between px-1">
                   <h3 className="text-footnote font-semibold text-label-secondary">
@@ -289,7 +431,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
         className="fixed bottom-[80px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-pill transition-transform active:scale-95 lg:bottom-8 lg:right-8"
         style={{ backgroundColor: accent }}
       >
-        <Plus size={26} strokeWidth={2.4} />
+        <Plus size={26} />
       </button>
 
       <TransactionModal
@@ -297,9 +439,12 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
         onClose={() => {
           setModalOpen(false);
           setEditing(null);
+          setModalDefaults(undefined);
+          setModalDefaultTab(undefined);
         }}
         editing={editing}
-        defaults={{ walletFk: walletPk }}
+        defaults={modalDefaults ?? { walletFk: walletPk }}
+        defaultTab={modalDefaultTab}
       />
 
       <ImportPreviewModal

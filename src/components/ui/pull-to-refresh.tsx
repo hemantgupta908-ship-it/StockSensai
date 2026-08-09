@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 const TRIGGER_DISTANCE = 72;
@@ -91,9 +91,8 @@ export function PullToRefresh({
       >
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-secondary shadow-pill">
           <motion.div style={{ rotate: refreshing ? undefined : indicatorRotate }}>
-            <RefreshCw
+            <ArrowsClockwise
               size={17}
-              strokeWidth={2.4}
               className={cn("text-blue", refreshing && "animate-spin")}
             />
           </motion.div>

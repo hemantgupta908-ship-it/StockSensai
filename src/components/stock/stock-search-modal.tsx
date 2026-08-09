@@ -3,18 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  Command,
-  Loader2,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  TrendingUp,
-  X,
-} from "lucide-react";
+import { ArrowRight, CaretRight, CheckCircle, CircleNotch, Command, MagnifyingGlass, ShieldWarning, Sparkle, TrendUp, X } from "@phosphor-icons/react";
 
 import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
 import { Sheet } from "@/components/ui/sheet";
@@ -135,7 +124,7 @@ export function StockSearchModal({
       <div className="w-full overflow-hidden rounded-2xl border border-separator/60 bg-bg-elevated shadow-modal dark:border-white/10 dark:shadow-2xl">
         {/* Header Search Input */}
         <div className="relative flex items-center border-b border-separator/40 px-4 py-3 dark:border-white/[0.08]">
-          <Search size={19} className="text-label-secondary shrink-0" />
+          <MagnifyingGlass size={19} className="text-label-secondary shrink-0" />
           <input
             type="text"
             value={query}
@@ -215,7 +204,7 @@ export function StockSearchModal({
               </div>
 
               <Button size="sm" className="h-8 gap-1.5 bg-purple text-white hover:bg-purple/90">
-                <Sparkles size={13} /> Evaluate Now
+                <Sparkle size={13} /> Evaluate Now
               </Button>
             </motion.div>
           )}
@@ -252,13 +241,13 @@ export function StockSearchModal({
                     className="h-8 gap-1 px-2.5 text-caption font-semibold"
                   >
                     {evaluating === stock.ticker ? (
-                      <Loader2 size={13} className="animate-spin text-blue" />
+                      <CircleNotch size={13} className="animate-spin text-blue" />
                     ) : (
-                      <Sparkles size={13} className="text-purple" />
+                      <Sparkle size={13} className="text-purple" />
                     )}
                     Evaluate
                   </Button>
-                  <ChevronRight size={16} className="text-label-secondary/40 group-hover:text-blue" />
+                  <CaretRight size={16} className="text-label-secondary/40 group-hover:text-blue" />
                 </div>
               </div>
             ))
@@ -275,7 +264,7 @@ export function StockSearchModal({
                 className="mt-3 gap-1.5 bg-purple text-white hover:bg-purple/90"
                 onClick={() => handleSelectStock(query.toUpperCase())}
               >
-                <Sparkles size={14} /> Evaluate {query.toUpperCase()}
+                <Sparkle size={14} /> Evaluate {query.toUpperCase()}
               </Button>
             </div>
           )}
@@ -309,7 +298,7 @@ export function StockSearchModal({
 
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2.5 rounded-lg border border-green/20 bg-green/[0.08] p-2.5">
-                  <CheckCircle2 size={20} className="text-green shrink-0" />
+                  <CheckCircle size={20} className="text-green shrink-0" />
                   <div>
                     <p className="text-subhead font-bold text-label">
                       {preview.bullishCount} Bullish Setups
@@ -321,7 +310,7 @@ export function StockSearchModal({
                 </div>
 
                 <div className="flex items-center gap-2.5 rounded-lg border border-amber/20 bg-amber/[0.08] p-2.5">
-                  <ShieldAlert size={20} className="text-amber shrink-0" />
+                  <ShieldWarning size={20} className="text-amber shrink-0" />
                   <div>
                     <p className="text-subhead font-bold text-label">
                       {preview.bearishCount} Caution Flags

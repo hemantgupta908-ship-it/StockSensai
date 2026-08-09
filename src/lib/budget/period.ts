@@ -71,6 +71,25 @@ export function atMidday(date: Date): Date {
 }
 
 /**
+ * `count` dates one month apart, starting at `start`, each at local midday.
+ *
+ * The day of month is taken from `start` and clamped to the length of each
+ * target month, so a schedule starting on the 31st lands on the 28th/30th
+ * rather than rolling forward into the following month the way
+ * `setMonth(m + 1)` would.
+ */
+export function monthlySchedule(start: Date, count: number): Date[] {
+  const day = start.getDate();
+  const dates: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const month = start.getMonth() + i;
+    const daysInMonth = new Date(start.getFullYear(), month + 1, 0).getDate();
+    dates.push(atMidday(new Date(start.getFullYear(), month, Math.min(day, daysInMonth))));
+  }
+  return dates;
+}
+
+/**
  * Clamp a budget's period to the same ceilings Cashew enforces on save, and
  * normalise `startDate` to midnight. `getBudgetDate` re-applies this because
  * the Dart original does, and an unclamped `periodLength` would otherwise let

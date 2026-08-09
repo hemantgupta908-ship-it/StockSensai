@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { CaretRight } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +82,7 @@ export function ListRow({
       )}
       {trailing}
       {interactive && !trailing && (
-        <ChevronRight size={17} strokeWidth={2.6} className="shrink-0 text-label-quaternary/30" />
+        <CaretRight size={17} className="shrink-0 text-label-quaternary/30" />
       )}
     </div>
   );

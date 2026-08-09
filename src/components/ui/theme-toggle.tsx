@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Moon, Sun, SunMoon } from "lucide-react";
+import { Moon, Sun, SunHorizon } from "@phosphor-icons/react";
 
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   const { preference, resolved, setPreference } = useTheme();
 
   const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
-  const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : SunMoon;
+  const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : SunHorizon;
 
   return (
     <motion.button
@@ -49,7 +49,7 @@ export function ThemeToggle({ className }: { className?: string }) {
           transition={{ duration: 0.18 }}
           className="flex"
         >
-          <Icon size={17} strokeWidth={2.2} />
+          <Icon size={17} />
         </motion.span>
       </AnimatePresence>
 

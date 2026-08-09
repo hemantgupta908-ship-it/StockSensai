@@ -295,6 +295,15 @@ export interface Objective {
   pinned: boolean;
   archived: boolean;
   walletFk: string;
+  /**
+   * Day of the month a repayment is due, 1–31. Extension beyond Cashew, so it
+   * is nullable and every existing objective reads as null.
+   *
+   * Distinct from `endDate`: this recurs every month, `endDate` is the single
+   * date the whole loan is cleared. A day alone cannot say whether a loan is
+   * overdue, which is why it does not replace it.
+   */
+  paymentDayOfMonth: number | null;
 }
 
 /** Rule for turning an incoming message/notification into a transaction. */

@@ -1,19 +1,11 @@
-import {
-  BookOpen,
-  Home,
-  Layers,
-  Settings,
-  Star,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { BookOpen, Gear, House, Icon, Stack, Star, Wallet } from "@phosphor-icons/react";
 
 export interface NavItem {
   href: string;
   label: string;
   /** Longer label used where there is room; the sidebar keeps labels terse. */
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 /**
@@ -23,11 +15,11 @@ export interface NavItem {
  * the switcher in the header, not a peer of these screens.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/home", label: "Home", description: "Today's screened ideas", icon: Home },
+  { href: "/home", label: "Home", description: "Today's screened ideas", icon: House },
   { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
-  { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Layers },
+  { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Stack },
   { href: "/portfolio", label: "Journal", description: "Plan versus what you did", icon: Wallet },
-  { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Settings },
+  { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Gear },
 ];
 
 /**
@@ -38,14 +30,14 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: "Overview",
     items: [
-      { href: "/home", label: "Home", description: "Today's screened ideas", icon: Home },
+      { href: "/home", label: "Home", description: "Today's screened ideas", icon: House },
       { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
     ],
   },
   {
     title: "Research",
     items: [
-      { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Layers },
+      { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Stack },
     ],
   },
   {
@@ -57,7 +49,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: "Organise",
     items: [
-      { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Settings },
+      { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Gear },
       {
         href: "/disclaimer",
         label: "Disclaimer",

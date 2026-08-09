@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft, ShieldAlert } from "lucide-react";
+import { CaretLeft, ShieldWarning } from "@phosphor-icons/react/dist/ssr";
 
 import { DISCLAIMER_FULL } from "@/components/disclaimer";
 
@@ -17,14 +17,14 @@ export default function DisclaimerPage() {
         href="/home"
         className="mb-4 inline-flex items-center gap-0.5 text-body font-medium text-blue"
       >
-        <ChevronLeft size={22} strokeWidth={2.4} />
+        <CaretLeft size={22}  weight="duotone" />
         Back
       </Link>
 
       <div className="rounded-card border border-separator/40 bg-bg-secondary p-5 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
         <div className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-amber/[0.16]">
-            <ShieldAlert size={20} className="text-amber" strokeWidth={2.2} />
+            <ShieldWarning size={20} className="text-amber"  weight="duotone" />
           </div>
           <h1 className="text-title2 font-bold tracking-tight text-label">
             Disclaimer &amp; risk disclosure

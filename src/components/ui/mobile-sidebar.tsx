@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { isActivePath, NAV_SECTIONS } from "./nav-items";
@@ -124,7 +124,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                 className="flex w-full items-center justify-between gap-2 rounded-xl border border-separator/40 bg-bg-elevated px-3.5 py-2.5 text-subhead font-medium text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
               >
                 <span className="flex items-center gap-2">
-                  <Search size={16} className="text-blue" />
+                  <MagnifyingGlass size={16} className="text-blue" />
                   <span>Evaluate Stock...</span>
                 </span>
                 <kbd className="rounded bg-fill/[0.12] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-label-secondary opacity-70">
@@ -156,7 +156,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                                 : "text-label hover:bg-fill/[0.08]",
                             )}
                           >
-                            <Icon size={20} strokeWidth={active ? 2.3 : 1.9} className="shrink-0" />
+                            <Icon size={20} className="shrink-0" />
                             <span className={cn("text-subhead", active && "font-semibold")}>
                               {item.label}
                             </span>

@@ -9,17 +9,20 @@
  */
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Repeat, ChevronRight } from "lucide-react";
+import { CalendarCheck, CaretRight, Repeat } from "@phosphor-icons/react";
 import Link from "next/link";
 
-import { TransactionSpecialType, type Transaction } from "@/lib/budget/types";
+import { ObjectiveType, TransactionSpecialType, type Transaction, type Objective } from "@/lib/budget/types";
 import {
+  getIndefiniteLoanBalance,
+  getTotalTowardsObjective,
   getTotalSubscriptions,
   isOverdue,
   isUpcoming,
   type SelectedSubscriptionsType,
 } from "@/lib/budget/calculations";
 import { useBudget } from "./budget-provider";
+import { ObjectiveCard } from "./objectives-view";
 import {
   AddFab,
   Amount,
@@ -176,7 +179,7 @@ export function UpcomingView() {
 
       {overdue.length === 0 && upcoming.length === 0 ? (
         <EmptyState
-          icon={CalendarClock}
+          icon={CalendarCheck}
           title="Nothing scheduled"
           description="Upcoming and subscription transactions that are not yet paid appear here."
         />
@@ -270,13 +273,13 @@ export function UpcomingWidget({ limit = 4 }: { limit?: number }) {
         className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 transition-transform active:scale-[0.98] dark:ring-white/10"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
-          <CalendarClock size={20} />
+          <CalendarCheck size={20} />
         </div>
         <div className="flex-1">
           <span className="block text-subhead font-medium text-label">No upcoming bills</span>
           <span className="block text-caption text-label-secondary/60">You're all caught up for now</span>
         </div>
-        <ChevronRight size={18} className="text-label-secondary/30" />
+        <CaretRight size={18} className="text-label-secondary/30" />
       </Link>
     );
   }
@@ -295,22 +298,35 @@ export function UpcomingWidget({ limit = 4 }: { limit?: number }) {
 
 /** Lent / borrowed summary for the home screen. */
 export function CreditDebtWidget() {
-  const { transactions, allWallets } = useBudget();
-  const [editing, setEditing] = useState<Transaction | null>(null);
+  const { transactions, allWallets, objectives } = useBudget();
 
-  const { lent, borrowed, items } = useMemo(() => {
-    const credit = transactions.filter((t) => t.type === TransactionSpecialType.credit);
-    const debt = transactions.filter((t) => t.type === TransactionSpecialType.debt);
+  const { lent, borrowed, activeLoans } = useMemo(() => {
+    let lentSum = 0;
+    let borrowedSum = 0;
+
+    const loans = objectives.filter((o) => o.type === ObjectiveType.loan && !o.archived);
+
+    for (const o of loans) {
+      if (o.amount === -1) {
+        const bal = getIndefiniteLoanBalance(allWallets, transactions, o);
+        if (bal < 0) lentSum += Math.abs(bal);
+        if (bal > 0) borrowedSum += bal;
+      } else {
+        const paid = getTotalTowardsObjective(allWallets, transactions, o);
+        const remaining = Math.max(0, o.amount - paid);
+        if (o.income) borrowedSum += remaining;
+        else lentSum += remaining;
+      }
+    }
+
     return {
-      lent: credit.reduce((sum, t) => sum + Math.abs(t.amount), 0),
-      borrowed: debt.reduce((sum, t) => sum + Math.abs(t.amount), 0),
-      items: [...credit, ...debt].sort(
-        (a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime(),
-      ),
+      lent: lentSum,
+      borrowed: borrowedSum,
+      activeLoans: loans.sort((a, b) => a.order - b.order),
     };
-  }, [transactions]);
+  }, [objectives, transactions, allWallets]);
 
-  if (items.length === 0) {
+  if (activeLoans.length === 0 && lent === 0 && borrowed === 0) {
     return (
       <div className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
@@ -338,12 +354,11 @@ export function CreditDebtWidget() {
           </div>
         </div>
       </Card>
-      <TransactionGroup>
-        {items.slice(0, 4).map((t) => (
-          <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditing} />
+      <div className="space-y-3">
+        {activeLoans.slice(0, 4).map((o) => (
+          <ObjectiveCard key={o.objectivePk} objective={o} compact />
         ))}
-      </TransactionGroup>
-      <TransactionModal open={editing !== null} onClose={() => setEditing(null)} editing={editing} />
+      </div>
     </>
   );
 }

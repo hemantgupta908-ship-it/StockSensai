@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronRight, Plus, Receipt, Tag, Trash2, Users } from "lucide-react";
+import { CaretRight, Plus, Receipt, Tag, Trash, Users } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
@@ -21,11 +21,11 @@ import {
   Field,
   PrimaryButton,
   Section,
-  SelectInput,
   Sheet,
   TextInput,
   Toggle,
 } from "./budget-ui";
+import { CategorySelect } from "./category-select";
 
 export function MoreView() {
   const [billSplitterOpen, setBillSplitterOpen] = useState(false);
@@ -51,7 +51,7 @@ export function MoreView() {
                       {item.description}
                     </span>
                   </span>
-                  <ChevronRight size={17} className="shrink-0 text-label-secondary/30" />
+                  <CaretRight size={17} className="shrink-0 text-label-secondary/30" />
                 </Link>
               );
             })}
@@ -73,7 +73,7 @@ export function MoreView() {
                 Split a bill you paid amongst other people
               </span>
             </span>
-            <ChevronRight size={17} className="shrink-0 text-label-secondary/30" />
+            <CaretRight size={17} className="shrink-0 text-label-secondary/30" />
           </button>
 
           <button
@@ -88,7 +88,7 @@ export function MoreView() {
                 Autocomplete a category from a transaction name
               </span>
             </span>
-            <ChevronRight size={17} className="shrink-0 text-label-secondary/30" />
+            <CaretRight size={17} className="shrink-0 text-label-secondary/30" />
           </button>
         </div>
       </Section>
@@ -209,7 +209,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
               className="flex items-center gap-1 rounded-full bg-green/12 px-3 py-1.5 text-caption text-green"
             >
               {person}
-              <Trash2 size={11} />
+              <Trash size={11} />
             </button>
           ))}
         </div>
@@ -278,7 +278,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
                   aria-label="Remove item"
                   className="shrink-0 rounded-ios px-2 text-label-secondary/50 hover:bg-fill/15"
                 >
-                  <Trash2 size={15} />
+                  <Trash size={15} />
                 </button>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -335,7 +335,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
 // ---------------------------------------------------------------------------
 
 function AssociatedTitlesSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { associatedTitles, categories, upsertAssociatedTitle, deleteAssociatedTitle } = useBudget();
+  const { associatedTitles, upsertAssociatedTitle, deleteAssociatedTitle } = useBudget();
   const { byPk } = useCategoryLookup();
 
   const [title, setTitle] = useState("");
@@ -373,14 +373,11 @@ function AssociatedTitlesSheet({ open, onClose }: { open: boolean; onClose: () =
         />
       </Field>
       <Field label="Category">
-        <SelectInput value={categoryFk} onChange={(e) => setCategoryFk(e.target.value)}>
-          <option value="">Select category</option>
-          {categories.map((c) => (
-            <option key={c.categoryPk} value={c.categoryPk}>
-              {c.name}
-            </option>
-          ))}
-        </SelectInput>
+        <CategorySelect
+          value={categoryFk}
+          onChange={setCategoryFk}
+          placeholder="Select category"
+        />
       </Field>
       <Toggle
         checked={exact}
@@ -414,7 +411,7 @@ function AssociatedTitlesSheet({ open, onClose }: { open: boolean; onClose: () =
                   aria-label={`Delete ${t.title}`}
                   className="shrink-0 rounded-full p-1.5 text-label-secondary/50 hover:bg-fill/15"
                 >
-                  <Trash2 size={15} />
+                  <Trash size={15} />
                 </button>
               </div>
             );

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, ShieldAlert, LogOut } from "lucide-react";
+import { MagnifyingGlass, ShieldWarning, SignOut } from "@phosphor-icons/react";
 import { useSession } from "@/components/auth/session-provider";
 
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ export function SidebarNav() {
             className="flex w-full items-center justify-between gap-2 rounded-[11px] border border-separator/40 bg-bg-elevated/80 px-3 py-2 text-footnote text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
           >
             <span className="flex items-center gap-2">
-              <Search size={15} className="text-blue" />
+              <MagnifyingGlass size={15} className="text-blue" />
               <span>Evaluate Stock...</span>
             </span>
             <kbd className="rounded bg-fill/[0.12] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-label-secondary opacity-70">
@@ -76,7 +76,7 @@ export function SidebarNav() {
                             : "text-label hover:bg-fill/10",
                         )}
                       >
-                        <Icon size={19} strokeWidth={active ? 2.3 : 1.9} />
+                        <Icon size={19} />
                         <span className={cn("text-subhead", active && "font-semibold")}>
                           {item.label}
                         </span>
@@ -88,19 +88,6 @@ export function SidebarNav() {
             </div>
           ))}
         </nav>
-
-        {/* The disclaimer is a licensing requirement, so it stays pinned. */}
-        <div className="border-t border-separator/40 p-3 dark:border-white/[0.06]">
-          <Link
-            href="/disclaimer"
-            className="flex items-start gap-2 rounded-[11px] bg-amber/[0.09] px-3 py-2.5 transition-colors hover:bg-amber/[0.14]"
-          >
-            <ShieldAlert size={14} className="mt-[1px] shrink-0 text-amber" strokeWidth={2.3} />
-            <span className="text-caption2 leading-snug text-label-secondary/65">
-              Educational screener — not investment advice, not a broker.
-            </span>
-          </Link>
-        </div>
 
         {/* Profile Section */}
         <div className="mt-auto border-t border-separator/40 p-3 dark:border-white/[0.06]">
@@ -118,7 +105,7 @@ export function SidebarNav() {
               <p className="truncate text-footnote font-semibold text-label">{user?.email?.split('@')[0] || "User"}</p>
               <p className="truncate text-caption2 text-label-secondary/70">{user?.email || "Signed in"}</p>
             </div>
-            <LogOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
+            <SignOut size={16} className="text-label-secondary/50 shrink-0 group-hover:text-label transition-colors" />
           </button>
         </div>
       </aside>

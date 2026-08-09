@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { PieChart as PieIcon } from "lucide-react";
+import { ChartPie as PieIcon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -30,7 +30,7 @@ function rangeStart(range: Range): Date {
 }
 
 export function AnalyticsView() {
-  const { transactions, allWallets } = useBudget();
+  const { allWallets, transactions, objectives } = useBudget();
   const [range, setRange] = useState<Range>("month");
   const [direction, setDirection] = useState<"expense" | "income">("expense");
 
@@ -48,10 +48,10 @@ export function AnalyticsView() {
     [transactions, range],
   );
 
-  const summary = useMemo(() => getSpendingSummary(allWallets, inRange), [allWallets, inRange]);
+  const summary = useMemo(() => getSpendingSummary(allWallets, inRange, objectives), [allWallets, inRange, objectives]);
   const byCategory = useMemo(
-    () => getSpendingByCategory(allWallets, inRange, { income: direction === "income" }),
-    [allWallets, inRange, direction],
+    () => getSpendingByCategory(allWallets, inRange, { income: direction === "income" }, objectives),
+    [allWallets, inRange, direction, objectives],
   );
 
   return (
@@ -307,7 +307,7 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
 
 /** This-month summary for the home screen. */
 export function SpendingSummaryWidget() {
-  const { transactions, allWallets } = useBudget();
+  const { transactions, allWallets, objectives } = useBudget();
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -315,8 +315,8 @@ export function SpendingSummaryWidget() {
     const inMonth = transactions.filter(
       (t) => new Date(t.dateCreated).getTime() >= start.getTime(),
     );
-    return getSpendingSummary(allWallets, inMonth);
-  }, [transactions, allWallets]);
+    return getSpendingSummary(allWallets, inMonth, objectives);
+  }, [transactions, allWallets, objectives]);
 
   return (
     <Card className="!p-3">

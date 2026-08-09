@@ -9,7 +9,7 @@
  */
 
 import { useRef, useState } from "react";
-import { Download, Upload, RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise, DownloadSimple, UploadSimple } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import type { BudgetDatabase } from "@/lib/budget/types";
@@ -348,7 +348,7 @@ export function BudgetSettingsView() {
             }
             className="flex w-full items-center gap-3 rounded-ios bg-fill/10 px-3 py-2.5 text-left transition-colors hover:bg-fill/15"
           >
-            <Download size={17} className="text-label-secondary" />
+            <DownloadSimple size={17} className="text-label-secondary" />
             <span className="flex-1">
               <span className="block text-subhead text-label">Export backup (JSON)</span>
               <span className="block text-caption text-label-secondary/60">
@@ -368,7 +368,7 @@ export function BudgetSettingsView() {
             }
             className="flex w-full items-center gap-3 rounded-ios bg-fill/10 px-3 py-2.5 text-left transition-colors hover:bg-fill/15"
           >
-            <Download size={17} className="text-label-secondary" />
+            <DownloadSimple size={17} className="text-label-secondary" />
             <span className="flex-1">
               <span className="block text-subhead text-label">Export transactions (CSV)</span>
               <span className="block text-caption text-label-secondary/60">
@@ -382,7 +382,7 @@ export function BudgetSettingsView() {
             onClick={() => fileInput.current?.click()}
             className="flex w-full items-center gap-3 rounded-ios bg-fill/10 px-3 py-2.5 text-left transition-colors hover:bg-fill/15"
           >
-            <Upload size={17} className="text-label-secondary" />
+            <UploadSimple size={17} className="text-label-secondary" />
             <span className="flex-1">
               <span className="block text-subhead text-label">Restore backup (JSON)</span>
               <span className="block text-caption text-label-secondary/60">
@@ -407,7 +407,7 @@ export function BudgetSettingsView() {
             onClick={() => csvInput.current?.click()}
             className="flex w-full items-center gap-3 rounded-ios bg-fill/10 px-3 py-2.5 text-left transition-colors hover:bg-fill/15"
           >
-            <Upload size={17} className="text-label-secondary" />
+            <UploadSimple size={17} className="text-label-secondary" />
             <span className="flex-1">
               <span className="block text-subhead text-label">Import transactions (CSV)</span>
               <span className="block text-caption text-label-secondary/60">
@@ -456,7 +456,7 @@ export function BudgetSettingsView() {
       </Section>
 
       <p className="px-1 pb-4 text-caption text-label-secondary/50">
-        <RotateCcw size={11} className="mr-1 inline" />
+        <ArrowCounterClockwise size={11} className="mr-1 inline" />
         These settings apply to the budget environment only and are stored separately from
         StockSensei&apos;s preferences.
       </p>

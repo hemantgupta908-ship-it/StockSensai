@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
+import { Warning } from "@phosphor-icons/react";
 
 import type { Candle, Fundamentals, Instrument, Quote } from "@/lib/market-data/types";
 import type { StrategySignal } from "@/lib/strategies/types";
@@ -251,7 +251,7 @@ export function StockDetailView({
           {bearishSignals.length > 0 && (
             <section className="rounded-card border border-red/20 bg-red/[0.05] p-4">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle size={15} className="mt-[1px] shrink-0 text-red" strokeWidth={2.4} />
+                <Warning size={15} className="mt-[1px] shrink-0 text-red" />
                 <div>
                   <h3 className="text-footnote font-semibold text-red">
                     {bearishSignals.length} bearish signal

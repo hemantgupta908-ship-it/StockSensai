@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import { CaretDown, CaretRight, Check, ShieldCheck } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ import {
   TextInput,
   Toggle,
 } from "./budget-ui";
+import { CategorySelect } from "./category-select";
 import { TransactionGroup, TransactionRow } from "./transaction-row";
 
 type Filter = "all" | "insurance" | "investment";
@@ -285,7 +286,7 @@ export function PolicyCard({
               onClick={payPremium}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green"
             >
-              <Check size={14} strokeWidth={2.6} /> Record premium
+              <Check size={14} /> Record premium
             </button>
             {onEdit ? (
               <button
@@ -326,7 +327,7 @@ function PolicyEditor({
   onClose: () => void;
   editing?: Policy | null;
 }) {
-  const { wallets, categories, upsertPolicy, deletePolicy } = useBudget();
+  const { wallets, upsertPolicy, deletePolicy } = useBudget();
 
   const [name, setName] = useState("");
   const [type, setType] = useState(String(PolicyType.lifeInsurance));
@@ -515,7 +516,7 @@ function PolicyEditor({
         className="mb-3 flex w-full items-center justify-between rounded-ios bg-fill/10 px-3 py-2.5 text-footnote font-medium text-label-secondary transition-colors hover:bg-fill/15"
       >
         <span>{showMore ? "Hide extra details" : "Add more details (optional)"}</span>
-        <ChevronDown
+        <CaretDown
           size={16}
           className={cn("transition-transform", showMore && "rotate-180")}
         />
@@ -593,16 +594,12 @@ function PolicyEditor({
               </SelectInput>
             </Field>
             <Field label="Category">
-              <SelectInput value={categoryFk} onChange={(e) => setCategoryFk(e.target.value)}>
-                <option value="">Bills &amp; Fees</option>
-                {categories
-                  .filter((c) => !c.income && c.categoryPk !== "0")
-                  .map((c) => (
-                    <option key={c.categoryPk} value={c.categoryPk}>
-                      {c.name}
-                    </option>
-                  ))}
-              </SelectInput>
+              <CategorySelect
+                value={categoryFk}
+                onChange={setCategoryFk}
+                filter={(c) => !c.income}
+                placeholder="Bills & Fees"
+              />
             </Field>
           </div>
 
@@ -652,7 +649,7 @@ export function PoliciesWidget({ limit = 3 }: { limit?: number }) {
           <span className="block text-subhead font-medium text-label">Add a policy</span>
           <span className="block text-caption text-label-secondary/60">Track insurance and renewals</span>
         </div>
-        <ChevronRight size={18} className="text-label-secondary/30" />
+        <CaretRight size={18} className="text-label-secondary/30" />
       </Link>
     );
   }

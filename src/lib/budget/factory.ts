@@ -233,6 +233,7 @@ export function createObjective(over: Partial<Objective> = {}): Objective {
     pinned: true,
     archived: false,
     walletFk: DEFAULT_WALLET_PK,
+    paymentDayOfMonth: null,
     ...over,
   };
 }

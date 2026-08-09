@@ -58,8 +58,26 @@ export function isTransfer(t: Transaction): boolean {
  * pockets and a correction is a reconciliation — neither is earning or
  * spending, so counting either would inflate both sides of your totals.
  */
-export function isExcludedFromTotals(t: Transaction): boolean {
-  return isBalanceCorrection(t) || isTransfer(t);
+export function isExcludedFromTotals(t: Transaction, objectives: Objective[] = []): boolean {
+  if (isBalanceCorrection(t) || isTransfer(t)) return true;
+  
+  if (t.objectiveLoanFk) {
+    const loan = objectives.find((o) => o.objectivePk === t.objectiveLoanFk);
+    if (!loan) return true;
+
+    // The user requested: "paying the borrowed money should count in expenses but 
+    // when i am lenting or collecting that money should not counted in expense or income."
+    // Borrowed loan -> loan.income = true
+    // Paying it back -> t.income = false
+    if (loan.income === true && t.income === false) {
+      return false; // DO NOT exclude (count as expense)
+    }
+    
+    // Everything else (lenting, collecting, receiving borrowed money) is excluded
+    return true;
+  }
+
+  return false;
 }
 
 /** A row that has actually happened, so it counts toward totals. */
@@ -99,16 +117,19 @@ function hasFilter(budget: Budget, filter: BudgetTransactionFilters): boolean {
  * Order matters: the explicit per-transaction exclusion beats every widening
  * filter, and "added only" budgets ignore category/account criteria entirely.
  */
-export function transactionBelongsToBudget(
-  transaction: Transaction,
+export function isInBudget(
   budget: Budget,
+  t: Transaction,
   range: DateTimeRange,
-  categories: TransactionCategory[] = [],
+  categories: TransactionCategory[],
+  objectives: Objective[] = [],
 ): boolean {
+  if (!countsTowardsTotal(t)) return false;
+  if (isExcludedFromTotals(t, objectives)) return false;
   // Explicitly excluded from this budget by the user.
-  if ((transaction.budgetFksExclude ?? []).includes(budget.budgetPk)) return false;
+  if ((t.budgetFksExclude ?? []).includes(budget.budgetPk)) return false;
 
-  const date = new Date(transaction.dateCreated).getTime();
+  const date = new Date(t.dateCreated).getTime();
   const startOfDay = new Date(
     range.start.getFullYear(),
     range.start.getMonth(),
@@ -122,41 +143,37 @@ export function transactionBelongsToBudget(
   ).getTime();
   if (date < startOfDay || date >= endOfDay) return false;
 
-  if (!transaction.paid && transaction.type !== null && transaction.type !== undefined) {
-    return false;
-  }
-
   // "Added only" budgets are a manual bucket: membership is the sole criterion.
   if (budget.addedTransactionsOnly) {
-    return transaction.sharedReferenceBudgetPk === budget.budgetPk;
+    return t.sharedReferenceBudgetPk === budget.budgetPk;
   }
 
   // Transfers and corrections are opt-in.
-  if (isExcludedFromTotals(transaction)) {
+  if (isExcludedFromTotals(t, objectives)) {
     return hasFilter(budget, BudgetTransactionFilters.includeBalanceCorrection);
   }
 
   // Lent/borrowed are opt-in.
-  if (isCreditDebt(transaction) && !hasFilter(budget, BudgetTransactionFilters.includeDebtAndCredit)) {
+  if (isCreditDebt(t) && !hasFilter(budget, BudgetTransactionFilters.includeDebtAndCredit)) {
     return false;
   }
 
   // A spending budget counts expenses; a savings budget counts income. Cashew
   // always includes the matching direction and makes the opposite opt-in.
-  if (budget.income !== transaction.income) {
+  if (budget.income !== t.income) {
     if (!hasFilter(budget, BudgetTransactionFilters.includeIncome)) return false;
   }
 
   // Transactions already committed to another budget/objective are opt-in.
   if (
-    transaction.sharedReferenceBudgetPk !== null &&
-    transaction.sharedReferenceBudgetPk !== budget.budgetPk &&
+    t.sharedReferenceBudgetPk !== null &&
+    t.sharedReferenceBudgetPk !== budget.budgetPk &&
     !hasFilter(budget, BudgetTransactionFilters.addedToOtherBudget)
   ) {
     return false;
   }
   if (
-    transaction.objectiveFk !== null &&
+    t.objectiveFk !== null &&
     !hasFilter(budget, BudgetTransactionFilters.addedToObjective)
   ) {
     return false;
@@ -164,18 +181,18 @@ export function transactionBelongsToBudget(
 
   // Account scope.
   const walletFks = budget.walletFks ?? [];
-  if (walletFks.length > 0 && !walletFks.includes(transaction.walletFk)) return false;
+  if (walletFks.length > 0 && !walletFks.includes(t.walletFk)) return false;
 
   // Category scope. A selected parent category also admits its subcategories,
   // which is why the category list has to be consulted here.
   const categoryFks = budget.categoryFks ?? [];
   if (categoryFks.length > 0) {
     const matches =
-      categoryFks.includes(transaction.categoryFk) ||
-      (transaction.subCategoryFk !== null && categoryFks.includes(transaction.subCategoryFk)) ||
+      categoryFks.includes(t.categoryFk) ||
+      (t.subCategoryFk !== null && categoryFks.includes(t.subCategoryFk)) ||
       categories.some(
         (c) =>
-          c.categoryPk === transaction.categoryFk &&
+          c.categoryPk === t.categoryFk &&
           c.mainCategoryPk !== null &&
           categoryFks.includes(c.mainCategoryPk),
       );
@@ -185,8 +202,8 @@ export function transactionBelongsToBudget(
   const categoryFksExclude = budget.categoryFksExclude ?? [];
   if (categoryFksExclude.length > 0) {
     if (
-      categoryFksExclude.includes(transaction.categoryFk) ||
-      (transaction.subCategoryFk !== null && categoryFksExclude.includes(transaction.subCategoryFk))
+      categoryFksExclude.includes(t.categoryFk) ||
+      (t.subCategoryFk !== null && categoryFksExclude.includes(t.subCategoryFk))
     ) {
       return false;
     }
@@ -200,8 +217,9 @@ export function getBudgetTransactions(
   budget: Budget,
   range: DateTimeRange,
   categories: TransactionCategory[] = [],
+  objectives: Objective[] = [],
 ): Transaction[] {
-  return transactions.filter((t) => transactionBelongsToBudget(t, budget, range, categories));
+  return transactions.filter((t) => isInBudget(budget, t, range, categories, objectives));
 }
 
 /**
@@ -217,8 +235,9 @@ export function getBudgetSpent(
   budget: Budget,
   range: DateTimeRange,
   categories: TransactionCategory[] = [],
+  objectives: Objective[] = [],
 ): number {
-  const members = getBudgetTransactions(transactions, budget, range, categories);
+  const members = getBudgetTransactions(transactions, budget, range, categories, objectives);
   let total = 0;
   for (const t of members) {
     total += t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
@@ -289,6 +308,14 @@ export function getTotalTowardsObjective(
         ? t.objectiveLoanFk === objective.objectivePk
         : t.objectiveFk === objective.objectivePk;
     if (!linked) continue;
+
+    // For fixed loans, only sum the repayments to calculate progress. 
+    // Repayments run in the opposite direction of the loan's origin.
+    // (e.g. Lent loan is income=false, but repayments are income=true).
+    if (objective.type === ObjectiveType.loan && objective.amount !== -1) {
+      if (t.income === objective.income) continue;
+    }
+
     total += t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
   }
   // Savings goals accumulate income (positive), spending goals expenses.
@@ -450,6 +477,7 @@ export interface SpendingSummary {
 export function getSpendingSummary(
   allWallets: AllWallets,
   transactions: Transaction[],
+  objectives: Objective[] = [],
 ): SpendingSummary {
   let income = 0;
   let expense = 0;
@@ -457,7 +485,7 @@ export function getSpendingSummary(
 
   for (const t of transactions) {
     if (!countsTowardsTotal(t)) continue;
-    if (isExcludedFromTotals(t)) continue;
+    if (isExcludedFromTotals(t, objectives)) continue;
     const converted = t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
     if (t.income) income += converted;
     else expense += converted;
@@ -472,11 +500,12 @@ export function getSpendingByCategory(
   allWallets: AllWallets,
   transactions: Transaction[],
   { income }: { income: boolean },
+  objectives: Objective[] = [],
 ): Map<string, number> {
   const byCategory = new Map<string, number>();
   for (const t of transactions) {
     if (!countsTowardsTotal(t)) continue;
-    if (isExcludedFromTotals(t)) continue;
+    if (isExcludedFromTotals(t, objectives)) continue;
     if (t.income !== income) continue;
     const converted = t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
     const key = t.categoryFk;
@@ -543,9 +572,10 @@ export function getBudgetSnapshot(
   budget: Budget,
   categories: TransactionCategory[] = [],
   atDate: Date = new Date(),
+  objectives: Objective[] = [],
 ) {
   const range = getBudgetDate(budget, atDate);
-  const spent = getBudgetSpent(allWallets, transactions, budget, range, categories);
+  const spent = getBudgetSpent(allWallets, transactions, budget, range, categories, objectives);
   const remaining = budget.amount - spent;
   const percent = budget.amount === 0 ? 0 : spent / budget.amount;
   const totalDays = Math.max(

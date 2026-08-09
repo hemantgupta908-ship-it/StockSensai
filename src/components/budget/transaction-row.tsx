@@ -8,7 +8,7 @@
  * on its upcoming and subscription rows.
  */
 
-import { Check, Repeat, SkipForward, Clock, ArrowLeftRight } from "lucide-react";
+import { ArrowsLeftRight, Check, Clock, Repeat, SkipForward } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -34,7 +34,7 @@ export function TransactionRow({
   showActions?: boolean;
 }) {
   const { byPk } = useCategoryLookup();
-  const { wallets, settings, upsertTransaction, upsertTransactions } = useBudget();
+  const { wallets, settings, upsertTransaction, upsertTransactions, objectives } = useBudget();
 
   const category = byPk.get(transaction.categoryFk);
   const subCategory = transaction.subCategoryFk ? byPk.get(transaction.subCategoryFk) : null;
@@ -60,6 +60,28 @@ export function TransactionRow({
     else upsertTransaction(outcome.updated);
   }
 
+  let amountColor = transaction.income ? "text-green" : "text-red";
+  if (transfer) {
+    amountColor = "text-label";
+  } else if (transaction.objectiveLoanFk) {
+    const loan = objectives.find((o) => o.objectivePk === transaction.objectiveLoanFk);
+    if (loan) {
+      if (loan.income === true && transaction.income === false) {
+        // Paying borrowed loan (counts as expense) -> standard expense color
+        amountColor = "text-red";
+      } else if (loan.income === false && transaction.income === false) {
+        // Lent money (disbursement, excluded) -> purple
+        amountColor = "text-purple";
+      } else if (loan.income === false && transaction.income === true) {
+        // Collected money (repayment, excluded) -> blue
+        amountColor = "text-blue";
+      } else if (loan.income === true && transaction.income === true) {
+        // Borrowed money received (disbursement, excluded) -> teal
+        amountColor = "text-teal";
+      }
+    }
+  }
+
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
       <button
@@ -83,7 +105,7 @@ export function TransactionRow({
               <Repeat size={12} className="shrink-0 text-label-secondary/40" />
             ) : null}
             {transfer ? (
-              <ArrowLeftRight size={12} className="shrink-0 text-label-secondary/40" />
+              <ArrowsLeftRight size={12} className="shrink-0 text-label-secondary/40" />
             ) : null}
           </span>
 
@@ -114,7 +136,7 @@ export function TransactionRow({
           showSign
           className={cn(
             "shrink-0 text-subhead font-semibold",
-            transaction.income ? "text-green" : "text-label",
+            amountColor,
             unsettled && "opacity-50",
           )}
         />
@@ -136,7 +158,7 @@ export function TransactionRow({
             aria-label="Mark as paid"
             className="rounded-full bg-green/12 p-1.5 text-green transition-colors hover:bg-green/20"
           >
-            <Check size={15} strokeWidth={2.6} />
+            <Check size={15} />
           </button>
         </div>
       ) : null}

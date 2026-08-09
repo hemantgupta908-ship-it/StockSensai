@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Minus } from "lucide-react";
+import { Check, Minus } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -124,9 +124,9 @@ export function SignalDetail({
                 )}
               >
                 {condition.met ? (
-                  <Check size={11} strokeWidth={3.4} />
+                  <Check size={11} />
                 ) : (
-                  <Minus size={11} strokeWidth={3.4} />
+                  <Minus size={11} />
                 )}
               </span>
               <div className="min-w-0 flex-1">

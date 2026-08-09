@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 
@@ -42,9 +42,8 @@ export function RefreshButton({
           className,
         )}
       >
-        <RefreshCw
+        <ArrowsClockwise
           size={iconSize}
-          strokeWidth={2.4}
           className={cn("shrink-0 transition-transform", loading && "animate-spin text-blue")}
         />
         <span>{loading ? "Refreshing..." : "Refresh"}</span>
@@ -69,9 +68,8 @@ export function RefreshButton({
           className,
         )}
       >
-        <RefreshCw
+        <ArrowsClockwise
           size={iconSize}
-          strokeWidth={2.4}
           className={cn("shrink-0", loading && "animate-spin")}
         />
         <span>{loading ? "Refreshing..." : label}</span>
@@ -98,9 +96,8 @@ export function RefreshButton({
         className,
       )}
     >
-      <RefreshCw
+      <ArrowsClockwise
         size={iconSize}
-        strokeWidth={2.3}
         className={cn("transition-transform", loading && "animate-spin text-blue")}
       />
     </motion.button>

@@ -277,12 +277,18 @@ export function createBalanceCorrection(args: {
   newBalance: number;
   date: Date;
   newPk: () => string;
+  /**
+   * Overrides the row's title. An opening balance uses the same mechanism but
+   * is not correcting anything, so it says so rather than reading as a
+   * reconciliation the user never made.
+   */
+  name?: string;
 }): Transaction {
   const delta = args.newBalance - args.currentBalance;
   return {
     transactionPk: args.newPk(),
     pairedTransactionFk: null,
-    name: "Balance correction",
+    name: args.name ?? "Balance correction",
     amount: delta,
     note: "",
     categoryFk: BALANCE_CORRECTION_CATEGORY_PK,

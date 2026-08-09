@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Menu, Search } from "lucide-react";
+import { CaretLeft, List, MagnifyingGlass } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -81,7 +81,7 @@ export function NavBar({
               className="-ml-1 flex items-center gap-0.5 rounded-lg px-1 py-1 text-blue"
               aria-label="Go back"
             >
-              <ChevronLeft size={26} strokeWidth={2.4} />
+              <CaretLeft size={26} />
               <span className="text-body -ml-1">Back</span>
             </motion.button>
           ) : (
@@ -89,9 +89,9 @@ export function NavBar({
               onClick={() => setSidebarOpen(true)}
               className="flex items-center gap-1.5 rounded-lg p-1.5 text-label-secondary transition-colors hover:bg-fill/[0.12] hover:text-label lg:hidden"
               aria-label="Open menu"
-              title="Open Navigation Menu"
+              title="Open Navigation List"
             >
-              <Menu size={22} strokeWidth={2.2} />
+              <List size={22} />
             </button>
           )}
 
@@ -116,7 +116,7 @@ export function NavBar({
               className="flex items-center gap-1.5 rounded-full bg-fill/[0.12] px-2.5 py-1 text-caption2 font-semibold text-label-secondary transition-colors hover:bg-fill/[0.20] hover:text-label dark:bg-white/[0.08] dark:hover:bg-white/[0.15]"
               title="Search and Evaluate Stock (Ctrl+K)"
             >
-              <Search size={14} className="text-blue" />
+              <MagnifyingGlass size={14} className="text-blue" />
               <span className="hidden sm:inline">Evaluate Stock</span>
               <kbd className="hidden font-mono text-[10px] opacity-60 md:inline">⌘K</kbd>
             </button>

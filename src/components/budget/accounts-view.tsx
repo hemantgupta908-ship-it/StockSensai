@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CreditCard, Pencil, Star, Trash2, Wallet } from "lucide-react";
+import { CreditCard, Pencil, Star, Trash, Wallet } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { AccountType, type TransactionWallet } from "@/lib/budget/types";
@@ -15,6 +15,7 @@ import { getCreditCardStatus, isCreditCard, getTotalCreditOutstanding } from "@/
 import { getNetWorth, getWalletBalance } from "@/lib/budget/calculations";
 import { CURRENCIES, getCurrencyInfo, formatCurrencyAmount } from "@/lib/budget/currency";
 import { createBalanceCorrection } from "@/lib/budget/recurring";
+import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { createWallet, newId } from "@/lib/budget/factory";
 import { ColourPicker, IconBadge, IconPicker } from "./icon-picker";
 import { useBudget } from "./budget-provider";
@@ -283,7 +284,7 @@ export function AccountsView() {
                             }}
                             className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium text-red/70 transition-colors hover:bg-red/10 hover:text-red"
                           >
-                            <Trash2 size={14} />
+                            <Trash size={14} />
                             <span>Delete</span>
                           </button>
                         ) : null}
@@ -345,6 +346,7 @@ function AccountEditor({
   const [decimals, setDecimals] = useState("2");
   const [newBalance, setNewBalance] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
+  const [openingDate, setOpeningDate] = useState(() => toDateInputValue(new Date()));
   const [moveTo, setMoveTo] = useState("");
   const [accountType, setAccountType] = useState(String(AccountType.bank));
   const [creditLimit, setCreditLimit] = useState("");
@@ -376,6 +378,7 @@ function AccountEditor({
       setNewBalance("");
       setMoveTo("");
       setOpeningBalance("");
+      setOpeningDate(toDateInputValue(new Date()));
       setAccountType(String(AccountType.bank));
       setCreditLimit("");
       setStatementDay("");
@@ -419,8 +422,11 @@ function AccountEditor({
           walletPk: base.walletPk,
           currentBalance: 0,
           newBalance: isCard ? -magnitude : Number(openingBalance),
-          date: new Date(),
+          // Midday local, like every other dated row, so a timezone shift
+          // cannot tip it into the neighbouring day or budget period.
+          date: openingDate ? atMidday(fromDateInputValue(openingDate)) : new Date(),
           newPk: newId,
+          name: isCard ? "Opening balance owed" : "Opening balance",
         }),
       );
     }
@@ -577,6 +583,19 @@ function AccountEditor({
         </Field>
       ) : null}
 
+      {!editing && openingBalance !== "" && Number(openingBalance) !== 0 ? (
+        <Field
+          label="Opening date"
+          hint="When this balance was true. Earlier transactions you add later will sit before it."
+        >
+          <TextInput
+            type="date"
+            value={openingDate}
+            onChange={(e) => setOpeningDate(e.target.value)}
+          />
+        </Field>
+      ) : null}
+
       {editing ? (
         <>
           <Field
@@ -635,7 +654,7 @@ export function AccountsSummary() {
   const sorted = [...wallets].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-0.5">
       {sorted.map((wallet) => {
         const balance = getWalletBalance(transactions, wallet.walletPk);
         const accentColour = wallet.colour ?? "#8E8E93";

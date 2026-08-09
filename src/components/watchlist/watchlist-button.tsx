@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
+import { Star } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { useWatchlist } from "./watchlist-provider";
@@ -61,7 +61,7 @@ export function WatchlistButton({
         transition={{ type: "spring", stiffness: 500, damping: 20 }}
         className="flex"
       >
-        <Star size={iconSize} strokeWidth={2.3} fill={saved ? "currentColor" : "none"} />
+        <Star size={iconSize} fill={saved ? "currentColor" : "none"} />
       </motion.span>
       {withLabel && (
         <span className="text-footnote font-semibold">{saved ? "Saved" : "Watchlist"}</span>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertCircle, FlaskConical, Loader2, Radio } from "lucide-react";
+import { CircleNotch, Flask, Radio, WarningCircle } from "@phosphor-icons/react";
 
 import type { RecommendationFeed as FeedPayload } from "@/lib/engine/types";
 import type { TradingStyle } from "@/lib/strategies/types";
@@ -148,7 +148,7 @@ export function RecommendationFeed() {
           {showSkeletons && (
             <div className="space-y-3">
               <div className="flex items-center gap-3 rounded-card border border-blue/20 bg-blue/[0.06] px-4 py-3 text-label dark:border-blue/30 dark:bg-blue/[0.10]">
-                <Loader2 size={20} className="animate-spin text-blue shrink-0" />
+                <CircleNotch size={20} className="animate-spin text-blue shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-footnote font-semibold text-label">
                     Screening NSE & BSE stock universe...
@@ -169,7 +169,7 @@ export function RecommendationFeed() {
 
           {error && !loading && (
             <div className="flex flex-col items-center gap-3 rounded-card bg-bg-secondary px-6 py-10 text-center shadow-card lg:mx-auto lg:max-w-lg dark:shadow-card-dark">
-              <AlertCircle size={26} className="text-red" />
+              <WarningCircle size={26} className="text-red" />
               <div>
                 <p className="text-subhead font-semibold text-label">Couldn&apos;t load ideas</p>
                 <p className="mt-1 text-footnote text-label-secondary/60">{error}</p>
@@ -252,9 +252,9 @@ function FeedMeta({
           }
         >
           {feed.isLiveData ? (
-            <Radio size={11} strokeWidth={2.6} />
+            <Radio size={11} />
           ) : (
-            <FlaskConical size={11} strokeWidth={2.6} />
+            <Flask size={11} />
           )}
           {feed.isLiveData ? "Live data" : "Demo data"}
         </span>

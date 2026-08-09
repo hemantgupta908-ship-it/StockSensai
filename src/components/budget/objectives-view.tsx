@@ -10,11 +10,17 @@
  */
 
 import { useMemo, useState } from "react";
-import { CreditCard, Flag, ChevronRight } from "lucide-react";
+import { CaretRight, CreditCard, Flag } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
-import { ObjectiveType, type Objective } from "@/lib/budget/types";
+import {
+  BALANCE_CORRECTION_CATEGORY_PK,
+  ObjectiveType,
+  TRANSFER_CATEGORY_PK,
+  TransactionSpecialType,
+  type Objective,
+} from "@/lib/budget/types";
 import {
   getIndefiniteLoanBalance,
   getObjectivePercentageComplete,
@@ -23,7 +29,12 @@ import {
 } from "@/lib/budget/calculations";
 import { createObjective, createTransaction } from "@/lib/budget/factory";
 import { ColourPicker, IconBadge, IconPicker } from "./icon-picker";
-import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
+import {
+  atMidday,
+  fromDateInputValue,
+  monthlySchedule,
+  toDateInputValue,
+} from "@/lib/budget/period";
 import { useBudget } from "./budget-provider";
 import {
   AddFab,
@@ -36,10 +47,12 @@ import {
   ProgressBar,
   SearchField,
   SegmentedTabs,
+  SelectInput,
   Sheet,
   TextInput,
   Toggle,
 } from "./budget-ui";
+import { CategorySelect } from "./category-select";
 import { TransactionGroup, TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
 
@@ -115,6 +128,21 @@ export function ObjectivesView({ type }: { type: ObjectiveType }) {
   );
 }
 
+/** 1 → "1st", 22 → "22nd". The 11–13 exception is why this is not a lookup. */
+function ordinal(day: number): string {
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  return `${day}${suffix}`;
+}
+
 export function ObjectiveCard({
   objective,
   onEdit,
@@ -182,19 +210,26 @@ export function ObjectiveCard({
                 </span>
               </p>
               <p className="text-caption text-label-secondary/60">
-                {indefinite
-                  ? "Ongoing loan"
-                  : objective.endDate
-                    ? `Due ${new Date(objective.endDate).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}`
-                    : isLoan
-                      ? "Long term loan"
-                      : objective.income
-                        ? "Savings goal"
-                        : "Spending goal"}
+                {[
+                  indefinite
+                    ? "Ongoing loan"
+                    : objective.endDate
+                      ? `Due ${new Date(objective.endDate).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}`
+                      : isLoan
+                        ? "Long term loan"
+                        : objective.income
+                          ? "Savings goal"
+                          : "Spending goal",
+                  objective.paymentDayOfMonth
+                    ? `Pay on the ${ordinal(objective.paymentDayOfMonth)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
             {reached ? (
@@ -281,7 +316,10 @@ export function ObjectiveCard({
         onClose={() => setAddOpen(false)}
         defaults={
           isLoan
-            ? { objectiveLoanFk: objective.objectivePk, income: !objective.income }
+            ? {
+                objectiveLoanFk: objective.objectivePk,
+                income: members.length === 0 ? objective.income : !objective.income,
+              }
             : { objectiveFk: objective.objectivePk, income: objective.income }
         }
       />
@@ -300,31 +338,58 @@ function ObjectiveEditor({
   type: ObjectiveType;
   editing?: Objective | null;
 }) {
-  const { objectives, upsertObjective, upsertTransaction, deleteObjective } = useBudget();
+  const { objectives, categories, allWallets, upsertObjective, upsertTransactions, deleteObjective } =
+    useBudget();
   const isLoan = type === ObjectiveType.loan;
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+
+  // Back-fill for a loan already part-way through. Either one lump sum, or a
+  // regular monthly payment expanded into one transaction per month.
+  const [backfill, setBackfill] = useState(false);
+  const [backfillMode, setBackfillMode] = useState<"lump" | "monthly">("monthly");
   const [alreadyPaid, setAlreadyPaid] = useState("");
+  const [lumpDate, setLumpDate] = useState("");
+  const [emiAmount, setEmiAmount] = useState("");
+  const [emiStart, setEmiStart] = useState("");
+  const [emiCount, setEmiCount] = useState("");
+  const [backfillCategory, setBackfillCategory] = useState("");
+  const [backfillHitsAccount, setBackfillHitsAccount] = useState(false);
+  const [backfillWallet, setBackfillWallet] = useState("");
   const [income, setIncome] = useState(true);
   const [endDate, setEndDate] = useState("");
+  const [paymentDay, setPaymentDay] = useState("");
   const [indefinite, setIndefinite] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [iconName, setIconName] = useState<string | null>(null);
   const [colour, setColour] = useState<string | null>(null);
+  const [initialWalletFk, setInitialWalletFk] = useState("");
+  const [initialWalletDate, setInitialWalletDate] = useState("");
 
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const key = editing?.objectivePk ?? "new";
   if (open && loadedFor !== key) {
     setLoadedFor(key);
-    // Only ever offered on creation, so it starts empty in both branches.
+    // Back-fill is an action, not a stored property: it always starts empty so
+    // reopening the editor cannot silently re-add the same payments.
+    setBackfill(false);
+    setBackfillMode("monthly");
     setAlreadyPaid("");
+    setLumpDate(toDateInputValue(new Date()));
+    setEmiAmount("");
+    setEmiStart("");
+    setEmiCount("");
+    setBackfillCategory("");
+    setBackfillHitsAccount(false);
+    setBackfillWallet("");
     if (editing) {
       setName(editing.name);
       setIndefinite(editing.amount === -1);
       setAmount(editing.amount === -1 ? "" : String(editing.amount));
       setIncome(editing.income);
       setEndDate(editing.endDate ? toDateInputValue(new Date(editing.endDate)) : "");
+      setPaymentDay(editing.paymentDayOfMonth ? String(editing.paymentDayOfMonth) : "");
       setPinned(editing.pinned);
       setIconName(editing.iconName);
       setColour(editing.colour);
@@ -333,10 +398,13 @@ function ObjectiveEditor({
       setAmount("");
       setIncome(!isLoan);
       setEndDate("");
+      setPaymentDay("");
       setIndefinite(false);
       setPinned(true);
       setIconName(null);
       setColour(null);
+      setInitialWalletFk("");
+      setInitialWalletDate(toDateInputValue(new Date()));
     }
   }
   if (!open && loadedFor !== null) setLoadedFor(null);
@@ -352,31 +420,127 @@ function ObjectiveEditor({
       amount: isLoan && indefinite ? -1 : Number(amount) || 0,
       income,
       endDate: endDate ? atMidday(fromDateInputValue(endDate)).toISOString() : null,
+      // Clamped rather than trusted: a stray 45 would never match a real month.
+      paymentDayOfMonth:
+        isLoan && paymentDay ? Math.min(31, Math.max(1, Math.floor(Number(paymentDay)))) : null,
       pinned,
       iconName,
       colour,
       order: editing?.order ?? objectives.length,
     });
 
-    // Back-fill for a loan that is already part-way repaid. One lump
-    // transaction in the repayment direction — the same shape "Add
-    // transaction" produces — so the progress maths needs no special case.
-    const paid = Number(alreadyPaid);
-    if (!editing && isLoan && !indefinite && paid > 0) {
-      const repaymentIsIncome = !income;
-      upsertTransaction(
+    // Past payments are written as ordinary transactions in the repayment
+    // direction — the same shape "Add transaction" produces — so the progress
+    // maths needs no special case and every row stays editable afterwards.
+    if (backfill && isLoan && !indefinite) {
+      const rows = backfillPayments().map(({ amount: value, date }) =>
         createTransaction({
-          name: `${finalName} — already paid`,
-          amount: repaymentIsIncome ? paid : -paid,
+          name: finalName,
+          amount: repaymentIsIncome ? value : -value,
           income: repaymentIsIncome,
-          walletFk: base.walletFk,
+          ...(resolvedBackfillCategory ? { categoryFk: resolvedBackfillCategory } : {}),
+          note: backfillHitsAccount
+            ? "Past payment added when the loan was set up."
+            : "Past payment — history only, does not affect account balances.",
+          walletFk:
+            backfillHitsAccount && resolvedBackfillWallet
+              ? resolvedBackfillWallet
+              : base.walletFk,
+          // Money that left the account before the account balance was ever
+          // entered is already baked into that balance. Marking these rows
+          // credit/debt keeps them out of `getWalletBalance` and out of income
+          // and expense totals, while loan progress — which only asks for
+          // `paid` — still counts them.
+          type: backfillHitsAccount
+            ? null
+            : income
+              ? TransactionSpecialType.debt
+              : TransactionSpecialType.credit,
           objectiveLoanFk: base.objectivePk,
+          dateCreated: date.toISOString(),
         }),
       );
+      if (rows.length > 0) upsertTransactions(rows);
+    } else if (initialWalletFk && isLoan && !indefinite && !editing) {
+      const val = Number(amount) || 0;
+      if (val > 0) {
+        const row = createTransaction({
+          name: finalName,
+          amount: income ? val : -val,
+          income: income,
+          ...(resolvedInitialCategory ? { categoryFk: resolvedInitialCategory } : {}),
+          note: "Initial loan disbursement",
+          walletFk: initialWalletFk,
+          // Since it hits the account, it's a normal transaction?
+          // No, if we want it to avoid inflating income/expense, it must be credit/debt.
+          type: income ? TransactionSpecialType.debt : TransactionSpecialType.credit,
+          objectiveLoanFk: base.objectivePk,
+          dateCreated: initialWalletDate
+            ? atMidday(fromDateInputValue(initialWalletDate)).toISOString()
+            : new Date().toISOString(),
+        });
+        upsertTransactions([row]);
+      }
     }
 
     onClose();
   }
+
+  // A repayment runs opposite to how the loan's money arrived, so it needs a
+  // category of that direction. Reserved categories are excluded: transfers and
+  // corrections are written by their own flows, never chosen by hand.
+  const repaymentIsIncome = !income;
+  const backfillCategories = categories.filter(
+    (c) =>
+      c.income === repaymentIsIncome &&
+      c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK &&
+      c.categoryPk !== TRANSFER_CATEGORY_PK,
+  );
+  // Falling through to createTransaction's default would file loan payments
+  // under Dining, so pick the first sensible category of the right direction.
+  const resolvedBackfillCategory =
+    backfillCategories.find((c) => c.categoryPk === backfillCategory)?.categoryPk ??
+    backfillCategories.find((c) => /bill|loan|debt|emi/i.test(c.name))?.categoryPk ??
+    backfillCategories[0]?.categoryPk ??
+    null;
+
+  // Keep the select's displayed option and the saved value in step: an unset
+  // choice must resolve to the same wallet the dropdown is showing.
+  const resolvedBackfillWallet =
+    allWallets.list.find((w) => w.walletPk === backfillWallet)?.walletPk ??
+    allWallets.list[0]?.walletPk ??
+    null;
+
+  const initialCategories = categories.filter(
+    (c) =>
+      c.income === income &&
+      c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK &&
+      c.categoryPk !== TRANSFER_CATEGORY_PK,
+  );
+  const resolvedInitialCategory =
+    initialCategories.find((c) => /loan|debt|lent|borrowed/i.test(c.name))?.categoryPk ??
+    initialCategories[0]?.categoryPk ??
+    null;
+
+  /** The payments the current back-fill settings would create. */
+  function backfillPayments(): { amount: number; date: Date }[] {
+    if (backfillMode === "lump") {
+      const paid = Number(alreadyPaid);
+      const date = lumpDate ? fromDateInputValue(lumpDate) : new Date();
+      return paid > 0 ? [{ amount: paid, date: atMidday(date) }] : [];
+    }
+    const per = Number(emiAmount);
+    const count = Math.floor(Number(emiCount));
+    if (!(per > 0) || !(count > 0) || !emiStart) return [];
+    // Guard against a typo'd count turning into thousands of rows.
+    return monthlySchedule(fromDateInputValue(emiStart), Math.min(count, 600)).map((date) => ({
+      amount: per,
+      date,
+    }));
+  }
+
+  const preview = backfill && isLoan && !indefinite ? backfillPayments() : [];
+  const previewTotal = preview.reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <Sheet
@@ -445,36 +609,192 @@ function ObjectiveEditor({
       ) : null}
 
       {!(isLoan && indefinite) ? (
-        <Field label={isLoan ? "Total loan amount" : "Target amount"}>
-          <TextInput
-            type="number"
-            inputMode="decimal"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
-        </Field>
+        <>
+          <Field label={isLoan ? "Total loan amount" : "Target amount"}>
+            <TextInput
+              type="number"
+              inputMode="decimal"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </Field>
+          {isLoan && !editing ? (
+            <Field label={income ? "Deposited to account" : "Funded from account"} hint="Optional. Creates an initial transaction for the total loan amount." className={initialWalletFk ? "mb-3" : "mb-0"}>
+              <SelectInput value={initialWalletFk} onChange={(e) => setInitialWalletFk(e.target.value)}>
+                <option value="">Do not record transaction</option>
+                {allWallets.list.map((w) => (
+                  <option key={w.walletPk} value={w.walletPk}>
+                    {w.name}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+          ) : null}
+          {isLoan && !editing && initialWalletFk ? (
+            <Field label="Transaction date" className="mb-0">
+              <TextInput
+                type="date"
+                value={initialWalletDate}
+                onChange={(e) => setInitialWalletDate(e.target.value)}
+              />
+            </Field>
+          ) : null}
+        </>
       ) : null}
 
-      {isLoan && !indefinite && !editing ? (
-        <Field
-          label="Already paid"
-          hint="Optional. For a loan already part-way through — recorded as one past payment you can edit later."
-        >
-          <TextInput
-            type="number"
-            inputMode="decimal"
-            min="0"
-            value={alreadyPaid}
-            onChange={(e) => setAlreadyPaid(e.target.value)}
-            placeholder="0.00"
+      {isLoan && !indefinite ? (
+        <>
+          <Toggle
+            checked={backfill}
+            onChange={setBackfill}
+            label="Add past payments"
+            description="For a loan already part-way through. Creates normal transactions you can edit or delete later."
           />
-        </Field>
+          {backfill ? (
+            <div className="mb-4 rounded-ios bg-fill/5 p-3">
+              <SegmentedTabs
+                className="mb-3"
+                value={backfillMode}
+                onChange={(v) => setBackfillMode(v as "lump" | "monthly")}
+                options={[
+                  { value: "monthly", label: "Monthly" },
+                  { value: "lump", label: "One lump" },
+                ]}
+              />
+
+              {backfillMode === "lump" ? (
+                <>
+                  <Field label="Total already paid">
+                    <TextInput
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      value={alreadyPaid}
+                      onChange={(e) => setAlreadyPaid(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </Field>
+                  <Field label="Date" hint="Pick a past date so it doesn't show in your recent transactions.">
+                    <TextInput
+                      type="date"
+                      value={lumpDate}
+                      onChange={(e) => setLumpDate(e.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Amount per payment">
+                    <TextInput
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      value={emiAmount}
+                      onChange={(e) => setEmiAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </Field>
+                  <Field label="First payment date">
+                    <TextInput
+                      type="date"
+                      value={emiStart}
+                      onChange={(e) => setEmiStart(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Number of payments made">
+                    <TextInput
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      value={emiCount}
+                      onChange={(e) => setEmiCount(e.target.value)}
+                      placeholder="8"
+                    />
+                  </Field>
+                </>
+              )}
+
+              {backfillCategories.length > 0 ? (
+                <Field label="Category" hint="Applied to every payment created here.">
+                  <CategorySelect
+                    value={resolvedBackfillCategory ?? ""}
+                    onChange={setBackfillCategory}
+                    filter={(c) => c.income === repaymentIsIncome}
+                    defaultIncome={repaymentIsIncome}
+                  />
+                </Field>
+              ) : null}
+
+              <Toggle
+                checked={backfillHitsAccount}
+                onChange={setBackfillHitsAccount}
+                label="Deduct from an account"
+                description="Leave off if this money already left your account — your balance is up to date and these are history only."
+              />
+              {backfillHitsAccount ? (
+                <Field label="Account">
+                  <SelectInput
+                    value={resolvedBackfillWallet ?? ""}
+                    onChange={(e) => setBackfillWallet(e.target.value)}
+                  >
+                    {allWallets.list.map((w) => (
+                      <option key={w.walletPk} value={w.walletPk}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+              ) : null}
+
+              {preview.length > 0 ? (
+                <p className="text-caption text-label-secondary/70">
+                  Adds {preview.length} payment{preview.length === 1 ? "" : "s"} totalling{" "}
+                  <Amount value={previewTotal} className="font-semibold text-label" />
+                  {preview.length > 1 ? (
+                    <>
+                      , from{" "}
+                      {preview[0].date.toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
+                      to{" "}
+                      {preview[preview.length - 1].date.toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </>
+                  ) : null}
+                  .
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       <IconPicker value={iconName} colour={colour} onChange={setIconName} />
       <ColourPicker value={colour} onChange={setColour} />
+
+      {isLoan ? (
+        <Field
+          label="Payment day of month"
+          hint="Optional. The day your repayment is due each month, 1–31."
+        >
+          <TextInput
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="31"
+            value={paymentDay}
+            onChange={(e) => setPaymentDay(e.target.value)}
+            placeholder="5"
+          />
+        </Field>
+      ) : null}
 
       <Field
         label={isLoan ? "Payoff date" : "Target date"}
@@ -495,7 +815,9 @@ function ObjectiveEditor({
 /** Pinned goals and loans, for the home screen. */
 export function PinnedObjectives() {
   const { objectives } = useBudget();
-  const pinned = objectives.filter((o) => o.pinned && !o.archived).sort((a, b) => a.order - b.order);
+  const pinned = objectives
+    .filter((o) => o.pinned && !o.archived && o.type === ObjectiveType.goal)
+    .sort((a, b) => a.order - b.order);
   if (pinned.length === 0) {
     return (
       <Link
@@ -509,7 +831,7 @@ export function PinnedObjectives() {
           <span className="block text-subhead font-medium text-label">Set a goal</span>
           <span className="block text-caption text-label-secondary/60">Save up for something special</span>
         </div>
-        <ChevronRight size={18} className="text-label-secondary/30" />
+        <CaretRight size={18} className="text-label-secondary/30" />
       </Link>
     );
   }

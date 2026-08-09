@@ -43,6 +43,8 @@ export interface CreditCardStatus {
   daysUntilDue: number | null;
   /** Spend booked inside the current cycle, as a positive number. */
   currentCycleSpend: number;
+  /** The amount remaining to be paid from the previous statement cycle. */
+  remainingStatementBalance: number;
 }
 
 /**
@@ -51,7 +53,7 @@ export interface CreditCardStatus {
  * A card billing on the 30th still has to bill in February, so the day is
  * pulled back to the month's last day rather than rolling into March.
  */
-function dayInMonth(year: number, month: number, day: number): Date {
+export function dayInMonth(year: number, month: number, day: number): Date {
   const lastDay = new Date(year, month + 1, 0).getDate();
   return new Date(year, month, Math.min(day, lastDay));
 }
@@ -128,6 +130,7 @@ export function getCreditCardStatus(
     nextDueDate,
     daysUntilDue,
     currentCycleSpend,
+    remainingStatementBalance: Math.max(0, outstanding - currentCycleSpend),
   };
 }
 
