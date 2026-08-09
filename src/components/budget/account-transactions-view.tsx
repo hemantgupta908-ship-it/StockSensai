@@ -42,6 +42,7 @@ type CycleGroup = {
   spend: number;
   payments: number;
   items: Transaction[];
+  unpaidAmount?: number;
 };
 
 function useGroupedByCycle(transactions: Transaction[], statementDay: number | null) {
