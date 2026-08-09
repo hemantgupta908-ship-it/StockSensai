@@ -213,6 +213,20 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
   const zeroY = height - ((0 - min) / span) * height;
   const last = points[points.length - 1].value;
 
+  const monthLabels: { label: string; xPercent: number; year: number }[] = [];
+  let currentMonth = -1;
+
+  points.forEach((p, index) => {
+    const date = new Date(p.date);
+    if (date.getMonth() !== currentMonth) {
+      currentMonth = date.getMonth();
+      const xPercent = (index / (points.length - 1)) * 100;
+      const label = date.toLocaleString("en-US", { month: "short" });
+      const year = date.getFullYear();
+      monthLabels.push({ label, xPercent, year });
+    }
+  });
+
   return (
     <div>
       <svg viewBox={`0 0 ${width} ${height}`} className="h-[120px] w-full" preserveAspectRatio="none">
@@ -239,7 +253,23 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-      <p className="mt-2 text-center text-caption text-label-secondary/60">
+      
+      <div className="relative mt-1 h-4 w-full overflow-hidden">
+        {monthLabels.map((m, i) => {
+          const showYear = i === 0 || m.label === "Jan";
+          return (
+            <span
+              key={`${m.year}-${m.label}-${i}`}
+              className="absolute top-0 text-[10px] font-medium text-label-secondary/60"
+              style={{ left: `${m.xPercent}%` }}
+            >
+              {m.label} {showYear ? `'${String(m.year).slice(-2)}` : ""}
+            </span>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-center text-caption text-label-secondary/60">
         Net change over the period: <Amount value={last} colour showSign className="font-medium" />
       </p>
     </div>
@@ -257,49 +287,97 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
   );
 
   const days = [...daily.entries()];
-  const magnitudes = days.map(([, v]) => Math.abs(Math.min(0, v)));
-  const peak = Math.max(...magnitudes, 1);
+  const spendMagnitudes = days.map(([, v]) => Math.abs(Math.min(0, v)));
+  const incomeMagnitudes = days.map(([, v]) => Math.max(0, v));
+  const peakSpend = Math.max(...spendMagnitudes, 1);
+  const peakIncome = Math.max(...incomeMagnitudes, 1);
 
   // Pad to a whole week so columns line up under the weekday labels.
   const firstDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const leadingBlanks = firstDay.getDay();
 
+  const monthLabels: { label: string; colIndex: number; year: number }[] = [];
+  let currentMonth = -1;
+
+  days.forEach(([key], index) => {
+    const date = new Date(key);
+    if (date.getMonth() !== currentMonth) {
+      currentMonth = date.getMonth();
+      const colIndex = Math.floor((leadingBlanks + index) / 7);
+      const label = date.toLocaleString("en-US", { month: "short" });
+      const year = date.getFullYear();
+      monthLabels.push({ label, colIndex, year });
+    }
+  });
+
   return (
     <div>
-      <div className="grid grid-flow-col grid-rows-7 gap-[3px] overflow-x-auto">
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <span key={`blank-${i}`} className="h-3.5 w-3.5" />
-        ))}
-        {days.map(([key, value]) => {
-          const spend = Math.abs(Math.min(0, value));
-          const intensity = spend / peak;
-          return (
-            <span
-              key={key}
-              title={`${key}: ${value.toFixed(2)}`}
-              className={cn(
-                "h-3.5 w-3.5 rounded-[3px]",
-                spend === 0 && "bg-fill/12",
-              )}
-              style={
-                spend > 0
-                  ? { backgroundColor: `rgb(var(--sys-red) / ${0.15 + intensity * 0.85})` }
-                  : undefined
-              }
-            />
-          );
-        })}
+      <div className="overflow-x-auto">
+        <div className="w-max pb-1">
+          <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+            {Array.from({ length: leadingBlanks }).map((_, i) => (
+              <span key={`blank-${i}`} className="h-3.5 w-3.5" />
+            ))}
+            {days.map(([key, value]) => {
+              const isIncome = value > 0;
+              const isSpend = value < 0;
+              const intensity = isIncome ? (value / peakIncome) : isSpend ? (Math.abs(value) / peakSpend) : 0;
+              return (
+                <span
+                  key={key}
+                  title={`${key}: ${value.toFixed(2)}`}
+                  className={cn(
+                    "h-3.5 w-3.5 rounded-[3px]",
+                    value === 0 && "bg-fill/12",
+                  )}
+                  style={
+                    value !== 0
+                      ? { backgroundColor: `rgb(var(${isIncome ? '--sys-green' : '--sys-red'}) / ${0.15 + intensity * 0.85})` }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+          <div className="relative h-5 mt-1.5">
+            {monthLabels.map((m, i) => {
+              const showYear = i === 0 || m.label === "Jan";
+              return (
+                <span
+                  key={`${m.year}-${m.label}-${i}`}
+                  className="absolute top-0 text-[10px] font-medium text-label-secondary/60"
+                  style={{ left: m.colIndex * 17 }}
+                >
+                  {m.label} {showYear ? `'${String(m.year).slice(-2)}` : ""}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1.5 text-caption2 text-label-secondary/50">
-        <span>Less</span>
-        {[0.15, 0.4, 0.65, 1].map((a) => (
-          <span
-            key={a}
-            className="h-3 w-3 rounded-[3px]"
-            style={{ backgroundColor: `rgb(var(--sys-red) / ${a})` }}
-          />
-        ))}
-        <span>More</span>
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-x-6 gap-y-2 text-caption2 text-label-secondary/50">
+        <div className="flex items-center gap-1.5">
+          <span>Less</span>
+          {[0.15, 0.4, 0.65, 1].map((a) => (
+            <span
+              key={a}
+              className="h-3 w-3 rounded-[3px]"
+              style={{ backgroundColor: `rgb(var(--sys-red) / ${a})` }}
+            />
+          ))}
+          <span>More Spend</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span>Less</span>
+          {[0.15, 0.4, 0.65, 1].map((a) => (
+            <span
+              key={a}
+              className="h-3 w-3 rounded-[3px]"
+              style={{ backgroundColor: `rgb(var(--sys-green) / ${a})` }}
+            />
+          ))}
+          <span>More Income</span>
+        </div>
       </div>
     </div>
   );

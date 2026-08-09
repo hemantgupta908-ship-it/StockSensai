@@ -177,8 +177,10 @@ export function PolicyCard({
   onEdit?: () => void;
   compact?: boolean;
 }) {
-  const { transactions, upsertTransaction, upsertPolicy } = useBudget();
+  const { transactions, upsertTransaction, upsertPolicy, wallets, settings } = useBudget();
   const [expanded, setExpanded] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState(policy.walletFk ?? settings.primaryWalletPk ?? wallets[0]?.walletPk ?? "");
+  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
 
   const status = useMemo(() => getPolicyStatus(policy, transactions), [policy, transactions]);
   const linked = useMemo(
@@ -195,7 +197,9 @@ export function PolicyCard({
   /** Record a premium and roll the due date forward one period. */
   function payPremium() {
     const due = status.nextDueDate ?? new Date();
-    upsertTransaction(createPremiumTransaction(policy, { date: new Date() }));
+    const t = createPremiumTransaction(policy, { date: atMidday(fromDateInputValue(selectedDate)) });
+    if (selectedWallet) t.walletFk = selectedWallet;
+    upsertTransaction(t);
     upsertPolicy({
       ...policy,
       nextDueDate:
@@ -279,25 +283,46 @@ export function PolicyCard({
       </button>
 
       {expanded && !compact ? (
-        <div className="mt-3 border-t border-separator/40 pt-3">
-          <div className="mb-2 flex gap-2">
-            <button
-              type="button"
-              onClick={payPremium}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green"
-            >
-              <Check size={14} /> Record premium
-            </button>
-            {onEdit ? (
+        <div className="mt-4 border-t border-separator/40 pt-4">
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <Field label="Pay from" className="mb-0">
+              <SelectInput
+                value={selectedWallet}
+                onChange={(e: any) => setSelectedWallet(e.target.value)}
+              >
+                {wallets.map((w) => (
+                  <option key={w.walletPk} value={w.walletPk}>
+                    {w.name}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+            <Field label="Date" className="mb-0">
+              <TextInput
+                type="date"
+                value={selectedDate}
+                onChange={(e: any) => setSelectedDate(e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="flex gap-3">
               <button
                 type="button"
-                onClick={onEdit}
-                className="flex-1 rounded-ios bg-fill/10 py-2 text-footnote font-semibold text-label-secondary"
+                onClick={payPremium}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green transition-transform active:scale-95"
               >
-                Edit
+                <Check size={14} /> Record premium
               </button>
-            ) : null}
-          </div>
+              {onEdit ? (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="flex-1 rounded-ios bg-fill/10 py-2 text-footnote font-semibold text-label-secondary transition-transform active:scale-95"
+                >
+                  Edit
+                </button>
+              ) : null}
+            </div>
 
           {linked.length === 0 ? (
             <p className="py-3 text-center text-caption text-label-secondary/50">

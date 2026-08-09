@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   applicationName: "StockSensei",
   appleWebApp: { capable: true, title: "StockSensei", statusBarStyle: "default" },
   formatDetection: { telephone: false },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

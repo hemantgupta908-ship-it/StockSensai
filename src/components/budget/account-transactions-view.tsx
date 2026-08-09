@@ -14,7 +14,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { type Transaction } from "@/lib/budget/types";
-import { getWalletBalance, getSpendingSummary } from "@/lib/budget/calculations";
+import { getWalletBalance, getSpendingSummary, countsTowardsTotal } from "@/lib/budget/calculations";
 import { getCreditCardStatus, isCreditCard, dayInMonth } from "@/lib/budget/credit";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { useBudget, useCategoryLookup } from "./budget-provider";
@@ -138,6 +138,26 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
     () => getSpendingSummary(allWallets, filtered, objectives),
     [allWallets, filtered, objectives],
   );
+
+  const dailyBalances = useMemo(() => {
+    if (!walletPk) return new Map<string, number>();
+    const sorted = transactions
+      .filter((t) => t.walletFk === walletPk)
+      .sort((a, b) => new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime());
+      
+    let current = 0;
+    const balances = new Map<string, number>();
+    for (const t of sorted) {
+      if (countsTowardsTotal(t)) {
+        current += t.amount;
+      }
+      const d = new Date(t.dateCreated);
+      const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      balances.set(dayKey, current);
+    }
+    return balances;
+  }, [transactions, walletPk]);
+
   const dayGroups = useGroupedByDay(filtered);
   const cycleGroups = useGroupedByCycle(filtered, wallet && isCreditCard(wallet) ? (wallet.statementDay ?? null) : null);
 
@@ -402,12 +422,19 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                   <h3 className="text-footnote font-semibold text-label-secondary">
                     {formatDayHeading(day)}
                   </h3>
-                  <Amount
-                    value={items.reduce((sum, t) => sum + (t.paid ? t.amount : 0), 0)}
-                    colour
-                    showSign
-                    className="text-caption"
-                  />
+                  <div className="flex items-center gap-3">
+                    {dailyBalances.has(day) ? (
+                      <span className="text-caption text-label-secondary/70">
+                        Bal: <Amount value={dailyBalances.get(day)!} className="font-medium" />
+                      </span>
+                    ) : null}
+                    <Amount
+                      value={items.reduce((sum, t) => sum + (t.paid ? t.amount : 0), 0)}
+                      colour
+                      showSign
+                      className="text-caption min-w-[70px] text-right"
+                    />
+                  </div>
                 </div>
                 <TransactionGroup>
                   {items.map((t) => (

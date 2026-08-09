@@ -122,15 +122,15 @@ export function getCreditCardStatus(
   }
 
   return {
-    outstanding,
-    available,
+    outstanding: Math.round(outstanding * 1e6) / 1e6,
+    available: available === null ? null : Math.round(available * 1e6) / 1e6,
     utilisation,
     highUtilisation: utilisation !== null && utilisation > 0.3,
     currentCycle,
     nextDueDate,
     daysUntilDue,
-    currentCycleSpend,
-    remainingStatementBalance: Math.max(0, outstanding - currentCycleSpend),
+    currentCycleSpend: Math.round(currentCycleSpend * 1e6) / 1e6,
+    remainingStatementBalance: Math.max(0, Math.round((outstanding - currentCycleSpend) * 1e6) / 1e6),
   };
 }
 

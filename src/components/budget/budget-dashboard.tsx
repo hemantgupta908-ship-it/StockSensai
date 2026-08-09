@@ -39,10 +39,16 @@ export function BudgetDashboard() {
     [allWallets, transactions],
   );
 
-  const monthStart = useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  }, []);
+  const allTimeStart = useMemo(() => {
+    if (!transactions || transactions.length === 0) return new Date();
+    let minTime = Date.now();
+    for (const t of transactions) {
+      const time = new Date(t.dateCreated).getTime();
+      if (time < minTime) minTime = time;
+    }
+    const d = new Date(minTime);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  }, [transactions]);
 
   if (loading) {
     return (
@@ -114,17 +120,17 @@ export function BudgetDashboard() {
         ) : null}
 
         {settings.showLineGraph ? (
-          <Section title="This month's trend">
+          <Section title="All time trend">
             <Card>
-              <LineGraph start={monthStart} end={new Date()} />
+              <LineGraph start={allTimeStart} end={new Date()} />
             </Card>
           </Section>
         ) : null}
 
         {settings.showHeatmap ? (
-          <Section title="Daily spending">
+          <Section title="All time spending">
             <Card>
-              <Heatmap start={monthStart} end={new Date()} />
+              <Heatmap start={allTimeStart} end={new Date()} />
             </Card>
           </Section>
         ) : null}

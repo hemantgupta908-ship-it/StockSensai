@@ -97,7 +97,9 @@ export function evaluateExpression(input: string): number | null {
   // Trailing junk means the whole string was not consumed, so it is not valid.
   if (result === null || pos !== src.length) return null;
   if (!Number.isFinite(result)) return null;
-  return result;
+  
+  // Strip floating-point noise (e.g. 0.1 + 0.2 -> 0.30000000000000004)
+  return Math.round(result * 1_000_000) / 1_000_000;
 }
 
 /**
