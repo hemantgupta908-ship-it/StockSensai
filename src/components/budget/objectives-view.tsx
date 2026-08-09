@@ -155,6 +155,7 @@ export function ObjectiveCard({
   const { transactions, allWallets } = useBudget();
   const [expanded, setExpanded] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   const indefinite = isIndefiniteLoan(objective);
   const isLoan = objective.type === ObjectiveType.loan;
@@ -302,7 +303,7 @@ export function ObjectiveCard({
               <div className="-mx-4">
                 <TransactionGroup>
                   {members.slice(0, 10).map((t) => (
-                    <TransactionRow key={t.transactionPk} transaction={t} showActions={false} />
+                    <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditingTx} showAccount showDate />
                   ))}
                 </TransactionGroup>
               </div>
@@ -312,8 +313,12 @@ export function ObjectiveCard({
       </Card>
 
       <TransactionModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
+        open={addOpen || editingTx !== null}
+        onClose={() => {
+          setAddOpen(false);
+          setEditingTx(null);
+        }}
+        editing={editingTx}
         defaults={
           isLoan
             ? {

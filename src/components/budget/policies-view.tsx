@@ -49,6 +49,7 @@ import {
 } from "./budget-ui";
 import { CategorySelect } from "./category-select";
 import { TransactionGroup, TransactionRow } from "./transaction-row";
+import { TransactionModal } from "./transaction-modal";
 
 type Filter = "all" | "insurance" | "investment";
 
@@ -181,6 +182,8 @@ export function PolicyCard({
   const [expanded, setExpanded] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState(policy.walletFk ?? settings.primaryWalletPk ?? wallets[0]?.walletPk ?? "");
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
+  const [selectedAmount, setSelectedAmount] = useState(() => String(Math.abs(policy.premiumAmount)));
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   const status = useMemo(() => getPolicyStatus(policy, transactions), [policy, transactions]);
   const linked = useMemo(
@@ -198,6 +201,12 @@ export function PolicyCard({
   function payPremium() {
     const due = status.nextDueDate ?? new Date();
     const t = createPremiumTransaction(policy, { date: atMidday(fromDateInputValue(selectedDate)) });
+    
+    const parsedAmount = parseFloat(selectedAmount);
+    if (!isNaN(parsedAmount) && parsedAmount > 0) {
+      t.amount = -parsedAmount;
+    }
+    
     if (selectedWallet) t.walletFk = selectedWallet;
     upsertTransaction(t);
     upsertPolicy({
@@ -285,7 +294,23 @@ export function PolicyCard({
       {expanded && !compact ? (
         <div className="mt-4 border-t border-separator/40 pt-4">
           <div className="mb-4 grid grid-cols-2 gap-3">
-            <Field label="Pay from" className="mb-0">
+            <Field label="Amount" className="mb-0">
+              <TextInput
+                type="number"
+                step="0.01"
+                min="0"
+                value={selectedAmount}
+                onChange={(e: any) => setSelectedAmount(e.target.value)}
+              />
+            </Field>
+            <Field label="Date" className="mb-0">
+              <TextInput
+                type="date"
+                value={selectedDate}
+                onChange={(e: any) => setSelectedDate(e.target.value)}
+              />
+            </Field>
+            <Field label="Pay from" className="col-span-2 mb-0">
               <SelectInput
                 value={selectedWallet}
                 onChange={(e: any) => setSelectedWallet(e.target.value)}
@@ -296,13 +321,6 @@ export function PolicyCard({
                   </option>
                 ))}
               </SelectInput>
-            </Field>
-            <Field label="Date" className="mb-0">
-              <TextInput
-                type="date"
-                value={selectedDate}
-                onChange={(e: any) => setSelectedDate(e.target.value)}
-              />
             </Field>
           </div>
           <div className="flex gap-3">
@@ -332,13 +350,20 @@ export function PolicyCard({
             <div className="-mx-4">
               <TransactionGroup>
                 {linked.slice(0, 8).map((t) => (
-                  <TransactionRow key={t.transactionPk} transaction={t} showActions={false} />
+                  <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditingTx} showAccount showDate />
                 ))}
               </TransactionGroup>
             </div>
           )}
         </div>
       ) : null}
+      
+      {/* Edit existing transaction */}
+      <TransactionModal
+        open={editingTx !== null}
+        onClose={() => setEditingTx(null)}
+        editing={editingTx}
+      />
     </Card>
   );
 }

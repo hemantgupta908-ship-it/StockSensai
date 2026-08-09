@@ -120,13 +120,40 @@ export function TransactionModal({
   useEffect(() => {
     if (!open) return;
     if (editing) {
-      setTab(editing.income ? "income" : "expense");
-      setAmount(String(Math.abs(editing.amount)));
+      if (editing.categoryFk === TRANSFER_CATEGORY_PK && editing.pairedTransactionFk) {
+        setTab("transfer");
+        const paired = transactions.find((t) => t.transactionPk === editing.pairedTransactionFk);
+        if (paired) {
+          if (editing.income) {
+            setWalletFk(paired.walletFk);
+            setToWalletFk(editing.walletFk);
+            setAmount(String(Math.abs(paired.amount)));
+            const fee = Math.abs(paired.amount) - Math.abs(editing.amount);
+            setTransferFee(fee > 0 ? String(Math.round(fee * 100) / 100) : "");
+          } else {
+            setWalletFk(editing.walletFk);
+            setToWalletFk(paired.walletFk);
+            setAmount(String(Math.abs(editing.amount)));
+            const fee = Math.abs(editing.amount) - Math.abs(paired.amount);
+            setTransferFee(fee > 0 ? String(Math.round(fee * 100) / 100) : "");
+          }
+        } else {
+          setTab(editing.income ? "income" : "expense");
+          setWalletFk(editing.walletFk);
+          setToWalletFk("");
+          setAmount(String(Math.abs(editing.amount)));
+        }
+      } else {
+        setTab(editing.income ? "income" : "expense");
+        setWalletFk(editing.walletFk);
+        setToWalletFk("");
+        setAmount(String(Math.abs(editing.amount)));
+      }
+
       setName(editing.name);
       setNote(editing.note);
       setCategoryFk(editing.categoryFk);
       setSubCategoryFk(editing.subCategoryFk ?? "");
-      setWalletFk(editing.walletFk);
       setDate(toDateInputValue(new Date(editing.dateCreated)));
       setSpecialType(editing.type === null ? "none" : String(editing.type));
       setReoccurrence(String(editing.reoccurrence ?? BudgetReoccurence.monthly));

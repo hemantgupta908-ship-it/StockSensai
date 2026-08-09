@@ -26,11 +26,13 @@ export function TransactionRow({
   transaction,
   onEdit,
   showAccount,
+  showDate = false,
   showActions = true,
 }: {
   transaction: Transaction;
   onEdit?: (t: Transaction) => void;
   showAccount?: boolean;
+  showDate?: boolean;
   showActions?: boolean;
 }) {
   const { byPk } = useCategoryLookup();
@@ -121,6 +123,7 @@ export function TransactionRow({
             ) : null}
             {transaction.skipPaid ? <span className="text-label-secondary/50">Skipped</span> : null}
             <span className="truncate">
+              {showDate ? `${new Date(transaction.dateCreated).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ` : ""}
               {subCategory ? `${category?.name} › ${subCategory.name}` : (category?.name ?? "")}
               {showAccount || settings.accountLabel ? ` · ${wallet?.name ?? ""}` : ""}
               {transaction.reoccurrence !== null && transaction.periodLength !== null
