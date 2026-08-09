@@ -20,6 +20,7 @@ import {
   TRANSFER_CATEGORY_PK,
   TransactionSpecialType,
   type Objective,
+  type Transaction,
 } from "@/lib/budget/types";
 import {
   getIndefiniteLoanBalance,

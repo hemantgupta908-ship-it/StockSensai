@@ -239,6 +239,25 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  // ---- cross-tab sync ----------------------------------------------------
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function handleStorage(e: StorageEvent) {
+      if (e.key === DATA_KEY && e.newValue) {
+        try {
+          setData({ ...emptyDatabase(), ...JSON.parse(e.newValue) });
+        } catch {}
+      }
+      if (e.key === SETTINGS_KEY && e.newValue) {
+        try {
+          setSettings({ ...DEFAULT_BUDGET_SETTINGS, ...JSON.parse(e.newValue) });
+        } catch {}
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   // ---- persist -----------------------------------------------------------
   // Writes go to localStorage synchronously and to Supabase best-effort. The
   // `hydrated` guard stops the initial empty state from clobbering stored data.
