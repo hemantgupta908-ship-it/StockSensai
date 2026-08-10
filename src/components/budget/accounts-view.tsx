@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CreditCard, Pencil, Star, Trash, Wallet } from "@phosphor-icons/react";
+import { CreditCard, Pencil, Star, Trash, Wallet, CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { AccountType, type TransactionWallet } from "@/lib/budget/types";
@@ -650,12 +650,34 @@ function AccountEditor({
 
 /** Account balances strip for the home screen. */
 export function AccountsSummary() {
-  const { wallets, transactions, settings } = useBudget();
+  const { wallets, transactions, settings, exportDatabase, replaceDatabase } = useBudget();
   const sorted = [...wallets].sort((a, b) => a.order - b.order);
+
+  function moveWallet(wallet: TransactionWallet, dir: number, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentIndex = sorted.findIndex((w) => w.walletPk === wallet.walletPk);
+    if (currentIndex < 0) return;
+    const nextIndex = currentIndex + dir;
+    if (nextIndex < 0 || nextIndex >= sorted.length) return;
+
+    const newSorted = [...sorted];
+    const temp = newSorted[currentIndex];
+    newSorted[currentIndex] = newSorted[nextIndex];
+    newSorted[nextIndex] = temp;
+
+    const db = exportDatabase();
+    db.wallets = db.wallets.map((w) => {
+      const idx = newSorted.findIndex((sw) => sw.walletPk === w.walletPk);
+      if (idx >= 0) return { ...w, order: idx };
+      return w;
+    });
+    replaceDatabase(db);
+  }
 
   return (
     <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-0.5">
-      {sorted.map((wallet) => {
+      {sorted.map((wallet, index) => {
         const balance = getWalletBalance(transactions, wallet.walletPk);
         const accentColour = wallet.colour ?? "#8E8E93";
         return (
@@ -666,13 +688,26 @@ export function AccountsSummary() {
             style={{ border: `1px solid ${accentColour}60` }}
           >
             <div className="relative z-10 flex flex-col gap-2">
-              <div className="mb-1 flex items-center justify-between">
-                <IconBadge iconName={wallet.iconName} colour={wallet.colour} size={24} fallback={wallet.name} />
-                <div className="h-2 w-2 rounded-full opacity-80" style={{ backgroundColor: accentColour }} />
-              </div>
-              <div>
+              <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-caption font-medium text-label-secondary/80">{wallet.name}</p>
-                <p
+                <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100">
+                  <button 
+                    disabled={index === 0}
+                    onClick={(e) => moveWallet(wallet, -1, e)}
+                    className="rounded p-0.5 text-label-secondary hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
+                  >
+                    <CaretLeft size={14} />
+                  </button>
+                  <button 
+                    disabled={index === sorted.length - 1}
+                    onClick={(e) => moveWallet(wallet, 1, e)}
+                    className="rounded p-0.5 text-label-secondary hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
+                  >
+                    <CaretRight size={14} />
+                  </button>
+                </div>
+              </div>
+              <p
                   className={cn(
                     "text-title3 font-bold tracking-tight tabular-nums",
                     balance < 0 ? "text-red" : "text-label",
@@ -681,10 +716,9 @@ export function AccountsSummary() {
                 >
                   {formatCurrencyAmount(balance, wallet.currency, {
                     decimals: settings.showDecimals ? wallet.decimals : 0,
-                    compact: true,
+                    compact: false,
                   })}
                 </p>
-              </div>
             </div>
           </Link>
         );

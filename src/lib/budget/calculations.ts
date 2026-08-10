@@ -87,6 +87,13 @@ export function countsTowardsTotal(t: Transaction): boolean {
   return t.paid;
 }
 
+/** A row that has actually executed and moved money in the real world. */
+export function affectsWalletBalance(t: Transaction): boolean {
+  if (t.skipPaid) return false;
+  if (t.type === null || t.type === undefined) return true;
+  return t.paid;
+}
+
 /** An unpaid, non-skipped scheduled row whose date has passed. */
 export function isOverdue(t: Transaction, now: Date = new Date()): boolean {
   if (t.paid || t.skipPaid) return false;
@@ -375,7 +382,7 @@ export function getWalletBalance(transactions: Transaction[], walletPk: string):
   let total = 0;
   for (const t of transactions) {
     if (t.walletFk !== walletPk) continue;
-    if (!countsTowardsTotal(t)) continue;
+    if (!affectsWalletBalance(t)) continue;
     total += t.amount;
   }
   return total;

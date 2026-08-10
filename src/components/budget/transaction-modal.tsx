@@ -266,6 +266,20 @@ export function TransactionModal({
         title: name.trim() || undefined,
         newPk: newId,
       });
+
+      if (editing) {
+        if (editing.categoryFk === TRANSFER_CATEGORY_PK && editing.pairedTransactionFk) {
+          const outId = editing.income ? editing.pairedTransactionFk : editing.transactionPk;
+          const inId = editing.income ? editing.transactionPk : editing.pairedTransactionFk;
+          pair[0].transactionPk = outId;
+          pair[0].pairedTransactionFk = inId;
+          pair[1].transactionPk = inId;
+          pair[1].pairedTransactionFk = outId;
+        } else {
+          pair[0].transactionPk = editing.transactionPk;
+        }
+      }
+
       upsertTransactions(pair);
       onClose();
       return;
@@ -279,6 +293,7 @@ export function TransactionModal({
     const base = editing ?? createTransaction();
     const next: Transaction = {
       ...base,
+      pairedTransactionFk: null,
       name: name.trim(),
       amount: signed,
       note,

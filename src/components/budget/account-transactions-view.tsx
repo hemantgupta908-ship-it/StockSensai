@@ -14,7 +14,12 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { type Transaction } from "@/lib/budget/types";
-import { getWalletBalance, getSpendingSummary, countsTowardsTotal } from "@/lib/budget/calculations";
+import {
+  affectsWalletBalance,
+  getWalletBalance,
+  getSpendingSummary,
+  countsTowardsTotal,
+} from "@/lib/budget/calculations";
 import { getCreditCardStatus, isCreditCard, dayInMonth } from "@/lib/budget/credit";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { useBudget, useCategoryLookup } from "./budget-provider";
@@ -149,7 +154,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
     let current = 0;
     const balances = new Map<string, number>();
     for (const t of sorted) {
-      if (countsTowardsTotal(t)) {
+      if (affectsWalletBalance(t)) {
         current += t.amount;
       }
       const d = new Date(t.dateCreated);
@@ -388,7 +393,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                       <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Payments</p>
                       <Amount value={group.payments} className="text-footnote font-medium text-green" />
                     </div>
-                    {group.unpaidAmount !== undefined && group.unpaidAmount > 0 ? (
+                    {group.unpaidAmount !== undefined && group.unpaidAmount > 5 ? (
                       <button
                         onClick={() => {
                           setEditing(null);
