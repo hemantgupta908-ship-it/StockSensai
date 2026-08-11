@@ -9,14 +9,22 @@
  */
 
 import { useRef, useState } from "react";
-import { ArrowCounterClockwise, DownloadSimple, UploadSimple } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowCounterClockwise, BookOpen, Check, DownloadSimple, Moon, ShieldCheck, SignIn, SignOut, SquaresFour, Sun, SunHorizon, UploadSimple, Wallet, Shapes, CaretRight } from "@phosphor-icons/react";
+import { useSession } from "@/components/auth/session-provider";
 
 import { cn } from "@/lib/utils";
 import type { BudgetDatabase } from "@/lib/budget/types";
+import { POLICY_TYPE_META } from "@/lib/budget/types";
 import { CURRENCIES, DEFAULT_EXCHANGE_RATES, getCurrencyInfo } from "@/lib/budget/currency";
+import { getPolicySavingsTotal, getPolicyStatus } from "@/lib/budget/credit";
+import { AVATAR_OPTIONS } from "@/lib/budget/defaults";
 import { exportTransactionsCsv, importTransactionsCsv } from "@/lib/budget/csv";
+import { PRESET_AVATARS, USERPICS_PACKS, UserAvatar } from "./user-avatar";
 import { useBudget } from "./budget-provider";
+import { DashboardHeaderAction } from "./budget-dashboard";
 import {
+  Amount,
   Card,
   ConfirmButton,
   Field,
@@ -27,7 +35,40 @@ import {
   Toggle,
 } from "./budget-ui";
 
-const ACCENTS = ["#007AFF", "#34C759", "#AF52DE", "#FF9500", "#FF2D55", "#30B0C7", "#5856D6"];
+const ACCENTS: { color: string; name: string }[] = [
+  { color: "#007AFF", name: "iOS Blue" },
+  { color: "#34C759", name: "Emerald Green" },
+  { color: "#00A896", name: "Forest Teal" },
+  { color: "#30B0C7", name: "Neon Cyan" },
+  { color: "#3F51B5", name: "Deep Indigo" },
+  { color: "#5856D6", name: "Violet Purple" },
+  { color: "#AF52DE", name: "Lavender Pink" },
+  { color: "#FF2D55", name: "Rose Magenta" },
+  { color: "#FF3B30", name: "Crimson Red" },
+  { color: "#FF6B6B", name: "Coral Orange" },
+  { color: "#FF9500", name: "Sunset Amber" },
+  { color: "#FFCC00", name: "Golden Yellow" },
+  { color: "#8BC34A", name: "Lime Green" },
+  { color: "#607D8B", name: "Slate Gray" },
+  { color: "#424242", name: "Cool Charcoal" },
+  { color: "#80CBC4", name: "Soft Mint" },
+  { color: "#FFAB91", name: "Warm Peach" },
+  { color: "#8D6E63", name: "Deep Mocha" },
+];
+
+const THEME_OPTIONS: {
+  value: "system" | "light" | "dark" | "oled" | "sepia";
+  label: string;
+  sublabel: string;
+  Icon: any;
+  bgClass: string;
+}[] = [
+  { value: "system", label: "System", sublabel: "Auto OS match", Icon: SunHorizon, bgClass: "bg-fill/10 text-label" },
+  { value: "light", label: "Light", sublabel: "Crisp white", Icon: Sun, bgClass: "bg-white text-slate-900 border border-slate-200" },
+  { value: "dark", label: "Dark", sublabel: "Muted dark", Icon: Moon, bgClass: "bg-[#1C1C1E] text-white border border-white/10" },
+  { value: "oled", label: "OLED Black", sublabel: "Pitch black", Icon: SquaresFour, bgClass: "bg-black text-white border border-white/20" },
+  { value: "sepia", label: "Warm Sepia", sublabel: "Eye comfort", Icon: BookOpen, bgClass: "bg-[#F7F4EB] text-[#2C2620] border border-[#E5DFD0]" },
+];
 
 export function BudgetSettingsView() {
   const {
@@ -43,10 +84,12 @@ export function BudgetSettingsView() {
     upsertTransactions,
     upsertCategory,
   } = useBudget();
+  const { user, signOut } = useSession();
 
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [selectedPackId, setSelectedPackId] = useState<string>("all");
 
   function download(filename: string, contents: string, type: string) {
     const blob = new Blob([contents], { type });
@@ -95,38 +138,213 @@ export function BudgetSettingsView() {
     reader.readAsText(file);
   }
 
+  const selectedAccent = ACCENTS.find((a) => a.color === settings.accentColour) ?? ACCENTS[0];
+
   return (
     <>
+      <Section title="Organise">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card href="/budget/accounts" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
+                <Wallet size={20} weight="fill" />
+              </div>
+              <div>
+                <p className="font-semibold text-label">Accounts</p>
+                <p className="text-caption2 text-label-secondary mt-0.5">Where your money sits</p>
+              </div>
+            </div>
+            <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
+          </Card>
+          
+          <Card href="/budget/categories" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
+                <Shapes size={20} weight="fill" />
+              </div>
+              <div>
+                <p className="font-semibold text-label">Categories</p>
+                <p className="text-caption2 text-label-secondary mt-0.5">How spending is grouped</p>
+              </div>
+            </div>
+            <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
+          </Card>
+        </div>
+      </Section>
+
+      <Section title="Profile">
+        <Card className="space-y-5 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <UserAvatar
+                avatarVal={settings.userAvatar}
+                email={user?.email}
+                className="h-16 w-16 text-2xl shadow-md ring-2 ring-fill/15"
+              />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="truncate text-base sm:text-lg font-bold text-label">
+                    {user?.email?.split("@")[0] || "Local Profile"}
+                  </h3>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                    <ShieldCheck size={14} weight="fill" />
+                    {user ? "Signed in" : "Offline / Local"}
+                  </span>
+                </div>
+                <p className="truncate text-footnote sm:text-subhead text-label-secondary/80 mt-1">
+                  {user?.email || "All data stored safely in local browser memory"}
+                </p>
+              </div>
+            </div>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => signOut()}
+                aria-label="Log Out"
+                title="Log Out"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-red text-white shadow-md hover:bg-red/90 active:scale-95 transition-all shrink-0"
+              >
+                <SignOut size={20} weight="bold" />
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                aria-label="Sign In"
+                title="Sign In"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-green text-white shadow-md hover:bg-green/90 active:scale-95 transition-all shrink-0"
+              >
+                <SignIn size={20} weight="bold" />
+              </Link>
+            )}
+          </div>
+
+          <Field label="Choose Avatar Pack">
+            {/* Userpics Pack Filter Tabs */}
+            <div className="flex gap-1 overflow-x-auto pb-1 pt-0.5 no-scrollbar snap-x">
+              <button
+                type="button"
+                onClick={() => setSelectedPackId("all")}
+                className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all shrink-0 select-none",
+                  selectedPackId === "all"
+                    ? "bg-accent text-white shadow-sm"
+                    : "bg-fill/10 text-label-secondary hover:bg-fill/20"
+                )}
+              >
+                All Packs
+              </button>
+              {USERPICS_PACKS.map((pack) => (
+                <button
+                  key={pack.id}
+                  type="button"
+                  onClick={() => setSelectedPackId(pack.id)}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all shrink-0 select-none",
+                    selectedPackId === pack.id
+                      ? "bg-accent text-white shadow-sm"
+                      : "bg-fill/10 text-label-secondary hover:bg-fill/20"
+                  )}
+                >
+                  {pack.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Avatar Swatches in selected pack */}
+            <div className="flex gap-3.5 overflow-x-auto py-3.5 -my-2.5 px-2.5 no-scrollbar snap-x">
+              {(selectedPackId === "all"
+                ? PRESET_AVATARS
+                : USERPICS_PACKS.find((p) => p.id === selectedPackId)?.avatars ?? PRESET_AVATARS
+              ).map((avatar) => {
+                const isSelected =
+                  settings.userAvatar === avatar.id ||
+                  settings.userAvatar === avatar.url ||
+                  ((!settings.userAvatar || settings.userAvatar === "initial") && avatar.id === "initial");
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() =>
+                      updateSettings({
+                        userAvatar: avatar.id,
+                      })
+                    }
+                    title={avatar.label}
+                    className={cn(
+                      "group relative flex h-12 w-12 shrink-0 snap-start items-center justify-center rounded-full transition-all shadow-sm select-none p-0.5",
+                      isSelected
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-bg-secondary scale-110 z-10"
+                        : "opacity-75 hover:opacity-100 hover:scale-105"
+                    )}
+                  >
+                    <UserAvatar
+                      avatarVal={avatar.url || avatar.id}
+                      email={user?.email}
+                      className="h-full w-full text-base"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+        </Card>
+      </Section>
+
       <Section title="Appearance">
-        <Card>
-          <Field label="Theme">
-            <SegmentedTabs
-              value={settings.theme}
-              onChange={(theme) => updateSettings({ theme })}
-              options={[
-                { value: "system", label: "System" },
-                { value: "light", label: "Light" },
-                { value: "dark", label: "Dark" },
-              ]}
-            />
+        <Card className="space-y-5">
+          <Field label="Theme Mode">
+            <div className="flex gap-2.5 overflow-x-auto pb-1 pt-1 no-scrollbar snap-x -mx-1 px-1">
+              {THEME_OPTIONS.map(({ value, label, sublabel, Icon, bgClass }) => {
+                const isActive = settings.theme === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => updateSettings({ theme: value })}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2.5 rounded-xl transition-all text-center relative overflow-hidden select-none shrink-0 w-[115px] h-[72px] snap-start",
+                      bgClass,
+                      isActive
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-bg-secondary scale-[1.02] shadow-sm font-semibold opacity-100"
+                        : "opacity-65 hover:opacity-95 hover:scale-[1.01]"
+                    )}
+                  >
+                    <div className="flex items-center justify-center h-6 w-6 rounded-md bg-fill/10 mb-1 shrink-0">
+                      <Icon size={15} />
+                    </div>
+                    <p className="text-caption font-semibold leading-none">{label}</p>
+                    <p className="text-[9px] opacity-60 leading-tight mt-0.5 truncate max-w-full px-1">{sublabel}</p>
+                  </button>
+                );
+              })}
+            </div>
           </Field>
 
-          <Field label="Accent colour">
-            <div className="flex flex-wrap gap-2">
-              {ACCENTS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => updateSettings({ accentColour: c })}
-                  aria-label={`Accent ${c}`}
-                  className={cn(
-                    "h-8 w-8 rounded-full transition-transform",
-                    settings.accentColour === c &&
-                      "ring-2 ring-label ring-offset-2 ring-offset-bg-secondary",
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+          <Field label={`Accent colour — ${selectedAccent.name}`}>
+            <div className="flex gap-3 overflow-x-auto pb-1.5 pt-1.5 no-scrollbar snap-x -mx-1 px-1">
+              {ACCENTS.map(({ color, name }) => {
+                const isActive = settings.accentColour === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => updateSettings({ accentColour: color })}
+                    aria-label={`Accent ${name}`}
+                    title={name}
+                    className={cn(
+                      "group relative h-9 w-9 shrink-0 snap-start rounded-full transition-all flex items-center justify-center shadow-sm",
+                      isActive
+                        ? "ring-2 ring-label ring-offset-2 ring-offset-bg-secondary scale-110"
+                        : "hover:scale-110 active:scale-95 opacity-90 hover:opacity-100"
+                    )}
+                    style={{ backgroundColor: color }}
+                  >
+                    {isActive ? (
+                      <Check size={14} weight="bold" className="text-white drop-shadow-sm" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </Field>
 
@@ -147,6 +365,9 @@ export function BudgetSettingsView() {
             onChange={(animatedBudgetBackground) => updateSettings({ animatedBudgetBackground })}
             label="Animated budget background"
           />
+          <div className="pt-2 border-t border-separator/30 dark:border-white/10">
+            <DashboardHeaderAction />
+          </div>
         </Card>
       </Section>
 
@@ -280,6 +501,8 @@ export function BudgetSettingsView() {
         </Card>
       </Section>
 
+      <SavingsSettingsSection />
+
       <Section title="Home page widgets">
         <Card>
           <Toggle
@@ -296,6 +519,11 @@ export function BudgetSettingsView() {
             checked={settings.showAllSpendingSummary}
             onChange={(showAllSpendingSummary) => updateSettings({ showAllSpendingSummary })}
             label="Spending summary"
+          />
+          <Toggle
+            checked={settings.showPieChart ?? true}
+            onChange={(showPieChart) => updateSettings({ showPieChart })}
+            label="Category breakdown"
           />
           <Toggle
             checked={settings.showPinnedBudgets}
@@ -331,6 +559,11 @@ export function BudgetSettingsView() {
             checked={settings.showHeatmap}
             onChange={(showHeatmap) => updateSettings({ showHeatmap })}
             label="Daily spending heatmap"
+          />
+          <Toggle
+            checked={settings.showRecentTransactions ?? true}
+            onChange={(showRecentTransactions) => updateSettings({ showRecentTransactions })}
+            label="Recent transactions"
           />
         </Card>
       </Section>
@@ -461,5 +694,86 @@ export function BudgetSettingsView() {
         StockSensei&apos;s preferences.
       </p>
     </>
+  );
+}
+
+/**
+ * Controls for the Savings card.
+ *
+ * The per-policy list exists because "savings" is not true of every policy: a
+ * term insurance premium buys cover and returns nothing, so counting it as
+ * money you hold would overstate your position. Exclusions are stored, so a
+ * policy added later counts without needing to be found in here first.
+ */
+function SavingsSettingsSection() {
+  const { policies, transactions, allWallets, settings, updateSettings } = useBudget();
+  const active = policies.filter((p) => !p.archived);
+  const excluded = settings.savingsExcludedPolicyPks ?? [];
+
+  const total = getPolicySavingsTotal(allWallets, policies, transactions, excluded);
+
+  function toggle(policyPk: string, include: boolean) {
+    updateSettings({
+      savingsExcludedPolicyPks: include
+        ? excluded.filter((pk) => pk !== policyPk)
+        : [...new Set([...excluded, policyPk])],
+    });
+  }
+
+  if (active.length === 0) return null;
+
+  return (
+    <Section title="Savings">
+      <Card>
+        <Toggle
+          checked={settings.showSavingsCard ?? true}
+          onChange={(showSavingsCard) => updateSettings({ showSavingsCard })}
+          label="Show savings card"
+          description="A card beside your accounts showing what policies have accumulated."
+        />
+        <Toggle
+          checked={settings.includeSavingsInNetWorth ?? true}
+          onChange={(includeSavingsInNetWorth) => updateSettings({ includeSavingsInNetWorth })}
+          label="Count savings in net worth"
+        />
+
+        <div className="mt-3 border-t border-separator/40 pt-3">
+          <div className="mb-2 flex items-baseline justify-between px-1">
+            <p className="text-footnote font-medium text-label-secondary">Include these policies</p>
+            <Amount value={total} className="text-footnote font-semibold text-label" />
+          </div>
+          <div className="space-y-1.5">
+            {active.map((p) => {
+              const included = !excluded.includes(p.policyPk);
+              const paid = getPolicyStatus(p, transactions).totalPaid;
+              return (
+                <button
+                  key={p.policyPk}
+                  type="button"
+                  onClick={() => toggle(p.policyPk, !included)}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-3 rounded-ios border px-3 py-2 text-left transition-colors",
+                    included ? "border-green/40 bg-green/10" : "border-separator/40 hover:bg-fill/10",
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-subhead text-label">
+                      {p.name || "Untitled policy"}
+                    </span>
+                    <span className="block text-caption text-label-secondary/60">
+                      {POLICY_TYPE_META[p.type].label}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Amount value={paid} className="text-caption text-label-secondary/70" />
+                    {included ? <Check size={16} className="text-green" /> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+    </Section>
   );
 }

@@ -58,10 +58,11 @@ import { TransactionGroup, TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
 
 export function ObjectivesView({ type }: { type: ObjectiveType }) {
-  const { objectives } = useBudget();
+  const { objectives, transactions, allWallets } = useBudget();
   const [query, setQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Objective | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const isLoan = type === ObjectiveType.loan;
 
@@ -69,20 +70,37 @@ export function ObjectivesView({ type }: { type: ObjectiveType }) {
     () =>
       objectives
         .filter((o) => o.type === type && !o.archived)
+        .filter((o) => {
+          if (showCompleted) return true;
+          const indefinite = isIndefiniteLoan(o);
+          if (indefinite) return true;
+          const percent = getObjectivePercentageComplete(allWallets, transactions, o);
+          return percent < 1;
+        })
         .filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase()))
         .sort((a, b) => a.order - b.order),
-    [objectives, type, query],
+    [objectives, type, query, showCompleted, allWallets, transactions],
   );
 
   return (
     <>
-      {objectives.filter((o) => o.type === type).length > 3 ? (
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder={isLoan ? "Search loans..." : "Search goals..."}
+      <div className="mb-4 flex flex-col gap-3">
+        <SegmentedTabs
+          value={showCompleted ? "all" : "active"}
+          onChange={(v) => setShowCompleted(v === "all")}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "all", label: "All" },
+          ]}
         />
-      ) : null}
+        {objectives.filter((o) => o.type === type).length > 3 ? (
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder={isLoan ? "Search loans..." : "Search goals..."}
+          />
+        ) : null}
+      </div>
 
       {visible.length === 0 ? (
         <EmptyState

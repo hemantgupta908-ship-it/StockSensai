@@ -21,10 +21,10 @@ export type Environment = "stocks" | "budget";
 
 const ENVIRONMENTS = {
   stocks: { href: "/home", label: "Stocks", icon: ChartLineUp, accent: "text-blue" },
-  budget: { href: "/budget", label: "Budget", icon: Wallet, accent: "text-green" },
+  budget: { href: "/budget", label: "Budget", icon: Wallet, accent: "text-accent" },
 } as const;
 
-export function EnvironmentSwitcher({ active }: { active: Environment }) {
+export function EnvironmentSwitcher({ active, onClick }: { active: Environment; onClick?: () => void }) {
   return (
     <div
       className="flex gap-1 rounded-[13px] bg-fill/[0.08] p-1"
@@ -53,6 +53,8 @@ export function EnvironmentSwitcher({ active }: { active: Environment }) {
           <Link
             key={key}
             href={env.href}
+            prefetch={true}
+            onClick={onClick}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2 py-2 text-footnote font-medium text-label-secondary transition-colors hover:bg-bg-elevated/70 hover:text-label"
           >
             <Icon size={15} />
@@ -66,17 +68,5 @@ export function EnvironmentSwitcher({ active }: { active: Environment }) {
 
 /** Header pill for mobile, where there is no sidebar to hold the switcher. */
 export function EnvironmentSwitcherCompact({ active }: { active: Environment }) {
-  // Point at the environment you are *not* in.
-  const target = ENVIRONMENTS[active === "stocks" ? "budget" : "stocks"];
-  const Icon = target.icon;
-
-  return (
-    <Link
-      href={target.href}
-      className="flex items-center gap-1.5 rounded-full bg-fill/10 px-3 py-1.5 text-caption font-medium text-label-secondary transition-colors hover:bg-fill/20"
-    >
-      <Icon size={14} />
-      {target.label}
-    </Link>
-  );
+  return null;
 }

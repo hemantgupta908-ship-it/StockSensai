@@ -156,6 +156,8 @@ export interface TransactionWallet {
   statementDay: number | null;
   /** Credit cards only: day of month payment is due (1–28). */
   dueDay: number | null;
+  /** Whether to exclude this account's balance from the total net worth. */
+  excludeFromNetWorth?: boolean | null;
 }
 
 /**
@@ -348,6 +350,15 @@ export interface Policy {
   /** Amount due each period. */
   premiumAmount: number;
   premiumFrequency: PremiumFrequency;
+  /**
+   * A ledger rather than a commitment: premiums are logged as they happen, with
+   * their own amounts and dates, and nothing is treated as due or overdue.
+   *
+   * Deliberately a separate flag rather than another `PremiumFrequency` member —
+   * that enum persists as a declaration index, and a policy that records many
+   * payments is not the same thing as a single-premium product.
+   */
+  recordOnly?: boolean | null;
   /** When the policy started; premiums are counted from here. */
   startDate: string;
   /** Next premium due. Advances as premiums are recorded. */

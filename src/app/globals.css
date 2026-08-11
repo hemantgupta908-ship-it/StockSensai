@@ -30,9 +30,12 @@
     --sys-teal: 48 176 199;
     --sys-indigo: 88 86 214;
     --sys-pink: 255 45 85;
+    --sys-gray: 100 116 139;
 
     --nav-bg: 249 249 249;
     --chart-grid: 232 232 237;
+
+    --budget-accent: #007AFF;
 
     color-scheme: light;
   }
@@ -60,11 +63,41 @@
     --sys-teal: 64 200 224;
     --sys-indigo: 94 92 230;
     --sys-pink: 255 55 95;
+    --sys-gray: 148 163 184;
 
     --nav-bg: 22 22 24;
     --chart-grid: 44 44 46;
 
     color-scheme: dark;
+  }
+
+  .theme-oled {
+    --bg: 0 0 0;
+    --bg-secondary: 10 10 12;
+    --bg-tertiary: 20 20 22;
+    --bg-elevated: 16 16 18;
+    --nav-bg: 0 0 0;
+    --chart-grid: 30 30 32;
+    color-scheme: dark;
+  }
+
+  .theme-sepia {
+    --bg: 247 244 235;
+    --bg-secondary: 255 253 248;
+    --bg-tertiary: 238 234 222;
+    --bg-elevated: 255 253 248;
+    --fill: 140 130 120;
+
+    --label: 44 38 32;
+    --label-secondary: 105 92 80;
+    --label-tertiary: 140 125 110;
+    --label-quaternary: 165 150 135;
+    --separator: 218 210 195;
+
+    --nav-bg: 240 236 226;
+    --chart-grid: 228 222 210;
+
+    color-scheme: light;
   }
 
   html {

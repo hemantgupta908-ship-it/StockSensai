@@ -13,8 +13,6 @@ export default function BudgetSettingsPage() {
     <>
       <BudgetHeader
         title="Settings"
-        subtitle="Budget environment only"
-        backHref="/budget/more"
       />
       <BudgetPage>
         <BudgetSettingsView />

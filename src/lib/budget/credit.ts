@@ -9,10 +9,13 @@
 
 import {
   AccountType,
+  BALANCE_CORRECTION_CATEGORY_PK,
   PREMIUM_FREQUENCY_META,
   PremiumFrequency,
+  TRANSFER_CATEGORY_PK,
   type Policy,
   type Transaction,
+  type TransactionCategory,
   type TransactionWallet,
 } from "./types";
 import { getWalletBalance } from "./calculations";
@@ -202,6 +205,39 @@ export function getPolicyTransactions(policy: Policy, transactions: Transaction[
   return transactions.filter((t) => t.note.includes(tag));
 }
 
+/**
+ * The category a premium should be filed under, resolved against the ledger
+ * that actually exists.
+ *
+ * A bare `policy.categoryFk ?? "6"` assumes the default category set is still
+ * present. Anyone who built their own categories has no pk `"6"`, so every
+ * premium was stamped with an id nothing resolves to and the whole lot piled up
+ * under "Uncategorised". The same happens to a policy whose category was later
+ * deleted, because a dangling pk is not null and slips past `??`.
+ */
+export function resolvePremiumCategoryFk(
+  policy: Pick<Policy, "categoryFk">,
+  categories: TransactionCategory[],
+): string | null {
+  const exists = (pk: string | null | undefined) =>
+    Boolean(pk) && categories.some((c) => c.categoryPk === pk);
+
+  if (exists(policy.categoryFk)) return policy.categoryFk;
+
+  const spendable = categories.filter(
+    (c) =>
+      !c.income &&
+      c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK &&
+      c.categoryPk !== TRANSFER_CATEGORY_PK,
+  );
+
+  const byName = spendable.find((c) => c.name.trim().toLowerCase() === "bills & fees");
+  if (byName) return byName.categoryPk;
+
+  const sorted = [...spendable].sort((a, b) => a.order - b.order);
+  return sorted[0]?.categoryPk ?? null;
+}
+
 export function getPolicyStatus(
   policy: Policy,
   transactions: Transaction[],
@@ -210,10 +246,15 @@ export function getPolicyStatus(
   const linked = getPolicyTransactions(policy, transactions).filter((t) => t.paid);
   const totalPaid = linked.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  const perYear = PREMIUM_FREQUENCY_META[policy.premiumFrequency].perYear;
-  const annualCommitment = policy.premiumAmount * perYear;
+  // A record-only policy is a ledger, not a commitment: there is no schedule to
+  // be ahead of or behind, so it never reads as due, overdue, or as an annual
+  // outgo figure that was never agreed.
+  const recordOnly = policy.recordOnly === true;
 
-  const nextDue = policy.nextDueDate ? new Date(policy.nextDueDate) : null;
+  const perYear = PREMIUM_FREQUENCY_META[policy.premiumFrequency].perYear;
+  const annualCommitment = recordOnly ? 0 : policy.premiumAmount * perYear;
+
+  const nextDue = recordOnly || !policy.nextDueDate ? null : new Date(policy.nextDueDate);
   const daysUntilDue = nextDue
     ? Math.ceil((nextDue.getTime() - now.getTime()) / 86400000)
     : null;
@@ -258,6 +299,35 @@ export function getTotalAnnualPremiums(
       policy.premiumAmount *
       perYear *
       amountRatioToPrimaryCurrencyGivenPk(allWallets, policy.walletFk);
+  }
+  return total;
+}
+
+/**
+ * Everything paid into policies, in the primary currency — the savings side of
+ * a premium.
+ *
+ * Premiums are excluded from spending because the money is put aside rather
+ * than consumed, which leaves it invisible unless it is counted somewhere. This
+ * is that somewhere. It is what has been *paid in*, not a surrender or maturity
+ * value: those are usually lower, and this app has no way to know them.
+ *
+ * `excludedPolicyPks` drops individual policies from the total — a term
+ * insurance premium buys cover rather than accumulating, so counting it as
+ * savings would overstate what you hold.
+ */
+export function getPolicySavingsTotal(
+  allWallets: AllWallets,
+  policies: Policy[],
+  transactions: Transaction[],
+  excludedPolicyPks: string[] = [],
+): number {
+  const excluded = new Set(excludedPolicyPks);
+  let total = 0;
+  for (const policy of policies) {
+    if (policy.archived || excluded.has(policy.policyPk)) continue;
+    const { totalPaid } = getPolicyStatus(policy, transactions);
+    total += totalPaid * amountRatioToPrimaryCurrencyGivenPk(allWallets, policy.walletFk);
   }
   return total;
 }

@@ -1,20 +1,5 @@
-import type { Metadata } from "next";
-
-import { MoreView } from "@/components/budget/more-view";
-import { BudgetHeader, BudgetPage } from "@/components/budget/budget-ui";
-
-export const metadata: Metadata = {
-  title: "More",
-  description: "Goals, loans, accounts, categories, tools and settings.",
-};
+import { redirect } from "next/navigation";
 
 export default function MorePage() {
-  return (
-    <>
-      <BudgetHeader title="More" large />
-      <BudgetPage>
-        <MoreView />
-      </BudgetPage>
-    </>
-  );
+  redirect("/budget");
 }

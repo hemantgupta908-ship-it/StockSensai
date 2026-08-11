@@ -11,7 +11,10 @@ export const metadata: Metadata = {
 export default function BudgetHomePage() {
   return (
     <>
-      <BudgetHeader title="Budget" large width="fluid" />
+      <BudgetHeader 
+        title="Overview"
+        width="fluid"
+      />
       <BudgetPage width="fluid">
         <BudgetDashboard />
       </BudgetPage>

@@ -7,7 +7,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CreditCard, Pencil, Star, Trash, Wallet, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { CreditCard, Pencil, PiggyBank, Star, Trash, Wallet, CaretLeft, CaretRight, DotsThreeVertical, ArrowRight, Plus } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { AccountType, type TransactionWallet } from "@/lib/budget/types";
@@ -18,7 +19,7 @@ import { createBalanceCorrection } from "@/lib/budget/recurring";
 import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { createWallet, newId } from "@/lib/budget/factory";
 import { ColourPicker, IconBadge, IconPicker } from "./icon-picker";
-import { useBudget } from "./budget-provider";
+import { useBudget, usePolicySavings } from "./budget-provider";
 import {
   AddFab,
   Amount,
@@ -31,16 +32,19 @@ import {
   SelectInput,
   Sheet,
   TextInput,
+  Toggle,
 } from "./budget-ui";
 
 export function AccountsView() {
   const { wallets, transactions, allWallets, settings, updateSettings } = useBudget();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionWallet | null>(null);
+  const [openMenuWalletPk, setOpenMenuWalletPk] = useState<string | null>(null);
 
+  const savings = usePolicySavings();
   const netWorth = useMemo(
-    () => getNetWorth(allWallets, transactions),
-    [allWallets, transactions],
+    () => getNetWorth(allWallets, transactions, savings.netWorthContribution),
+    [allWallets, transactions, savings.netWorthContribution],
   );
 
   const creditOutstanding = useMemo(
@@ -48,28 +52,29 @@ export function AccountsView() {
     [allWallets, transactions],
   );
 
-  const sorted = [...wallets].sort((a, b) => a.order - b.order);
+  const sorted = [...wallets]
+    .sort((a, b) => a.order - b.order)
+    .filter((w) => !(settings.homePageHidden ?? []).includes(w.walletPk));
 
   return (
     <>
-      <div className={cn("mb-4 grid gap-3", creditOutstanding > 0 && "sm:grid-cols-2")}>
-        <Card className="text-center">
-          <p className="text-caption uppercase tracking-wide text-label-secondary/50">Net worth</p>
-          <Amount value={netWorth} className="text-largetitle font-semibold" colour />
-          <p className="mt-1 text-caption text-label-secondary/50">
-            Across {wallets.length} account{wallets.length === 1 ? "" : "s"}, in{" "}
-            {getCurrencyInfo(allWallets.primaryCurrency)?.name ?? "your primary currency"}
+      <div className={cn("mb-4 grid gap-3", creditOutstanding > 0 ? "grid-cols-2" : "grid-cols-1")}>
+        <Card className="text-center !py-4 px-3 flex flex-col justify-center">
+          <p className="text-caption uppercase tracking-wide text-label-secondary/50 font-medium">Net worth</p>
+          <Amount value={netWorth} className="text-title2 sm:text-title1 font-bold" colour />
+          <p className="mt-0.5 text-[11px] text-label-secondary/50 truncate">
+            Across {wallets.length} account{wallets.length === 1 ? "" : "s"}
           </p>
         </Card>
 
         {creditOutstanding > 0 ? (
-          <Card className="text-center">
-            <p className="text-caption uppercase tracking-wide text-label-secondary/50">
+          <Card className="text-center !py-4 px-3 flex flex-col justify-center">
+            <p className="text-caption uppercase tracking-wide text-label-secondary/50 font-medium">
               Credit card dues
             </p>
-            <Amount value={creditOutstanding} className="text-largetitle font-semibold text-red" />
-            <p className="mt-1 text-caption text-label-secondary/50">
-              Already deducted from net worth
+            <Amount value={creditOutstanding} className="text-title2 sm:text-title1 font-bold text-red" />
+            <p className="mt-0.5 text-[11px] text-label-secondary/50 truncate">
+              Deducted from net worth
             </p>
           </Card>
         ) : null}
@@ -127,166 +132,144 @@ export function AccountsView() {
                   const canDelete = wallets.length > 1 && !isPrimary;
                   const accentColour = wallet.colour ?? "#8E8E93";
 
-                  // COMPACT LAYOUT (Cash & Investment)
-                  if (group.type === "cash" || group.type === "investment") {
-                    return (
-                      <div
-                        key={wallet.walletPk}
-                        className="flex overflow-hidden rounded-[16px] bg-bg-secondary shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                        style={{
-                          background: `linear-gradient(145deg, ${accentColour}10 0%, transparent 100%)`,
-                        }}
-                      >
-                        <Link
-                          href={`/budget/accounts/${wallet.walletPk}`}
-                          className="flex flex-1 items-center justify-between p-3 transition-transform active:scale-[0.98]"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <IconBadge iconName={wallet.iconName} colour={wallet.colour} size={24} fallback={wallet.name} />
-                            <div className="min-w-0">
-                              <p className="truncate text-subhead font-medium text-label">{wallet.name}</p>
-                              {isPrimary ? <p className="text-caption2 text-label-secondary/60">Primary</p> : null}
-                            </div>
-                          </div>
-                          <span className={cn("shrink-0 text-subhead font-semibold tabular-nums", balance < 0 ? "text-red" : "text-label", settings.hideAmounts && "blur-[6px]")}>
-                            {formatCurrencyAmount(balance, wallet.currency, { decimals: settings.showDecimals ? wallet.decimals : 0 })}
-                          </span>
-                        </Link>
-                        <div className="flex items-center border-l border-separator/20">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditing(wallet);
-                              setEditorOpen(true);
-                            }}
-                            className="flex h-full px-3 items-center justify-center text-label-secondary/40 hover:bg-fill/10 hover:text-label-secondary transition-colors"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // STANDARD & CREDIT LAYOUT
                   return (
                     <div
                       key={wallet.walletPk}
-                      className="flex flex-col overflow-hidden rounded-[24px] bg-bg-secondary transition-all shadow-[10px_10px_30px_rgba(0,0,0,0.12),-10px_-10px_30px_rgba(255,255,255,1)] dark:shadow-[10px_10px_30px_rgba(0,0,0,0.4),-10px_-10px_30px_rgba(255,255,255,0.05)] hover:shadow-[14px_14px_40px_rgba(0,0,0,0.16),-14px_-14px_40px_rgba(255,255,255,1)] dark:hover:shadow-[14px_14px_40px_rgba(0,0,0,0.5),-14px_-14px_40px_rgba(255,255,255,0.06)] active:shadow-[inset_6px_6px_16px_rgba(0,0,0,0.1),inset_-6px_-6px_16px_rgba(255,255,255,0.8)] dark:active:shadow-[inset_6px_6px_16px_rgba(0,0,0,0.4),inset_-6px_-6px_16px_rgba(255,255,255,0.06)]"
+                      className={cn(
+                        "group relative flex items-center justify-between rounded-[16px] bg-bg-elevated px-3.5 py-3 text-label transition-all duration-200 border border-separator/20 hover:border-separator/50 shadow-2xs hover:shadow-xs active:scale-[0.995]",
+                        openMenuWalletPk === wallet.walletPk ? "z-30 ring-1 ring-separator/40" : "z-0"
+                      )}
                     >
-                      <Link
-                        href={`/budget/accounts/${wallet.walletPk}`}
-                        className="flex-1 p-5 text-left"
-                      >
-                        <div className="flex w-full items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="flex items-center gap-2 text-headline text-label">
-                              <IconBadge iconName={wallet.iconName} colour={wallet.colour} size={28} fallback={wallet.name} />
-                              {card ? <CreditCard size={15} className="shrink-0 text-label-secondary/50" /> : null}
-                              <span className="truncate tracking-tight">{wallet.name}</span>
-                              {isPrimary ? <Star size={14} className="shrink-0 fill-amber text-amber" /> : null}
-                            </p>
-                            <p className="mt-0.5 text-caption text-label-secondary/60">
-                              {card ? "Credit card · " : ""}
-                              {getCurrencyInfo(wallet.currency)?.name ?? wallet.currency?.toUpperCase()}
-                              {isPrimary ? " · Primary" : ""}
-                            </p>
+                      <Link href={`/budget/accounts/${wallet.walletPk}`} className="flex flex-1 items-center justify-between gap-3 min-w-0 pr-2">
+                        {/* Left: Avatar + Title & Subtitle */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill/10 dark:bg-white/10">
+                            <IconBadge iconName={wallet.iconName} colour={accentColour} size={20} fallback={wallet.name} />
                           </div>
-                          <div className="shrink-0 text-right">
-                            <span
-                              className={cn(
-                                "block text-title2 font-semibold tracking-tight tabular-nums",
-                                card ? (card.outstanding > 0 ? "text-red" : "text-green") : balance < 0 ? "text-red" : "text-label",
-                                settings.hideAmounts && "blur-[6px]"
-                              )}
-                            >
-                              {formatCurrencyAmount(card ? card.outstanding : balance, wallet.currency, {
-                                decimals: settings.showDecimals ? wallet.decimals : 0,
-                              })}
-                            </span>
-                            {card ? (
-                              <span className="text-caption2 text-label-secondary/50">
-                                {card.outstanding > 0 ? "owed" : "clear"}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate text-subhead font-bold text-label tracking-tight">{wallet.name}</span>
+                              {isPrimary ? (
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber/15 px-1.5 py-0.2 text-[9px] font-bold text-amber">
+                                  <Star size={9} className="fill-amber text-amber" />
+                                  Primary
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2 text-caption2 text-label-secondary/60 font-medium">
+                              <span>
+                                {card
+                                  ? `${formatCurrencyAmount(card.available ?? 0, wallet.currency, { decimals: 0, compact: true })} avail.`
+                                  : getCurrencyInfo(wallet.currency)?.name ?? wallet.currency?.toUpperCase()}
                               </span>
-                            ) : null}
+                              {card?.nextDueDate ? (
+                                <span className={cn("truncate font-semibold", (card.daysUntilDue ?? 99) <= 3 && card.outstanding > 0 ? "text-red" : "text-label-secondary/70")}>
+                                  · Due {card.nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Restore large details ONLY for credit cards */}
-                        {card ? (
-                          <div className="mt-4 border-t border-separator/30 pt-3">
-                            {card.utilisation !== null ? (
-                              <>
-                                <ProgressBar
-                                  percent={card.utilisation}
-                                  colour={card.highUtilisation ? "rgb(var(--sys-orange))" : accentColour}
-                                  height={6}
+                        {/* Right: Balance & Micro Progress Bar */}
+                        <div className="shrink-0 text-right">
+                          <span
+                            className={cn(
+                              "block text-subhead font-black tracking-tight tabular-nums text-label",
+                              card ? (card.outstanding > 0 ? "text-red" : "text-green") : balance < 0 ? "text-red" : "text-label",
+                              settings.hideAmounts && "font-mono tracking-widest text-label-secondary/50"
+                            )}
+                          >
+                            {formatCurrencyAmount(card ? card.outstanding : balance, wallet.currency, {
+                              decimals: settings.showDecimals ? wallet.decimals : 0,
+                              obfuscate: settings.hideAmounts
+                            })}
+                          </span>
+                          {card && card.utilisation !== null ? (
+                            <div className="mt-1 flex items-center justify-end gap-1.5">
+                              <div className="h-1 w-12 overflow-hidden rounded-full bg-fill/20">
+                                <div
+                                  className="h-full rounded-full transition-all duration-300"
+                                  style={{
+                                    width: `${Math.min(100, Math.max(0, card.utilisation * 100))}%`,
+                                    backgroundColor: card.highUtilisation ? "rgb(var(--sys-orange))" : accentColour,
+                                  }}
                                 />
-                                <div className="mt-1.5 flex justify-between text-caption text-label-secondary/60">
-                                  <span>
-                                    {Math.round(card.utilisation * 100)}% of {formatCurrencyAmount(wallet.creditLimit ?? 0, wallet.currency, { decimals: 0, compact: true })}
-                                  </span>
-                                  <span className="font-medium text-label">
-                                    {formatCurrencyAmount(card.available ?? 0, wallet.currency, { decimals: 0 })} available
-                                  </span>
-                                </div>
-                              </>
-                            ) : null}
-
-                            {card.nextDueDate ? (
-                              <p
-                                className={cn(
-                                  "mt-1.5 text-caption",
-                                  (card.daysUntilDue ?? 99) <= 3 && card.outstanding > 0
-                                    ? "font-medium text-red"
-                                    : "text-label-secondary/60"
-                                )}
-                              >
-                                Due {card.nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                                {card.daysUntilDue !== null ? ` · ${card.daysUntilDue} days` : ""}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
+                              </div>
+                              <span className="text-[10px] font-bold text-label-secondary/50">{Math.round(card.utilisation * 100)}%</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-label-secondary/50">
+                              balance
+                            </span>
+                          )}
+                        </div>
                       </Link>
 
-                      {/* Bottom action bar */}
-                      <div className="flex items-center gap-2 bg-fill/5 px-4 py-2.5 border-t border-separator/10">
-                        {!isPrimary ? (
-                          <button
-                            type="button"
-                            onClick={() => updateSettings({ primaryWalletPk: wallet.walletPk })}
-                            className="rounded-full bg-bg-secondary px-3 py-1 text-caption font-medium text-label-secondary shadow-sm ring-1 ring-black/5 transition-colors hover:bg-fill/10 dark:ring-white/10"
-                          >
-                            Set as primary
-                          </button>
-                        ) : null}
-                        <div className="flex-1" />
+                      {/* 3-Dot Actions Menu Button & Dropdown */}
+                      <div className="relative shrink-0 border-l border-separator/15 pl-1.5">
                         <button
                           type="button"
-                          aria-label={`Edit ${wallet.name}`}
-                          onClick={() => {
-                            setEditing(wallet);
-                            setEditorOpen(true);
-                          }}
-                          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium text-label-secondary/70 transition-colors hover:bg-fill/15 hover:text-label-secondary"
+                          aria-label={`Options for ${wallet.name}`}
+                          onClick={() => setOpenMenuWalletPk(openMenuWalletPk === wallet.walletPk ? null : wallet.walletPk)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-label-secondary/60 transition-colors hover:bg-fill/15 hover:text-label active:scale-95"
                         >
-                          <Pencil size={14} />
-                          <span>Edit</span>
+                          <DotsThreeVertical size={18} weight="bold" />
                         </button>
-                        {canDelete ? (
-                          <button
-                            type="button"
-                            aria-label={`Delete ${wallet.name}`}
-                            onClick={() => {
-                              setEditing(wallet);
-                              setEditorOpen(true);
-                            }}
-                            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium text-red/70 transition-colors hover:bg-red/10 hover:text-red"
-                          >
-                            <Trash size={14} />
-                            <span>Delete</span>
-                          </button>
+
+                        {/* Dropdown Menu */}
+                        {openMenuWalletPk === wallet.walletPk ? (
+                          <>
+                            {/* Backdrop overlay to close menu on outside click */}
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setOpenMenuWalletPk(null)}
+                            />
+
+                            <div className="absolute right-0 top-9 z-50 min-w-[140px] overflow-hidden rounded-xl border border-separator/30 bg-bg-elevated p-1 shadow-lg ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+                              {!isPrimary ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateSettings({ primaryWalletPk: wallet.walletPk });
+                                    setOpenMenuWalletPk(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-label hover:bg-fill/15 transition-colors"
+                                >
+                                  <Star size={14} className="text-amber" />
+                                  <span>Set as primary</span>
+                                </button>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditing(wallet);
+                                  setEditorOpen(true);
+                                  setOpenMenuWalletPk(null);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-label hover:bg-fill/15 transition-colors"
+                              >
+                                <Pencil size={14} />
+                                <span>Edit account</span>
+                              </button>
+
+                              {canDelete ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditing(wallet);
+                                    setEditorOpen(true);
+                                    setOpenMenuWalletPk(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-red hover:bg-red/10 transition-colors"
+                                >
+                                  <Trash size={14} />
+                                  <span>Delete account</span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </>
                         ) : null}
                       </div>
                     </div>
@@ -354,6 +337,7 @@ function AccountEditor({
   const [dueDay, setDueDay] = useState("");
   const [iconName, setIconName] = useState<string | null>(null);
   const [colour, setColour] = useState<string | null>(null);
+  const [excludeFromNetWorth, setExcludeFromNetWorth] = useState(false);
 
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const key = editing?.walletPk ?? "new";
@@ -371,6 +355,7 @@ function AccountEditor({
       setDueDay(editing.dueDay === null ? "" : String(editing.dueDay));
       setIconName(editing.iconName);
       setColour(editing.colour);
+      setExcludeFromNetWorth(editing.excludeFromNetWorth ?? false);
     } else {
       setName("");
       setCurrency(settings.primaryWalletPk ? "inr" : "inr");
@@ -385,6 +370,7 @@ function AccountEditor({
       setDueDay("");
       setIconName(null);
       setColour(null);
+      setExcludeFromNetWorth(false);
     }
   }
   if (!open && loadedFor !== null) setLoadedFor(null);
@@ -408,6 +394,7 @@ function AccountEditor({
       creditLimit: isCard && creditLimit !== "" ? Number(creditLimit) : null,
       statementDay: isCard && statementDay !== "" ? Number(statementDay) : null,
       dueDay: isCard && dueDay !== "" ? Number(dueDay) : null,
+      excludeFromNetWorth,
     });
 
     // A new account's opening balance is written as a correction transaction
@@ -540,6 +527,14 @@ function AccountEditor({
         </>
       ) : null}
 
+      <div className="py-2">
+        <Toggle
+          checked={excludeFromNetWorth}
+          onChange={setExcludeFromNetWorth}
+          label="Exclude from Net Worth"
+        />
+      </div>
+
       <Field
         label="Currency"
         hint={isPrimary ? "This is the primary account — its currency is used for all totals." : undefined}
@@ -649,8 +644,13 @@ function AccountEditor({
 }
 
 /** Account balances strip for the home screen. */
+/** Distinct from any account colour, so savings reads as its own kind of thing. */
+const SAVINGS_COLOUR = "#7E57C2";
+
 export function AccountsSummary() {
-  const { wallets, transactions, settings, exportDatabase, replaceDatabase } = useBudget();
+  const { wallets, transactions, settings, allWallets, exportDatabase, replaceDatabase } = useBudget();
+  const savings = usePolicySavings();
+  const router = useRouter();
   const sorted = [...wallets].sort((a, b) => a.order - b.order);
 
   function moveWallet(wallet: TransactionWallet, dir: number, e: React.MouseEvent) {
@@ -678,51 +678,92 @@ export function AccountsSummary() {
   return (
     <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-0.5">
       {sorted.map((wallet, index) => {
-        const balance = getWalletBalance(transactions, wallet.walletPk);
+        const rawBalance = getWalletBalance(transactions, wallet.walletPk);
+        const card = isCreditCard(wallet) ? getCreditCardStatus(wallet, transactions) : null;
+        
+        // For credit cards, only show the billed statement balance (remaining to be paid)
+        // rather than the total outstanding which includes unbilled current cycle spend.
+        const balance = card ? -card.remainingStatementBalance : rawBalance;
         const accentColour = wallet.colour ?? "#8E8E93";
         return (
-          <Link
+          <div
             key={wallet.walletPk}
-            href={`/budget/accounts/${wallet.walletPk}`}
-            className="group relative min-w-[144px] shrink-0 rounded-[18px] bg-bg-secondary p-4 shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.96]"
+            onClick={() => router.push(`/budget/accounts/${wallet.walletPk}`)}
+            className="group relative min-w-[144px] shrink-0 rounded-[18px] bg-bg-secondary p-4 shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.96] cursor-pointer"
             style={{ border: `1px solid ${accentColour}60` }}
           >
             <div className="relative z-10 flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-caption font-medium text-label-secondary/80">{wallet.name}</p>
-                <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100">
-                  <button 
-                    disabled={index === 0}
-                    onClick={(e) => moveWallet(wallet, -1, e)}
-                    className="rounded p-0.5 text-label-secondary hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
-                  >
-                    <CaretLeft size={14} />
-                  </button>
-                  <button 
-                    disabled={index === sorted.length - 1}
-                    onClick={(e) => moveWallet(wallet, 1, e)}
-                    className="rounded p-0.5 text-label-secondary hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
-                  >
-                    <CaretRight size={14} />
-                  </button>
-                </div>
               </div>
               <p
-                  className={cn(
-                    "text-title3 font-bold tracking-tight tabular-nums",
-                    balance < 0 ? "text-red" : "text-label",
-                    settings.hideAmounts && "blur-[6px]",
-                  )}
-                >
-                  {formatCurrencyAmount(balance, wallet.currency, {
-                    decimals: settings.showDecimals ? wallet.decimals : 0,
-                    compact: false,
-                  })}
-                </p>
+                className={cn(
+                  "text-title3 font-bold tracking-tight tabular-nums",
+                  balance < 0 ? "text-red" : "text-label",
+                  settings.hideAmounts && "font-mono tracking-widest text-label-secondary/50",
+                )}
+              >
+                {formatCurrencyAmount(balance, wallet.currency, {
+                  decimals: settings.showDecimals ? wallet.decimals : 0,
+                  compact: false,
+                  obfuscate: settings.hideAmounts,
+                })}
+              </p>
             </div>
-          </Link>
+          </div>
         );
       })}
+
+      {/*
+        Savings is not an account — it is what policies have accumulated, shown
+        beside the accounts because that is the only place the money is visible
+        at all once premiums are excluded from spending.
+      */}
+      {savings.visible && savings.total > 0 ? (
+        <div
+          onClick={() => router.push("/budget/policies")}
+          className="group relative min-w-[144px] shrink-0 cursor-pointer rounded-[18px] bg-bg-secondary p-4 shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.96]"
+          style={{ border: `1px solid ${SAVINGS_COLOUR}60` }}
+        >
+          <div className="relative z-10 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-caption font-medium text-label-secondary/80">Savings</p>
+              <PiggyBank size={14} style={{ color: SAVINGS_COLOUR }} className="shrink-0" />
+            </div>
+            <p
+              className={cn(
+                "text-title3 font-bold tracking-tight tabular-nums text-label",
+                settings.hideAmounts && "font-mono tracking-widest text-label-secondary/50",
+              )}
+            >
+              {formatCurrencyAmount(savings.total, allWallets.primaryCurrency, {
+                decimals: settings.showDecimals ? undefined : 0,
+                obfuscate: settings.hideAmounts,
+              })}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        onClick={() => router.push("/budget/accounts?create=true")}
+        className="group relative flex min-w-[144px] shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-[18px] border-2 border-dashed border-separator/30 bg-transparent p-4 text-label-secondary shadow-none transition-all hover:border-accent/40 hover:bg-accent/5 hover:text-accent active:scale-[0.96]"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-fill/5 transition-transform group-hover:scale-110 group-hover:bg-accent/10">
+          <Plus size={20} weight="bold" />
+        </div>
+        <p className="text-caption font-semibold">Add account</p>
+      </div>
+
+      <div
+        onClick={() => router.push("/budget/accounts")}
+        className="group relative flex min-w-[144px] shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-[18px] bg-accent/5 p-4 text-accent shadow-sm transition-all hover:bg-accent/10 active:scale-[0.96]"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 transition-transform group-hover:scale-110">
+          <ArrowRight size={20} weight="bold" />
+        </div>
+        <p className="text-caption font-semibold">View all</p>
+      </div>
     </div>
   );
 }

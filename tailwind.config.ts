@@ -42,6 +42,7 @@ const config: Config = {
         teal: "rgb(var(--sys-teal) / <alpha-value>)",
         indigo: "rgb(var(--sys-indigo) / <alpha-value>)",
         pink: "rgb(var(--sys-pink) / <alpha-value>)",
+        accent: "var(--budget-accent)",
       },
       fontFamily: {
         sans: [

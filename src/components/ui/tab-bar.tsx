@@ -20,7 +20,7 @@ export function TabBar() {
     <nav
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 lg:hidden",
-        "material hairline-t",
+        "bg-bg-secondary/90 backdrop-blur-xl border-t border-separator/40 dark:border-white/10 dark:bg-black/90 shadow-lg",
         "safe-bottom",
       )}
       aria-label="Primary"
@@ -36,7 +36,7 @@ export function TabBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex flex-col items-center gap-[3px] rounded-xl py-1 transition-colors duration-150",
-                  active ? "bg-blue/10 dark:bg-blue/20" : "",
+                  active ? "bg-blue/15 dark:bg-blue/25" : "",
                 )}
               >
                 <motion.span
@@ -48,14 +48,14 @@ export function TabBar() {
                     size={23}
                     className={cn(
                       "transition-colors duration-200",
-                      active ? "text-blue" : "text-label-secondary/50",
+                      active ? "text-blue" : "text-label-secondary/75 dark:text-white/65 group-hover:text-label",
                     )}
                   />
                 </motion.span>
                 <span
                   className={cn(
                     "text-[10px] font-medium leading-none tracking-tight transition-colors duration-200",
-                    active ? "text-blue font-semibold" : "text-label-secondary/50",
+                    active ? "text-blue font-semibold" : "text-label-secondary/75 dark:text-white/65 group-hover:text-label",
                   )}
                 >
                   {tab.label}

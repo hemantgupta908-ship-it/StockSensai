@@ -75,6 +75,74 @@ export const DEFAULT_CATEGORY_COLOUR = COLOUR_FAMILIES[0].shades[COLOUR_FAMILY_I
 
 const now = () => new Date().toISOString();
 
+export const DEFAULT_INCOME_SUBCATEGORIES: TransactionCategory[] = [
+  {
+    dateCreated: "2023-11-15T00:00:00.000Z",
+    dateTimeModified: null,
+    emojiIconName: "💼",
+    methodAdded: null,
+    mainCategoryPk: "11",
+    categoryPk: "11_1",
+    name: "Salary",
+    colour: "#9C27B0",
+    iconName: "briefcase",
+    order: 0,
+    income: true,
+  },
+  {
+    dateCreated: "2023-11-15T00:00:00.000Z",
+    dateTimeModified: null,
+    emojiIconName: "🏦",
+    methodAdded: null,
+    mainCategoryPk: "11",
+    categoryPk: "11_2",
+    name: "Bank Interest",
+    colour: "#2196F3",
+    iconName: "bank",
+    order: 1,
+    income: true,
+  },
+  {
+    dateCreated: "2023-11-15T00:00:00.000Z",
+    dateTimeModified: null,
+    emojiIconName: "📈",
+    methodAdded: null,
+    mainCategoryPk: "11",
+    categoryPk: "11_3",
+    name: "Investments & Dividends",
+    colour: "#4CAF50",
+    iconName: "trend-up",
+    order: 2,
+    income: true,
+  },
+  {
+    dateCreated: "2023-11-15T00:00:00.000Z",
+    dateTimeModified: null,
+    emojiIconName: "💻",
+    methodAdded: null,
+    mainCategoryPk: "11",
+    categoryPk: "11_4",
+    name: "Freelance",
+    colour: "#FF9800",
+    iconName: "laptop",
+    order: 3,
+    income: true,
+  },
+  {
+    dateCreated: "2023-11-15T00:00:00.000Z",
+    dateTimeModified: null,
+    emojiIconName: "💸",
+    methodAdded: null,
+    mainCategoryPk: "11",
+    categoryPk: "11_5",
+    name: "Refunds & Rewards",
+    colour: "#E91E63",
+    iconName: "arrow-counter-clockwise",
+    order: 4,
+    income: true,
+  },
+];
+
 /**
  * The 11 categories Cashew creates on first run, plus the reserved balance
  * correction category at pk "0".
@@ -117,6 +185,7 @@ export function defaultCategories(): TransactionCategory[] {
     { ...base, categoryPk: "9", name: "Work", colour: "#795548", iconName: "briefcase", order: 9, income: false },
     { ...base, categoryPk: "10", name: "Travel", colour: "#FF9800", iconName: "plane", order: 10, income: false },
     { ...base, categoryPk: "11", name: "Income", colour: "#B39DDB", iconName: "coins", order: 11, income: true },
+    ...DEFAULT_INCOME_SUBCATEGORIES,
   ];
 }
 
@@ -151,7 +220,7 @@ export function defaultWallets(currency = "inr"): TransactionWallet[] {
  */
 export interface BudgetSettings {
   // Appearance
-  theme: "system" | "light" | "dark";
+  theme: "system" | "light" | "dark" | "oled" | "sepia";
   accentColour: string;
   materialYou: boolean;
   outlinedIcons: boolean;
@@ -192,6 +261,19 @@ export interface BudgetSettings {
   showHeatmap: boolean;
   showAllSpendingSummary: boolean;
   showWalletSwitcher: boolean;
+  showRecentTransactions: boolean;
+
+  /** Show accumulated policy savings as a card alongside the accounts. */
+  showSavingsCard: boolean;
+  /** Count those savings as an asset in the net worth figure. */
+  includeSavingsInNetWorth: boolean;
+  /**
+   * Policies left out of the savings total.
+   *
+   * Stored as exclusions rather than inclusions so a newly added policy counts
+   * by default — an opt-out list cannot silently omit something you just made.
+   */
+  savingsExcludedPolicyPks: string[];
 
   // Lists
   transactionsGroupedByDay: boolean;
@@ -210,6 +292,7 @@ export interface BudgetSettings {
   upcomingRemindersEnabled: boolean;
 
   username: string;
+  userAvatar?: string;
   onboardingComplete: boolean;
 }
 
@@ -237,17 +320,16 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
   defaultStartOfWeek: 1,
 
   homePageOrder: [
-    "walletSwitcher",
     "netWorth",
+    "walletSwitcher",
     "allSpendingSummary",
-    "budgets",
-    "objectives",
-    "upcoming",
     "creditDebt",
+    "upcoming",
+    "policies",
+    "recentTransactions",
     "pieChart",
     "lineGraph",
     "heatmap",
-    "transactions",
   ],
   homePageHidden: [],
   showPinnedBudgets: true,
@@ -261,6 +343,11 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
   showHeatmap: true,
   showAllSpendingSummary: true,
   showWalletSwitcher: true,
+  showRecentTransactions: true,
+
+  showSavingsCard: true,
+  includeSavingsInNetWorth: true,
+  savingsExcludedPolicyPks: [],
 
   transactionsGroupedByDay: true,
   showTransactionSearch: true,
@@ -275,8 +362,33 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
   upcomingRemindersEnabled: true,
 
   username: "",
+  userAvatar: "",
   onboardingComplete: false,
 };
+
+export const AVATAR_OPTIONS = [
+  { id: "initial", emoji: "🔤", label: "Letter Initial" },
+  { id: "fox", emoji: "🦊", label: "Fox" },
+  { id: "lion", emoji: "🦁", label: "Lion" },
+  { id: "tiger", emoji: "🐯", label: "Tiger" },
+  { id: "panda", emoji: "🐼", label: "Panda" },
+  { id: "bear", emoji: "🐻", label: "Bear" },
+  { id: "koala", emoji: "🐨", label: "Koala" },
+  { id: "dragon", emoji: "🐉", label: "Dragon" },
+  { id: "unicorn", emoji: "🦄", label: "Unicorn" },
+  { id: "owl", emoji: "🦉", label: "Owl" },
+  { id: "rocket", emoji: "🚀", label: "Rocket" },
+  { id: "crown", emoji: "👑", label: "Crown" },
+  { id: "zap", emoji: "⚡", label: "Power" },
+  { id: "robot", emoji: "🤖", label: "Robot" },
+  { id: "gamer", emoji: "👾", label: "Gamer" },
+  { id: "ninja", emoji: "🥷", label: "Ninja" },
+  { id: "diamond", emoji: "💎", label: "Diamond" },
+  { id: "fire", emoji: "🔥", label: "Fire" },
+  { id: "star", emoji: "🌟", label: "Star" },
+  { id: "ghost", emoji: "👻", label: "Ghost" },
+  { id: "target", emoji: "🎯", label: "Target" },
+];
 
 /** Names Cashew suggests when creating budgets/goals/loans. */
 export const EXAMPLE_BUDGET_NAMES = ["Monthly Spending", "Vacation"];

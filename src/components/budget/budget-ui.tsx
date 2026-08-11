@@ -9,6 +9,7 @@
 
 import Link from "next/link";
 import React, { useMemo, useState, useRef, useEffect, Children, isValidElement } from "react";
+import { createPortal } from "react-dom";
 import { CaretDown, CaretLeft, Check, Icon, List, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -37,7 +38,7 @@ export function BudgetHeader({
   large = false,
   width = "wide",
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   backHref?: string;
   action?: React.ReactNode;
@@ -50,35 +51,31 @@ export function BudgetHeader({
     <>
       <header className="sticky top-0 z-30 material hairline-b safe-top">
       <div className={cn("mx-auto flex items-center gap-2 py-3", CONTAINER_WIDTHS[width])}>
-        {backHref ? (
-          <Link
-            href={backHref}
-            className="-ml-2 flex items-center gap-0.5 rounded-full p-1.5 text-green transition-colors hover:bg-fill/10"
-            aria-label="Back"
-          >
-            <CaretLeft size={22} />
-          </Link>
-        ) : (
-          // Below `lg` the sidebar is hidden and the tab bar carries only five
-          // of the fourteen destinations, so the drawer is the way to the rest.
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="-ml-2 rounded-lg p-1.5 text-label-secondary transition-colors hover:bg-fill/[0.12] hover:text-label lg:hidden"
-            aria-label="Open menu"
-          >
-            <List size={22} />
-          </button>
-        )}
+        {/* Below `lg` render hamburger menu button on all pages */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className="-ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
+          aria-label="Open menu"
+        >
+          <div className="flex w-[18px] flex-col gap-[4px]">
+            <span className="h-[2px] w-full rounded-full bg-current" />
+            <span className="h-[2px] w-full rounded-full bg-current" />
+            <span className="h-[2px] w-full rounded-full bg-current" />
+          </div>
+        </button>
 
         <div className="min-w-0 flex-1">
-          <h1
-            className={cn(
-              "truncate font-semibold tracking-tight text-label",
-              large ? "text-title1" : "text-headline",
-            )}
-          >
-            {title}
-          </h1>
+          {title ? (
+            <h1
+              className={cn(
+                "truncate font-semibold tracking-tight text-label",
+                large ? "text-title1" : "text-headline",
+              )}
+            >
+              {title}
+            </h1>
+          ) : null}
           {subtitle ? (
             <p className="truncate text-caption text-label-secondary/60">{subtitle}</p>
           ) : null}
@@ -86,12 +83,6 @@ export function BudgetHeader({
 
         <div className="flex shrink-0 items-center gap-2">
           {action}
-          {/* Below `lg` there is no sidebar, so the crossing point lives here. */}
-          {!backHref ? (
-            <span className="lg:hidden">
-              <EnvironmentSwitcherCompact active="budget" />
-            </span>
-          ) : null}
         </div>
       </div>
       </header>
@@ -153,8 +144,8 @@ export function Card({
   href?: string;
 }) {
   const classes = cn(
-    "block rounded-card bg-bg-secondary p-4 shadow-card dark:shadow-card-dark",
-    (onClick || href) && "text-left transition-transform active:scale-[0.99]",
+    "block rounded-card bg-bg-secondary p-4 shadow-card dark:shadow-card-dark transition-all duration-200 ease-out",
+    (onClick || href) && "text-left cursor-pointer hover:shadow-lg active:scale-[0.98]",
     className,
   );
   if (href) {
@@ -187,27 +178,53 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center rounded-card bg-bg-secondary px-6 py-12 text-center">
-      <Icon size={34} className="mb-3 text-label-secondary/30" />
-      <p className="text-headline text-label">{title}</p>
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fill/10 text-label-secondary">
+        <Icon size={24} />
+      </div>
+      <h3 className="text-headline font-semibold text-label">{title}</h3>
       {description ? (
-        <p className="mt-1 max-w-xs text-subhead text-label-secondary/60">{description}</p>
+        <p className="mt-1 text-footnote text-label-secondary/60">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
 
-/** Floating add button, matching the position Cashew uses. */
+export function AnimatedNumberTicker({ value, className }: { value: number; className?: string }) {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={value}
+        initial={{ opacity: 0.6, y: 3, filter: "blur(2px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0.6, y: -3, filter: "blur(2px)" }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className={className}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
+/** Floating add button with ambient breathing pulse aura. */
 export function AddFab({ onClick, label = "Add" }: { onClick: () => void; label?: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="fixed bottom-[80px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green text-white shadow-pill transition-transform active:scale-95 lg:bottom-8 lg:right-8"
-    >
-      <Plus size={26} />
-    </button>
+    <div className="fixed bottom-[80px] right-5 z-40 lg:bottom-8 lg:right-8">
+      {/* Ambient Breathing Glow Aura */}
+      <span className="absolute inset-0 rounded-full bg-accent/40 blur-md animate-pulse" />
+
+      <motion.button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        className="relative flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-pill hover:shadow-xl transition-shadow"
+      >
+        <Plus size={26} weight="bold" />
+      </motion.button>
+    </div>
   );
 }
 
@@ -216,10 +233,7 @@ export function AddFab({ onClick, label = "Add" }: { onClick: () => void; label?
 // ---------------------------------------------------------------------------
 
 /**
- * Renders an amount in the primary currency.
- *
- * Honours the environment's "hide amounts" setting by blurring rather than
- * removing, so layout does not shift when it is toggled.
+ * Renders an amount in the primary currency with smooth animated number rolling.
  */
 export function Amount({
   value,
@@ -245,18 +259,19 @@ export function Amount({
     showSign,
     compact,
     decimals: decimals ?? (settings.showDecimals ? undefined : 0),
+    obfuscate: settings.hideAmounts,
   });
 
   return (
     <span
       className={cn(
-        "tabular-nums",
+        "inline-flex items-center tabular-nums transition-colors duration-300 ease-out",
         colour && (value > 0 ? "text-green" : value < 0 ? "text-red" : "text-label"),
-        settings.hideAmounts && "blur-[6px] transition-[filter] hover:blur-none",
+        settings.hideAmounts && "font-mono tracking-widest text-label-secondary/50 select-none",
         className,
       )}
     >
-      {text}
+      <AnimatedNumberTicker value={text as any} />
     </span>
   );
 }
@@ -329,7 +344,7 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-ios bg-fill/10 py-2.5 pl-9 pr-9 text-subhead text-label outline-none placeholder:text-label-secondary/40 focus:ring-2 focus:ring-green/40"
+        className="w-full rounded-ios bg-fill/10 py-2.5 pl-9 pr-9 text-subhead text-label outline-none placeholder:text-label-secondary/40 focus:ring-2 focus:ring-accent/40"
       />
       {value ? (
         <button
@@ -366,7 +381,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded-[14px] bg-fill/5 px-3.5 py-2.5 text-body text-label outline-none transition-all placeholder:text-label-secondary/30 focus:bg-fill/10 focus:ring-2 focus:ring-green/20";
+  "w-full rounded-[14px] bg-fill/5 px-3.5 py-2.5 text-body text-label outline-none transition-all placeholder:text-label-secondary/30 focus:bg-fill/10 focus:ring-2 focus:ring-accent/20";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputClass, props.className)} />;
@@ -511,7 +526,7 @@ export function Toggle({
       <span
         className={cn(
           "relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200",
-          checked ? "bg-green" : "bg-fill/25",
+          checked ? "bg-accent" : "bg-fill/25",
         )}
       >
         <span
@@ -577,9 +592,12 @@ export function Sheet({
   footer?: React.ReactNode;
   maxWidth?: string;
 }) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
+  if (!open || !mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button
         type="button"
@@ -604,7 +622,8 @@ export function Sheet({
           <div className="border-t border-separator/50 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">{footer}</div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function LoansPage() {
   return (
     <>
-      <BudgetHeader title="Loans" backHref="/budget/more" />
+      <BudgetHeader title="Loans" backHref="/budget" />
       <BudgetPage>
         <ObjectivesView type={ObjectiveType.loan} />
       </BudgetPage>

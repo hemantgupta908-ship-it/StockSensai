@@ -95,6 +95,9 @@ export function TransactionRow({
           colour={category?.colour}
           label={category?.name}
           emoji={category?.emojiIconName}
+          // Without this the dot always fell through to the category's first
+          // letter, even where an icon was set.
+          iconName={category?.iconName}
         />
 
         <span className="min-w-0 flex-1">

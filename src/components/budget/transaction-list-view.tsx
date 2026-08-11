@@ -253,6 +253,7 @@ export function RecentTransactions({ limit = 8 }: { limit?: number }) {
     () =>
       [...transactions]
         .filter((t) => t.type !== TransactionSpecialType.upcoming || t.paid)
+        .filter((t) => !(t.pairedTransactionFk && t.income))
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
         .slice(0, limit),
     [transactions, limit],

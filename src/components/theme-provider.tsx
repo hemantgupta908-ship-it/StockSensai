@@ -24,10 +24,22 @@ export const THEME_STORAGE_KEY = "stockpilot.theme";
 export const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('${THEME_STORAGE_KEY}');
-    var pref = stored || 'system';
-    var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var cashewRaw = localStorage.getItem('cashew.settings');
+    var stockTheme = localStorage.getItem('${THEME_STORAGE_KEY}');
+    var pref = 'system';
+    if (cashewRaw) {
+      try {
+        var parsed = JSON.parse(cashewRaw);
+        if (parsed.theme) pref = parsed.theme;
+      } catch (e) {}
+    }
+    if (pref === 'system' && stockTheme) {
+      pref = stockTheme;
+    }
+    var dark = pref === 'dark' || pref === 'oled' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
+    if (pref === 'oled') document.documentElement.classList.add('theme-oled');
+    if (pref === 'sepia') document.documentElement.classList.add('theme-sepia');
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   } catch (e) {}
 })();
@@ -44,14 +56,22 @@ function resolve(preference: ThemePreference): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Start at "system" on both server and client so hydration matches; the
-  // inline script has already applied the real class to <html>.
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference | null;
-    const initial = stored ?? "system";
+    let initial: ThemePreference = "system";
+    try {
+      const cashewRaw = localStorage.getItem("cashew.settings");
+      if (cashewRaw) {
+        const parsed = JSON.parse(cashewRaw);
+        if (parsed.theme) initial = parsed.theme;
+      }
+    } catch {}
+    if (initial === "system") {
+      const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference | null;
+      if (stored) initial = stored;
+    }
     setPreferenceState(initial);
     setResolved(resolve(initial));
   }, []);

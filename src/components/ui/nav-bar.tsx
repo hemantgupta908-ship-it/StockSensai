@@ -87,7 +87,7 @@ export function NavBar({
           ) : (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg p-1.5 text-label-secondary transition-colors hover:bg-fill/[0.12] hover:text-label lg:hidden"
+              className="flex items-center gap-1.5 rounded-lg p-1.5 text-label transition-colors hover:bg-fill/[0.12] lg:hidden"
               aria-label="Open menu"
               title="Open Navigation List"
             >

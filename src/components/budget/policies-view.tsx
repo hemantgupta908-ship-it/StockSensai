@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { CaretDown, CaretRight, Check, ShieldCheck } from "@phosphor-icons/react";
+import { ArrowsMerge, CaretDown, CaretRight, Check, ShieldCheck } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import {
   PolicyType,
   PremiumFrequency,
   type Policy,
+  type Transaction,
 } from "@/lib/budget/types";
 import {
   getPolicyStatus,
@@ -27,7 +28,9 @@ import {
   getTotalAnnualPremiums,
   getTotalSumAssured,
   nextPremiumDate,
+  resolvePremiumCategoryFk,
 } from "@/lib/budget/credit";
+import { amountRatioToPrimaryCurrency } from "@/lib/budget/currency";
 import { createPolicy, createPremiumTransaction } from "@/lib/budget/factory";
 import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { useBudget } from "./budget-provider";
@@ -59,6 +62,7 @@ export function PoliciesView() {
   const [filter, setFilter] = useState<Filter>("all");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Policy | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   const visible = useMemo(
     () =>
@@ -93,7 +97,7 @@ export function PoliciesView() {
 
   return (
     <>
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-3 gap-3">
         <Card className="!p-3 text-center">
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">
             Yearly premiums
@@ -127,6 +131,17 @@ export function PoliciesView() {
 
       {policies.length > 4 ? (
         <SearchField value={query} onChange={setQuery} placeholder="Search policies..." />
+      ) : null}
+
+      {/* Only worth offering once there is something to combine. */}
+      {policies.filter((p) => !p.archived).length > 1 ? (
+        <button
+          type="button"
+          onClick={() => setMergeOpen(true)}
+          className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-ios bg-fill/10 py-2 text-footnote font-medium text-label-secondary transition-colors hover:bg-fill/15"
+        >
+          <ArrowsMerge size={15} /> Combine policies into one
+        </button>
       ) : null}
 
       {visible.length === 0 ? (
@@ -165,7 +180,171 @@ export function PoliciesView() {
         }}
         editing={editing}
       />
+      <MergePoliciesSheet open={mergeOpen} onClose={() => setMergeOpen(false)} />
     </>
+  );
+}
+
+/**
+ * Folds several policies into one.
+ *
+ * Deliberately explicit rather than automatic: it rewrites which policy each
+ * recorded premium belongs to and deletes the absorbed ones, so the totals that
+ * will move are stated before anything happens.
+ */
+function MergePoliciesSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { policies, transactions, mergePoliciesInto } = useBudget();
+  const active = useMemo(() => policies.filter((p) => !p.archived), [policies]);
+
+  const [targetPk, setTargetPk] = useState("");
+  const [sources, setSources] = useState<string[]>([]);
+  const [confirming, setConfirming] = useState(false);
+
+  const [loadedFor, setLoadedFor] = useState(false);
+  if (open && !loadedFor) {
+    setLoadedFor(true);
+    setTargetPk(active[0]?.policyPk ?? "");
+    setSources([]);
+    setConfirming(false);
+  }
+  if (!open && loadedFor) setLoadedFor(false);
+
+  const target = active.find((p) => p.policyPk === targetPk);
+  const absorbing = active.filter((p) => p.policyPk !== targetPk && sources.includes(p.policyPk));
+
+  // What the user is about to move, stated in the same terms as the cards.
+  const moving = useMemo(
+    () =>
+      absorbing.reduce(
+        (acc, p) => {
+          const s = getPolicyStatus(p, transactions);
+          return { amount: acc.amount + s.totalPaid, count: acc.count + s.premiumsPaid };
+        },
+        { amount: 0, count: 0 },
+      ),
+    [absorbing, transactions],
+  );
+
+  const targetPaid = target ? getPolicyStatus(target, transactions).totalPaid : 0;
+
+  function toggle(pk: string) {
+    setSources((prev) => (prev.includes(pk) ? prev.filter((x) => x !== pk) : [...prev, pk]));
+  }
+
+  function apply() {
+    if (!target || absorbing.length === 0) return;
+    mergePoliciesInto(
+      target.policyPk,
+      absorbing.map((p) => p.policyPk),
+    );
+    onClose();
+  }
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Combine policies"
+      footer={
+        <div className="space-y-2">
+          {confirming ? (
+            <p className="px-1 text-caption text-label-secondary/70">
+              {moving.count} recorded {moving.count === 1 ? "payment" : "payments"} will move onto{" "}
+              <span className="font-medium text-label">{target?.name || "this policy"}</span> and be
+              renamed{" "}
+              <span className="font-medium text-label">
+                &ldquo;{`${target?.name ?? ""} premium`.trim()}&rdquo;
+              </span>
+              , and {absorbing.length} {absorbing.length === 1 ? "policy" : "policies"} will be
+              removed. No payment or amount is deleted.
+            </p>
+          ) : null}
+          <PrimaryButton
+            onClick={confirming ? apply : () => setConfirming(true)}
+            disabled={!target || absorbing.length === 0}
+          >
+            {confirming
+              ? "Yes, combine them"
+              : `Combine ${absorbing.length || ""} into one`.replace("  ", " ")}
+          </PrimaryButton>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <Field label="Keep this policy">
+          <SelectInput
+            value={targetPk}
+            onChange={(e) => {
+              setTargetPk(e.target.value);
+              setSources((prev) => prev.filter((pk) => pk !== e.target.value));
+              setConfirming(false);
+            }}
+          >
+            {active.map((p) => (
+              <option key={p.policyPk} value={p.policyPk}>
+                {p.name || "Untitled policy"}
+              </option>
+            ))}
+          </SelectInput>
+        </Field>
+
+        <div>
+          <p className="mb-1.5 text-footnote font-medium text-label-secondary">
+            Merge these into it
+          </p>
+          <div className="space-y-1.5">
+            {active
+              .filter((p) => p.policyPk !== targetPk)
+              .map((p) => {
+                const s = getPolicyStatus(p, transactions);
+                const checked = sources.includes(p.policyPk);
+                return (
+                  <button
+                    key={p.policyPk}
+                    type="button"
+                    onClick={() => {
+                      toggle(p.policyPk);
+                      setConfirming(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-ios border px-3 py-2 text-left transition-colors",
+                      checked
+                        ? "border-green/40 bg-green/10"
+                        : "border-separator/40 hover:bg-fill/10",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-subhead text-label">
+                        {p.name || "Untitled policy"}
+                      </span>
+                      <span className="block text-caption text-label-secondary/60">
+                        {s.premiumsPaid} paid ·{" "}
+                        <Amount value={s.totalPaid} className="text-label-secondary/60" />
+                      </span>
+                    </span>
+                    {checked ? <Check size={16} className="shrink-0 text-green" /> : null}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+
+        {absorbing.length > 0 && target ? (
+          <div className="rounded-card border border-separator/40 p-3 text-caption">
+            <div className="flex justify-between">
+              <span className="text-label-secondary/60">Moving across</span>
+              <Amount value={moving.amount} className="font-medium text-label" />
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-label-secondary/60">
+                {target.name || "Target"} after merge
+              </span>
+              <Amount value={targetPaid + moving.amount} className="font-semibold text-green" />
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Sheet>
   );
 }
 
@@ -178,11 +357,15 @@ export function PolicyCard({
   onEdit?: () => void;
   compact?: boolean;
 }) {
-  const { transactions, upsertTransaction, upsertPolicy, wallets, settings } = useBudget();
+  const { transactions, upsertTransaction, upsertPolicy, wallets, settings, categories } = useBudget();
   const [expanded, setExpanded] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState(policy.walletFk ?? settings.primaryWalletPk ?? wallets[0]?.walletPk ?? "");
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
-  const [selectedAmount, setSelectedAmount] = useState(() => String(Math.abs(policy.premiumAmount)));
+  // Record-only policies have no agreed premium to prefill, so the field starts
+  // empty and the amount is typed per payment rather than defaulting to zero.
+  const [selectedAmount, setSelectedAmount] = useState(() =>
+    policy.recordOnly ? "" : String(Math.abs(policy.premiumAmount)),
+  );
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   const status = useMemo(() => getPolicyStatus(policy, transactions), [policy, transactions]);
@@ -201,7 +384,12 @@ export function PolicyCard({
   function payPremium() {
     const due = status.nextDueDate ?? new Date();
     const t = createPremiumTransaction(policy, { date: atMidday(fromDateInputValue(selectedDate)) });
-    
+
+    // Resolve against the categories that actually exist — the factory's `"6"`
+    // fallback assumes the default set, which a custom ledger does not have.
+    const resolved = resolvePremiumCategoryFk(policy, categories);
+    if (resolved && resolved !== t.categoryFk) t.categoryFk = resolved;
+
     const parsedAmount = parseFloat(selectedAmount);
     if (!isNaN(parsedAmount) && parsedAmount > 0) {
       t.amount = -parsedAmount;
@@ -209,6 +397,11 @@ export function PolicyCard({
     
     if (selectedWallet) t.walletFk = selectedWallet;
     upsertTransaction(t);
+
+    // A record-only policy has no schedule to advance — logging a payment is
+    // the whole of the interaction.
+    if (policy.recordOnly) return;
+
     upsertPolicy({
       ...policy,
       nextDueDate:
@@ -242,12 +435,24 @@ export function PolicyCard({
         </div>
 
         <div className="mb-2 flex items-baseline justify-between gap-2">
-          <p className="text-title3 font-semibold">
-            <Amount value={policy.premiumAmount} />
-            <span className="ml-1 text-caption font-normal text-label-secondary/60">
-              {freq.label.toLowerCase()}
-            </span>
-          </p>
+          {policy.recordOnly ? (
+            // The headline figure is what has actually been paid: a record-only
+            // policy has no agreed premium, so showing that field would read
+            // "₹0.00" for a policy with lakhs against it.
+            <p className="text-title3 font-semibold">
+              <Amount value={status.totalPaid} />
+              <span className="ml-1 text-caption font-normal text-label-secondary/60">
+                recorded{status.premiumsPaid > 0 ? ` · ${status.premiumsPaid} payments` : ""}
+              </span>
+            </p>
+          ) : (
+            <p className="text-title3 font-semibold">
+              <Amount value={policy.premiumAmount} />
+              <span className="ml-1 text-caption font-normal text-label-secondary/60">
+                {freq.label.toLowerCase()}
+              </span>
+            </p>
+          )}
           {status.nextDueDate && !status.matured ? (
             <p
               className={cn(
@@ -274,10 +479,15 @@ export function PolicyCard({
         ) : null}
 
         <div className="mt-2 grid grid-cols-2 gap-2 text-caption">
-          <span className="text-label-secondary/60">
-            Paid in <Amount value={status.totalPaid} className="font-medium text-label" />
-            {status.premiumsPaid > 0 ? ` (${status.premiumsPaid})` : ""}
-          </span>
+          {policy.recordOnly ? (
+            // Already the headline figure; repeating it here says nothing.
+            <span className="text-label-secondary/60">Record only</span>
+          ) : (
+            <span className="text-label-secondary/60">
+              Paid in <Amount value={status.totalPaid} className="font-medium text-label" />
+              {status.premiumsPaid > 0 ? ` (${status.premiumsPaid})` : ""}
+            </span>
+          )}
           {policy.sumAssured !== null ? (
             <span className="text-right text-label-secondary/60">
               Cover <Amount value={policy.sumAssured} className="font-medium text-label" compact />
@@ -327,7 +537,10 @@ export function PolicyCard({
               <button
                 type="button"
                 onClick={payPremium}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green transition-transform active:scale-95"
+                // Without an agreed premium to fall back on, a record-only
+                // policy would otherwise log a ₹0 row.
+                disabled={policy.recordOnly === true && !(parseFloat(selectedAmount) > 0)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
               >
                 <Check size={14} /> Record premium
               </button>
@@ -394,6 +607,7 @@ function PolicyEditor({
   const [categoryFk, setCategoryFk] = useState("");
   const [note, setNote] = useState("");
   const [pinned, setPinned] = useState(true);
+  const [recordOnly, setRecordOnly] = useState(false);
   /** Optional paperwork stays collapsed until asked for. */
   const [showMore, setShowMore] = useState(false);
 
@@ -418,6 +632,7 @@ function PolicyEditor({
       setCategoryFk(editing.categoryFk ?? "");
       setNote(editing.note.replace(`policy:${editing.policyPk}`, "").trim());
       setPinned(editing.pinned);
+      setRecordOnly(editing.recordOnly === true);
     } else {
       const today = new Date();
       setName("");
@@ -437,6 +652,7 @@ function PolicyEditor({
       setCategoryFk("");
       setNote("");
       setPinned(true);
+      setRecordOnly(false);
     }
   }
   if (!open && loadedFor !== null) setLoadedFor(null);
@@ -453,11 +669,16 @@ function PolicyEditor({
       type: typeValue,
       provider: provider.trim(),
       policyNumber: policyNumber.trim(),
-      premiumAmount: Number(premiumAmount) || 0,
+      premiumAmount: recordOnly ? 0 : Number(premiumAmount) || 0,
       premiumFrequency: Number(frequency) as PremiumFrequency,
+      recordOnly,
       startDate: atMidday(fromDateInputValue(startDate)).toISOString(),
+      // A record-only policy is never "due" — leaving a date here would revive
+      // the overdue badge the moment it passed.
       nextDueDate:
-        isOneTime || !nextDueDate ? null : atMidday(fromDateInputValue(nextDueDate)).toISOString(),
+        recordOnly || isOneTime || !nextDueDate
+          ? null
+          : atMidday(fromDateInputValue(nextDueDate)).toISOString(),
       maturityDate: maturityDate ? atMidday(fromDateInputValue(maturityDate)).toISOString() : null,
       sumAssured: sumAssured === "" ? null : Number(sumAssured),
       maturityValue: maturityValue === "" ? null : Number(maturityValue),
@@ -523,36 +744,53 @@ function PolicyEditor({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Premium amount">
-          <TextInput
-            type="number"
-            inputMode="decimal"
-            min="0"
-            value={premiumAmount}
-            onChange={(e) => setPremiumAmount(e.target.value)}
-            placeholder="0.00"
-          />
-        </Field>
-        <Field label="Frequency">
-          <SelectInput value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-            {Object.entries(PREMIUM_FREQUENCY_META).map(([value, m]) => (
-              <option key={value} value={value}>
-                {m.label}
-              </option>
-            ))}
-          </SelectInput>
-        </Field>
+      <div className="mb-3">
+        <Toggle
+          checked={recordOnly}
+          onChange={setRecordOnly}
+          label="Record only — log payments, no due dates"
+        />
       </div>
 
-      {!isOneTime ? (
-        <Field label="Next premium due">
-          <TextInput
-            type="date"
-            value={nextDueDate}
-            onChange={(e) => setNextDueDate(e.target.value)}
-          />
-        </Field>
+      {/*
+        A record-only policy has no agreed premium or schedule, so the fields
+        that describe one are hidden rather than left to be filled in with
+        figures nothing will use.
+      */}
+      {!recordOnly ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Premium amount">
+              <TextInput
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={premiumAmount}
+                onChange={(e) => setPremiumAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="Frequency">
+              <SelectInput value={frequency} onChange={(e) => setFrequency(e.target.value)}>
+                {Object.entries(PREMIUM_FREQUENCY_META).map(([value, m]) => (
+                  <option key={value} value={value}>
+                    {m.label}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+          </div>
+
+          {!isOneTime ? (
+            <Field label="Next premium due">
+              <TextInput
+                type="date"
+                value={nextDueDate}
+                onChange={(e) => setNextDueDate(e.target.value)}
+              />
+            </Field>
+          ) : null}
+        </>
       ) : null}
 
       {/*
@@ -670,45 +908,36 @@ function PolicyEditor({
 
 /** Policies with a premium due soon, for the home screen. */
 export function PoliciesWidget({ limit = 3 }: { limit?: number }) {
-  const { policies, transactions } = useBudget();
+  const { policies, transactions, allWallets } = useBudget();
 
-  const due = useMemo(
-    () =>
-      policies
-        .filter((p) => !p.archived && p.pinned && p.nextDueDate)
-        .map((p) => ({ policy: p, status: getPolicyStatus(p, transactions) }))
-        .filter((x) => !x.status.matured)
-        .sort(
-          (a, b) =>
-            (a.status.nextDueDate?.getTime() ?? 0) - (b.status.nextDueDate?.getTime() ?? 0),
-        )
-        .slice(0, limit),
-    [policies, transactions, limit],
-  );
+  const totalCollections = useMemo(() => {
+    let total = 0;
+    for (const p of policies) {
+      if (p.archived) continue;
+      const status = getPolicyStatus(p, transactions);
+      const wallet = allWallets.indexedByPk[p.walletFk];
+      const ratio = amountRatioToPrimaryCurrency(allWallets, wallet?.currency);
+      total += status.totalPaid * ratio;
+    }
+    return total;
+  }, [policies, transactions, allWallets]);
 
-  if (due.length === 0) {
-    return (
-      <Link
-        href="/budget/policies"
-        className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 transition-transform active:scale-[0.98] dark:ring-white/10"
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
-          <ShieldCheck size={20} />
-        </div>
-        <div className="flex-1">
-          <span className="block text-subhead font-medium text-label">Add a policy</span>
-          <span className="block text-caption text-label-secondary/60">Track insurance and renewals</span>
-        </div>
-        <CaretRight size={18} className="text-label-secondary/30" />
-      </Link>
-    );
-  }
+  const annualPremium = useMemo(() => getTotalAnnualPremiums(allWallets, policies), [allWallets, policies]);
 
   return (
-    <div className="space-y-3">
-      {due.map(({ policy }) => (
-        <PolicyCard key={policy.policyPk} policy={policy} compact />
-      ))}
-    </div>
+    <Link href="/budget/policies" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-green">
+      <Card className="hover:bg-fill/5 transition-colors">
+        <div className="grid grid-cols-2 gap-3 text-center">
+          <div>
+            <p className="text-caption uppercase tracking-wide text-label-secondary/50">Collected</p>
+            <Amount value={totalCollections} className="text-subhead font-semibold text-label" />
+          </div>
+          <div>
+            <p className="text-caption uppercase tracking-wide text-label-secondary/50">Annual Premium</p>
+            <Amount value={annualPremium} className="text-subhead font-semibold text-label" />
+          </div>
+        </div>
+      </Card>
+    </Link>
   );
 }

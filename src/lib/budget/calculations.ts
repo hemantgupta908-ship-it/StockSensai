@@ -52,14 +52,34 @@ export function isTransfer(t: Transaction): boolean {
 }
 
 /**
+ * The `policy:<pk>` note tag written by `createPremiumTransaction`.
+ *
+ * Anchored to a word boundary and required to carry a pk, so an ordinary note
+ * that merely mentions a policy does not read as a tagged premium. Kept here
+ * rather than imported from `credit.ts` because that module already imports
+ * from this one.
+ */
+const POLICY_TAG_PATTERN = /(?:^|\s)policy:\S+/;
+
+/**
+ * A premium payment linked to a policy by its note tag.
+ *
+ * Matches the tag only. Earlier revisions also treated any transaction whose
+ * name contained "premium" as one, which silently swallowed every Spotify
+ * Premium and LinkedIn Premium in the ledger — `createPremiumTransaction`
+ * always writes the tag, so the name never carried information the tag lacked.
+ */
+export function isPolicyPremium(t: Transaction): boolean {
+  return POLICY_TAG_PATTERN.test(t.note ?? "");
+}
+
+/**
  * Moves an account balance without being income or expense.
  *
- * Covers both reserved categories. A transfer is money you already had changing
- * pockets and a correction is a reconciliation — neither is earning or
- * spending, so counting either would inflate both sides of your totals.
+ * Covers reserved categories, transfers, balance corrections, and policy premiums.
  */
 export function isExcludedFromTotals(t: Transaction, objectives: Objective[] = []): boolean {
-  if (isBalanceCorrection(t) || isTransfer(t)) return true;
+  if (isBalanceCorrection(t) || isTransfer(t) || isPolicyPremium(t)) return true;
   
   if (t.objectiveLoanFk) {
     const loan = objectives.find((o) => o.objectivePk === t.objectiveLoanFk);
@@ -389,10 +409,28 @@ export function getWalletBalance(transactions: Transaction[], walletPk: string):
 }
 
 /** Sum of every account balance, converted to the primary currency. */
-export function getNetWorth(allWallets: AllWallets, transactions: Transaction[]): number {
-  let total = 0;
+/**
+ * `extraAssets` covers holdings that are not accounts — policy savings, today.
+ * Passed in rather than computed here so this stays a function of balances, and
+ * so a caller that has not opted in cannot pick the figure up by accident.
+ */
+export function getNetWorth(
+  allWallets: AllWallets,
+  transactions: Transaction[],
+  extraAssets = 0,
+): number {
+  let total = extraAssets;
   for (const wallet of allWallets.list) {
-    const balance = getWalletBalance(transactions, wallet.walletPk);
+    if (wallet.excludeFromNetWorth) continue;
+    let balance = getWalletBalance(transactions, wallet.walletPk);
+    
+    // For credit cards, only deduct the billed statement balance.
+    if (wallet.accountType === 2) { // 2 is AccountType.creditCard
+      const { getCreditCardStatus } = require("./credit");
+      const card = getCreditCardStatus(wallet, transactions);
+      balance = -card.remainingStatementBalance;
+    }
+    
     total += balance * amountRatioToPrimaryCurrency(allWallets, wallet.currency);
   }
   return total;
@@ -502,23 +540,57 @@ export function getSpendingSummary(
   return { income, expense: -expense, net: income + expense, transactionCount: count };
 }
 
-/** Totals per category over a set of transactions, largest magnitude first. */
+/**
+ * Totals per category over a set of transactions, largest magnitude first.
+ *
+ * Income is grouped exactly like spending: by the category the transaction was
+ * filed under. An earlier revision guessed a subcategory for income by looking
+ * for words like "salary" or "bank" in the name, and filed anything it could
+ * not place under Salary. That rewrote categories the user had chosen — every
+ * top-level income category, not just the seeded one — and reported salary that
+ * had never been earned. A breakdown has to report what was recorded.
+ */
 export function getSpendingByCategory(
   allWallets: AllWallets,
   transactions: Transaction[],
   { income }: { income: boolean },
   objectives: Objective[] = [],
 ): Map<string, number> {
-  const byCategory = new Map<string, number>();
+  return new Map(
+    [...getCategoryTotals(allWallets, transactions, { income }, objectives)].map(([pk, v]) => [
+      pk,
+      v.sum,
+    ]),
+  );
+}
+
+/**
+ * The same totals with the number of transactions behind each one.
+ *
+ * A share of spending reads very differently depending on whether it is one
+ * large payment or fifty small ones, so the breakdown reports both.
+ */
+export function getCategoryTotals(
+  allWallets: AllWallets,
+  transactions: Transaction[],
+  { income }: { income: boolean },
+  objectives: Objective[] = [],
+): Map<string, { sum: number; count: number }> {
+  const byCategory = new Map<string, { sum: number; count: number }>();
+
   for (const t of transactions) {
     if (!countsTowardsTotal(t)) continue;
     if (isExcludedFromTotals(t, objectives)) continue;
     if (t.income !== income) continue;
     const converted = t.amount * amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
-    const key = t.categoryFk;
-    byCategory.set(key, (byCategory.get(key) ?? 0) + Math.abs(converted));
+
+    const existing = byCategory.get(t.categoryFk) ?? { sum: 0, count: 0 };
+    byCategory.set(t.categoryFk, {
+      sum: existing.sum + Math.abs(converted),
+      count: existing.count + 1,
+    });
   }
-  return new Map([...byCategory.entries()].sort((a, b) => b[1] - a[1]));
+  return new Map([...byCategory.entries()].sort((a, b) => b[1].sum - a[1].sum));
 }
 
 /** Daily net totals across a range, for the line graph and heatmap. */

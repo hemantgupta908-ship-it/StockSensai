@@ -26,11 +26,22 @@ export function ThemeToggle({ className }: { className?: string }) {
   const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
   const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : SunHorizon;
 
+  const handleToggle = () => {
+    setPreference(next);
+    try {
+      const raw = localStorage.getItem("cashew.settings");
+      const parsed = raw ? JSON.parse(raw) : {};
+      parsed.theme = next;
+      localStorage.setItem("cashew.settings", JSON.stringify(parsed));
+      window.dispatchEvent(new Event("cashew-settings-updated"));
+    } catch {}
+  };
+
   return (
     <motion.button
       whileTap={{ scale: 0.88 }}
       transition={{ type: "spring", stiffness: 600, damping: 24 }}
-      onClick={() => setPreference(next)}
+      onClick={handleToggle}
       aria-label={`Theme: ${LABELS[preference]}. Switch to ${LABELS[next].toLowerCase()}.`}
       title={`Theme: ${LABELS[preference]} — tap for ${LABELS[next].toLowerCase()}`}
       className={cn(

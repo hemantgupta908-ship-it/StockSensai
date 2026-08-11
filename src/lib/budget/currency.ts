@@ -196,11 +196,14 @@ export function amountRatioToPrimaryCurrencyGivenPk(
 export function formatCurrencyAmount(
   amount: number,
   currencyCode: string | null | undefined,
-  opts: { decimals?: number; showSign?: boolean; compact?: boolean } = {},
+  opts: { decimals?: number; showSign?: boolean; compact?: boolean; obfuscate?: boolean } = {},
 ): string {
   const info = getCurrencyInfo(currencyCode);
   const decimals = opts.decimals ?? info?.decimals ?? 2;
   const symbol = info?.symbol ?? "";
+
+  if (opts.obfuscate) return `${symbol}••••••`;
+
   if (!Number.isFinite(amount)) return `${symbol}—`;
 
   const locale = info?.code === "inr" ? "en-IN" : "en-US";

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function CategoriesPage() {
   return (
     <>
-      <BudgetHeader title="Categories" backHref="/budget/more" />
+      <BudgetHeader title="Categories" backHref="/budget" />
       <BudgetPage>
         <CategoriesView />
       </BudgetPage>

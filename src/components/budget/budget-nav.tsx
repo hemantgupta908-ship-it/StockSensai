@@ -13,12 +13,14 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowsLeftRight, CalendarCheck, ChartPie, CreditCard, Flag, Gear, House, Icon, Repeat, Shapes, ShieldCheck, SignOut, SquaresFour, Wallet, X } from "@phosphor-icons/react";
+import { ArrowsLeftRight, CalendarBlank, CalendarCheck, ChartPie, CreditCard, Flag, Gear, House, Icon, Repeat, Shapes, ShieldCheck, SignOut, SquaresFour, Tag, User, Users, Wallet, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "@/components/ui/environment-switcher";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSession } from "@/components/auth/session-provider";
+import { useBudget } from "./budget-provider";
+import { UserAvatar } from "./user-avatar";
 
 export interface BudgetNavItem {
   href: string;
@@ -27,7 +29,7 @@ export interface BudgetNavItem {
   icon: Icon;
 }
 
-/** The five destinations that get a bottom tab on mobile. */
+/** The destinations that get a bottom tab on mobile. */
 export const BUDGET_TAB_ITEMS: BudgetNavItem[] = [
   { href: "/budget", label: "Home", description: "Overview and widgets", icon: House },
   {
@@ -36,14 +38,8 @@ export const BUDGET_TAB_ITEMS: BudgetNavItem[] = [
     description: "Everything you've recorded",
     icon: ArrowsLeftRight,
   },
-  { href: "/budget/budgets", label: "Budgets", description: "Spending limits by period", icon: ChartPie },
-  {
-    href: "/budget/subscriptions",
-    label: "Subscriptions",
-    description: "Recurring payments",
-    icon: Repeat,
-  },
-  { href: "/budget/more", label: "More", description: "Everything else", icon: SquaresFour },
+  { href: "/budget/calendar", label: "Calendar", description: "Monthly day-by-day view", icon: CalendarBlank },
+  { href: "/budget/settings", label: "Profile", description: "Account and settings", icon: User },
 ];
 
 /** The full menu, shown in the sidebar and on the "More" screen. */
@@ -58,6 +54,7 @@ export const BUDGET_NAV_SECTIONS: { title: string; items: BudgetNavItem[] }[] = 
         description: "Everything you've recorded",
         icon: ArrowsLeftRight,
       },
+      { href: "/budget/calendar", label: "Calendar", description: "Monthly day-by-day view", icon: CalendarBlank },
     ],
   },
   {
@@ -87,10 +84,10 @@ export const BUDGET_NAV_SECTIONS: { title: string; items: BudgetNavItem[] }[] = 
     ],
   },
   {
-    title: "Organise",
+    title: "Tools",
     items: [
-      { href: "/budget/accounts", label: "Accounts", description: "Where your money sits", icon: Wallet },
-      { href: "/budget/categories", label: "Categories", description: "How spending is grouped", icon: Shapes },
+      { href: "/budget/bill-splitter", label: "Bill Splitter", description: "Split a bill amongst people", icon: Users },
+      { href: "/budget/associated-titles", label: "Associated Titles", description: "Autocomplete category from name", icon: Tag },
       { href: "/budget/settings", label: "Settings", description: "Budget-only preferences", icon: Gear },
     ],
   },
@@ -104,16 +101,27 @@ export function isBudgetActive(pathname: string, href: string): boolean {
 /** Bottom tab bar, mirroring the stock app's but with budget destinations. */
 export function BudgetTabBar() {
   const pathname = usePathname();
+  const { user } = useSession();
+  const { settings } = useBudget();
+  const avatarDisplay =
+    settings.userAvatar && settings.userAvatar !== "initial"
+      ? settings.userAvatar
+      : user?.email?.charAt(0).toUpperCase() || "N";
 
   return (
     <nav
-      className={cn("fixed inset-x-0 bottom-0 z-40 lg:hidden", "material hairline-t", "safe-bottom")}
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-40 lg:hidden",
+        "bg-bg-secondary/90 backdrop-blur-xl border-t border-separator/40 dark:border-white/10 dark:bg-black/90 shadow-lg",
+        "safe-bottom"
+      )}
       aria-label="Budget"
     >
       <ul className="mx-auto flex max-w-2xl items-stretch justify-around px-1 pt-1.5 pb-1">
         {BUDGET_TAB_ITEMS.map((tab) => {
           const active = isBudgetActive(pathname, tab.href);
           const Icon = tab.icon;
+          const isProfile = tab.label === "Profile";
           return (
             <li key={tab.href} className="flex-1">
               <Link
@@ -121,26 +129,56 @@ export function BudgetTabBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex flex-col items-center gap-[3px] rounded-xl py-1 transition-colors duration-150",
-                  active ? "bg-green/10 dark:bg-green/20" : "",
+                  active ? "bg-accent/15 dark:bg-accent/25" : "",
                 )}
               >
                 <motion.span
-                  whileTap={{ scale: 0.86 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  whileTap={{ scale: 0.84 }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 22 }}
                   className="relative flex h-6 w-6 items-center justify-center"
                 >
-                  <Icon
-                    size={23}
-                    className={cn(
-                      "transition-colors duration-200",
-                      active ? "text-green" : "text-label-secondary/50",
-                    )}
-                  />
+                  {isProfile ? (
+                    <UserAvatar
+                      avatarVal={settings.userAvatar}
+                      email={user?.email}
+                      className={cn(
+                        "h-6 w-6 text-[11px]",
+                        active ? "ring-2 ring-accent" : ""
+                      )}
+                    />
+                  ) : tab.label === "Transactions" ? (
+                    <div
+                      className={cn(
+                        "flex flex-col justify-center gap-[3px] transition-colors duration-200",
+                        active ? "text-accent dark:text-white" : "text-label-secondary/75 dark:text-white/65 group-hover:text-label"
+                      )}
+                    >
+                      {/* Top Arrow Right */}
+                      <div className="flex items-center gap-[1px]">
+                        <span className="h-[2px] w-[13px] rounded-full bg-current" />
+                        <span className="border-y-[3px] border-l-[4px] border-y-transparent border-l-current" />
+                      </div>
+                      {/* Bottom Arrow Left */}
+                      <div className="flex items-center gap-[1px]">
+                        <span className="border-y-[3px] border-r-[4px] border-y-transparent border-r-current" />
+                        <span className="h-[2px] w-[13px] rounded-full bg-current" />
+                      </div>
+                    </div>
+                  ) : (
+                    <Icon
+                      size={22}
+                      className={cn(
+                        "transition-colors duration-200",
+                        active ? "text-accent dark:text-white" : "text-label-secondary/75 dark:text-white/65 group-hover:text-label",
+                      )}
+                    />
+                  )}
                 </motion.span>
                 <span
                   className={cn(
                     "text-[10px] font-medium leading-none tracking-tight transition-colors duration-200",
-                    active ? "text-green font-semibold" : "text-label-secondary/50",
+                    active ? "text-accent dark:text-white font-bold" : "text-label-secondary/75 dark:text-white/65 group-hover:text-label",
                   )}
                 >
                   {tab.label}
@@ -169,6 +207,11 @@ export function BudgetSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useSession();
+  const { settings } = useBudget();
+  const avatarDisplay =
+    settings.userAvatar && settings.userAvatar !== "initial"
+      ? settings.userAvatar
+      : user?.email?.charAt(0).toUpperCase() || "U";
 
   return (
     <aside
@@ -197,14 +240,14 @@ export function BudgetSidebar() {
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-ios px-3 py-2 transition-colors",
+                        "flex items-center gap-3 rounded-xl px-3 py-2 transition-all font-medium select-none",
                         active
-                          ? "bg-green/10 text-green dark:bg-green/15"
-                          : "text-label hover:bg-fill/10",
+                          ? "bg-accent text-white shadow-sm dark:bg-accent dark:text-white"
+                          : "text-label-secondary/80 hover:bg-fill/10 hover:text-label dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white",
                       )}
                     >
-                      <Icon size={19} />
-                      <span className={cn("text-subhead", active && "font-semibold")}>
+                      <Icon size={19} className={cn("shrink-0", active ? "text-white" : "")} />
+                      <span className={cn("text-subhead", active ? "font-bold text-white" : "")}>
                         {item.label}
                       </span>
                     </Link>
@@ -224,9 +267,11 @@ export function BudgetSidebar() {
           }}
           className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-fill/10 transition-colors text-left group"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green/10 text-green shadow-sm ring-1 ring-green/20 group-hover:bg-green group-hover:text-white transition-colors">
-            <span className="text-footnote font-bold">{user?.email?.charAt(0).toUpperCase() || "U"}</span>
-          </div>
+          <UserAvatar
+            avatarVal={settings.userAvatar}
+            email={user?.email}
+            className="h-9 w-9 text-base shadow-sm ring-1 ring-accent/20"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-footnote font-semibold text-label">{user?.email?.split('@')[0] || "User"}</p>
             <p className="truncate text-caption2 text-label-secondary/70">{user?.email || "Signed in"}</p>
@@ -293,14 +338,17 @@ export function BudgetMobileSidebar({ open, onClose }: { open: boolean; onClose:
           >
             <div className="flex items-start justify-between gap-2 pb-4">
               <div className="min-w-0 flex-1">
-                <EnvironmentSwitcher active="budget" />
+                <EnvironmentSwitcher active="budget" onClick={onClose} />
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-1.5 text-label-secondary/70 transition-colors hover:bg-fill/[0.12] hover:text-label"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-label-secondary/70 transition-colors hover:bg-fill/[0.12] hover:text-label focus:outline-none"
                 aria-label="Close menu"
               >
-                <X size={20} />
+                <div className="relative h-[16px] w-[16px]">
+                  <span className="absolute left-1/2 top-1/2 h-[2px] w-full -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-current" />
+                  <span className="absolute left-1/2 top-1/2 h-[2px] w-full -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-current" />
+                </div>
               </button>
             </div>
 
@@ -321,14 +369,14 @@ export function BudgetMobileSidebar({ open, onClose }: { open: boolean; onClose:
                             onClick={onClose}
                             aria-current={active ? "page" : undefined}
                             className={cn(
-                              "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
+                              "flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-all font-medium select-none",
                               active
-                                ? "bg-green/10 text-green dark:bg-green/15"
-                                : "text-label hover:bg-fill/[0.08]",
+                                ? "bg-accent text-white shadow-sm dark:bg-accent dark:text-white"
+                                : "text-label-secondary/80 hover:bg-fill/10 hover:text-label dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white",
                             )}
                           >
-                            <Icon size={20} className="shrink-0" />
-                            <span className={cn("text-subhead", active && "font-semibold")}>
+                            <Icon size={20} className={cn("shrink-0", active ? "text-white" : "")} />
+                            <span className={cn("text-subhead", active ? "font-bold text-white" : "")}>
                               {item.label}
                             </span>
                           </Link>

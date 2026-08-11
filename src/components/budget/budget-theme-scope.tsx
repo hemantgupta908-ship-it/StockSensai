@@ -14,19 +14,40 @@ import { useEffect } from "react";
 import { useBudget } from "./budget-provider";
 
 export function BudgetThemeScope({ children }: { children: React.ReactNode }) {
-  const { settings } = useBudget();
+  const { settings, updateSettings } = useBudget();
+
+  useEffect(() => {
+    const handleSettingsUpdated = () => {
+      try {
+        const raw = localStorage.getItem("cashew.settings");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.theme && parsed.theme !== settings.theme) {
+            updateSettings({ theme: parsed.theme });
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("cashew-settings-updated", handleSettingsUpdated);
+    return () => window.removeEventListener("cashew-settings-updated", handleSettingsUpdated);
+  }, [settings.theme, updateSettings]);
 
   useEffect(() => {
     const root = document.documentElement;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
 
     const apply = () => {
-      const dark = settings.theme === "dark" || (settings.theme === "system" && media.matches);
-      root.classList.toggle("dark", dark);
+      const isSystemDark = settings.theme === "system" && media.matches;
+      const isDark = settings.theme === "dark" || settings.theme === "oled" || isSystemDark;
+      const isOled = settings.theme === "oled";
+      const isSepia = settings.theme === "sepia";
+
+      root.classList.toggle("dark", isDark);
+      root.classList.toggle("theme-oled", isOled);
+      root.classList.toggle("theme-sepia", isSepia);
     };
 
     apply();
-    // Only track the OS when the user has actually chosen "system".
     if (settings.theme === "system") {
       media.addEventListener("change", apply);
       return () => media.removeEventListener("change", apply);

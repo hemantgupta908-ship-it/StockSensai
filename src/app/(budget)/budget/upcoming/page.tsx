@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function UpcomingPage() {
   return (
     <>
-      <BudgetHeader title="Overdue & Upcoming" backHref="/budget/more" />
+      <BudgetHeader title="Overdue & Upcoming" backHref="/budget" />
       <BudgetPage>
         <UpcomingView />
       </BudgetPage>

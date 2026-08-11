@@ -111,7 +111,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
 
             {/* Crossing point to the budget environment. */}
             <div className="pt-1">
-              <EnvironmentSwitcher active="stocks" />
+              <EnvironmentSwitcher active="stocks" onClick={onClose} />
             </div>
 
             {/* Quick Search Button */}

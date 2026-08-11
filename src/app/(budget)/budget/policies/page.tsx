@@ -14,7 +14,7 @@ export default function PoliciesPage() {
       <BudgetHeader
         title="Policies"
         subtitle="Insurance, SIP, PPF and deposits"
-        backHref="/budget/more"
+        backHref="/budget"
       />
       <BudgetPage>
         <PoliciesView />

@@ -21,6 +21,7 @@ import {
   isUpcoming,
   type SelectedSubscriptionsType,
 } from "@/lib/budget/calculations";
+import { amountRatioToPrimaryCurrency } from "@/lib/budget/currency";
 import { useBudget } from "./budget-provider";
 import { ObjectiveCard } from "./objectives-view";
 import {
@@ -254,45 +255,56 @@ function UpcomingByDay({
 }
 
 /** Compact overdue/upcoming block for the home screen. */
-export function UpcomingWidget({ limit = 4 }: { limit?: number }) {
-  const { transactions } = useBudget();
-  const [editing, setEditing] = useState<Transaction | null>(null);
+export function UpcomingWidget() {
+  const { transactions, allWallets } = useBudget();
 
-  const items = useMemo(() => {
+  const { upcomingTotal, overdueTotal } = useMemo(() => {
     const now = new Date();
-    return transactions
-      .filter((t) => isOverdue(t, now) || isUpcoming(t, now))
-      .sort((a, b) => new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime())
-      .slice(0, limit);
-  }, [transactions, limit]);
+    let upcomingTotal = 0;
+    let overdueTotal = 0;
 
-  if (items.length === 0) {
-    return (
-      <Link
-        href="/budget/upcoming"
-        className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 transition-transform active:scale-[0.98] dark:ring-white/10"
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
-          <CalendarCheck size={20} />
-        </div>
-        <div className="flex-1">
-          <span className="block text-subhead font-medium text-label">No upcoming bills</span>
-          <span className="block text-caption text-label-secondary/60">You're all caught up for now</span>
-        </div>
-        <CaretRight size={18} className="text-label-secondary/30" />
-      </Link>
-    );
-  }
+    for (const t of transactions) {
+      if (isOverdue(t, now)) {
+        const wallet = allWallets.indexedByPk[t.walletFk];
+        const ratio = amountRatioToPrimaryCurrency(allWallets, wallet?.currency);
+        overdueTotal += Math.abs(t.amount) * ratio;
+      } else if (isUpcoming(t, now)) {
+        const wallet = allWallets.indexedByPk[t.walletFk];
+        const ratio = amountRatioToPrimaryCurrency(allWallets, wallet?.currency);
+        upcomingTotal += Math.abs(t.amount) * ratio;
+      }
+    }
+
+    // Include unbilled credit card spend as upcoming
+    for (const wallet of allWallets.list) {
+      if (wallet.accountType === 2) { // AccountType.creditCard
+        const { getCreditCardStatus } = require("@/lib/budget/credit");
+        const cardStatus = getCreditCardStatus(wallet, transactions);
+        if (cardStatus.currentCycleSpend > 0) {
+          const ratio = amountRatioToPrimaryCurrency(allWallets, wallet.currency);
+          upcomingTotal += cardStatus.currentCycleSpend * ratio;
+        }
+      }
+    }
+
+    return { upcomingTotal, overdueTotal };
+  }, [transactions, allWallets]);
 
   return (
-    <>
-      <TransactionGroup>
-        {items.map((t) => (
-          <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditing} />
-        ))}
-      </TransactionGroup>
-      <TransactionModal open={editing !== null} onClose={() => setEditing(null)} editing={editing} />
-    </>
+    <Link href="/budget/upcoming" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-green">
+      <Card className="hover:bg-fill/5 transition-colors">
+        <div className="grid grid-cols-2 gap-3 text-center">
+          <div>
+            <p className="text-caption uppercase tracking-wide text-label-secondary/50">Upcoming</p>
+            <Amount value={upcomingTotal} className="text-subhead font-semibold text-label" />
+          </div>
+          <div>
+            <p className="text-caption uppercase tracking-wide text-label-secondary/50">Overdue</p>
+            <Amount value={overdueTotal} className="text-subhead font-semibold text-red" />
+          </div>
+        </div>
+      </Card>
+    </Link>
   );
 }
 
@@ -341,8 +353,8 @@ export function CreditDebtWidget() {
   }
 
   return (
-    <>
-      <Card className="mb-3 !p-3">
+    <Link href="/budget/loans" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-green">
+      <Card className="hover:bg-fill/5 transition-colors">
         <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Lent</p>
@@ -354,11 +366,6 @@ export function CreditDebtWidget() {
           </div>
         </div>
       </Card>
-      <div className="space-y-3">
-        {activeLoans.slice(0, 4).map((o) => (
-          <ObjectiveCard key={o.objectivePk} objective={o} compact />
-        ))}
-      </div>
-    </>
+    </Link>
   );
 }

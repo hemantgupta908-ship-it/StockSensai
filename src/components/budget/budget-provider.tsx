@@ -44,12 +44,16 @@ import {
 } from "@/lib/budget/types";
 import {
   DEFAULT_BUDGET_SETTINGS,
+  DEFAULT_INCOME_SUBCATEGORIES,
   defaultCategories,
   defaultWallets,
   type BudgetSettings,
 } from "@/lib/budget/defaults";
 import { buildAllWallets, DEFAULT_EXCHANGE_RATES, type AllWallets } from "@/lib/budget/currency";
 import { autoPayDueTransactions } from "@/lib/budget/recurring";
+import { getPolicySavingsTotal } from "@/lib/budget/credit";
+import { repairDanglingCategoryRefs } from "@/lib/budget/repair";
+import { mergePolicies } from "@/lib/budget/policy-merge";
 import { newId } from "@/lib/budget/factory";
 
 const DATA_KEY = "cashew.data";
@@ -96,9 +100,14 @@ function migrate(db: BudgetDatabase): BudgetDatabase {
     );
   }
 
-  return categories === db.categories && transactions === db.transactions
-    ? db
-    : { ...db, categories, transactions };
+  const rebuilt =
+    categories === db.categories && transactions === db.transactions
+      ? db
+      : { ...db, categories, transactions };
+
+  // Re-point category references that resolve to nothing. Runs last so it sees
+  // any category the steps above seeded.
+  return repairDanglingCategoryRefs(rebuilt);
 }
 
 /** First-run dataset: one account and Cashew's twelve categories. */
@@ -171,6 +180,8 @@ interface BudgetStore extends BudgetDatabase {
 
   upsertPolicy: (policy: Policy) => void;
   deletePolicy: (pk: string) => void;
+  /** Fold `sourcePks` into `targetPk`, moving their recorded premiums across. */
+  mergePoliciesInto: (targetPk: string, sourcePks: string[]) => void;
 
   /** Wholesale replace — used by CSV/JSON import and by "reset". */
   replaceDatabase: (next: BudgetDatabase) => void;
@@ -223,7 +234,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         setData(localData);
         setSettings(localSettings);
       } else {
-        setData({ ...emptyDatabase(), ...((remote.payload as BudgetDatabase) ?? {}) });
+        // Remote payloads need the same schema repair as local ones — without
+        // this, migrations only ever reached signed-out users.
+        setData(migrate({ ...emptyDatabase(), ...((remote.payload as BudgetDatabase) ?? {}) }));
         setSettings({
           ...DEFAULT_BUDGET_SETTINGS,
           ...((remote.settings as Partial<BudgetSettings>) ?? {}),
@@ -268,6 +281,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       try {
         localStorage.setItem(DATA_KEY, JSON.stringify(nextData));
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(nextSettings));
+        if (nextSettings.theme) {
+          localStorage.setItem("stockpilot.theme", nextSettings.theme);
+        }
       } catch (e) {
         console.warn("[budget] local persist failed:", e);
       }
@@ -483,11 +499,22 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           dateTimeModified: new Date().toISOString(),
         }));
 
+        // A policy holds a categoryFk too. Left dangling it is worse than a
+        // missing one: `createPremiumTransaction` falls back with `??`, which a
+        // dead pk passes straight through, so every future premium is stamped
+        // with a category that cannot be resolved and renders "Uncategorised".
+        const policies = db.policies.map((p) =>
+          p.categoryFk && affected.has(p.categoryFk)
+            ? { ...p, categoryFk: moveToCategoryPk ?? null }
+            : p,
+        );
+
         return {
           ...db,
           categories: db.categories.filter((c) => !affected.has(c.categoryPk)),
           categoryBudgetLimits: db.categoryBudgetLimits.filter((l) => !affected.has(l.categoryFk)),
           associatedTitles: db.associatedTitles.filter((t) => !affected.has(t.categoryFk)),
+          policies,
           transactions,
           deleteLogs: [...db.deleteLogs, ...logs],
         };
@@ -668,6 +695,34 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Fold policies into one, moving every premium recorded against them onto the
+   * target. Amounts are untouched, so the combined "Paid in" equals the sum of
+   * the parts.
+   */
+  const mergePoliciesInto = useCallback(
+    (targetPk: string, sourcePks: string[]) =>
+      mutate((db) => {
+        const { database, removedPolicies } = mergePolicies(db, targetPk, sourcePks);
+        if (removedPolicies === 0) return db;
+        return {
+          ...database,
+          deleteLogs: [
+            ...database.deleteLogs,
+            ...sourcePks
+              .filter((pk) => pk !== targetPk)
+              .map((pk) => ({
+                deleteLogPk: newId(),
+                entryPk: pk,
+                type: DeleteLogType.Policy,
+                dateTimeModified: new Date().toISOString(),
+              })),
+          ],
+        };
+      }),
+    [mutate],
+  );
+
+  /**
    * Delete a policy. Premium transactions are kept — they are real money that
    * already moved — but lose their policy tag so they stop being counted
    * towards a policy that no longer exists.
@@ -740,6 +795,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     deleteScannerTemplate,
     upsertPolicy,
     deletePolicy,
+    mergePoliciesInto,
     replaceDatabase,
     resetDatabase,
     exportDatabase,
@@ -757,15 +813,46 @@ export function useBudget(): BudgetStore {
 }
 
 /** Categories indexed by pk, with subcategories grouped under their parent. */
+/**
+ * Accumulated policy savings, and whether they belong in net worth.
+ *
+ * Shared so the home screen, the accounts screen and the savings card cannot
+ * disagree about a figure that appears on all three.
+ */
+export function usePolicySavings() {
+  const { policies, transactions, allWallets, settings } = useBudget();
+
+  const total = useMemo(
+    () =>
+      getPolicySavingsTotal(
+        allWallets,
+        policies,
+        transactions,
+        settings.savingsExcludedPolicyPks ?? [],
+      ),
+    [allWallets, policies, transactions, settings.savingsExcludedPolicyPks],
+  );
+
+  const included = (settings.includeSavingsInNetWorth ?? true) ? total : 0;
+
+  return { total, netWorthContribution: included, visible: settings.showSavingsCard ?? true };
+}
+
 export function useCategoryLookup() {
   const { categories } = useBudget();
   return useMemo(() => {
-    const byPk = new Map(categories.map((c) => [c.categoryPk, c]));
-    const main = categories
+    const all = [...categories];
+    for (const sub of DEFAULT_INCOME_SUBCATEGORIES) {
+      if (!all.some((c) => c.categoryPk === sub.categoryPk)) {
+        all.push(sub);
+      }
+    }
+    const byPk = new Map(all.map((c) => [c.categoryPk, c]));
+    const main = all
       .filter((c) => c.mainCategoryPk === null)
       .sort((a, b) => a.order - b.order);
     const subsByParent = new Map<string, TransactionCategory[]>();
-    for (const c of categories) {
+    for (const c of all) {
       if (c.mainCategoryPk === null) continue;
       const list = subsByParent.get(c.mainCategoryPk) ?? [];
       list.push(c);
