@@ -44,7 +44,7 @@ export function RefreshButton({
       >
         <ArrowsClockwise
           size={iconSize}
-          className={cn("shrink-0 transition-transform", loading && "animate-spin text-blue")}
+          className={cn("shrink-0 transition-transform", loading && "animate-spin text-accent")}
         />
         <span>{loading ? "Refreshing..." : "Refresh"}</span>
       </motion.button>
@@ -63,7 +63,7 @@ export function RefreshButton({
         aria-label={label}
         className={cn(
           "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-footnote font-semibold transition-colors",
-          "bg-blue/[0.12] text-blue hover:bg-blue/[0.18] active:bg-blue/[0.24]",
+          "bg-accent/[0.12] text-accent hover:bg-accent/[0.18] active:bg-accent/[0.24]",
           loading && "opacity-75 cursor-not-allowed",
           className,
         )}
@@ -89,16 +89,16 @@ export function RefreshButton({
       title={label}
       aria-label={label}
       className={cn(
-        "relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full",
+        "relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ios",
         "bg-fill/[0.10] text-label-secondary/70 transition-colors hover:text-label active:bg-fill/[0.18]",
         "dark:bg-white/[0.09] dark:active:bg-white/[0.16]",
-        loading && "text-blue dark:text-blue",
+        loading && "text-accent dark:text-accent",
         className,
       )}
     >
       <ArrowsClockwise
         size={iconSize}
-        className={cn("transition-transform", loading && "animate-spin text-blue")}
+        className={cn("transition-transform", loading && "animate-spin text-accent")}
       />
     </motion.button>
   );

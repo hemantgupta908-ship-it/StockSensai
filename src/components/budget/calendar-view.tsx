@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Calendar View Component matching reference design.
@@ -38,7 +39,7 @@ const MONTH_NAMES = [
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function CalendarView() {
-  const { transactions, wallets, settings } = useBudget();
+  const { transactions, wallets, settings  } = useBudget(useShallow((s) => ({ transactions: s.transactions, wallets: s.wallets, settings: s.settings })));
   const { byPk } = useCategoryLookup();
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -253,7 +254,7 @@ export function CalendarView() {
                 className={cn(
                   "group relative flex h-14 flex-col items-center justify-between rounded-[16px] p-1.5 transition-all active:scale-95",
                   isSelected
-                    ? "bg-accent text-white shadow-md font-bold"
+                    ? "bg-accent text-accent-fg shadow-md font-bold"
                     : dayData
                       ? "border border-separator/30 bg-bg-secondary hover:border-separator/70"
                       : "hover:bg-fill/10"

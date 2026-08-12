@@ -193,7 +193,7 @@ export function UserAvatar({ avatarVal, email, className }: UserAvatarProps) {
     return (
       <div
         className={cn(
-          "flex items-center justify-center rounded-full bg-accent text-white font-bold select-none shadow-sm shrink-0",
+          "flex items-center justify-center rounded-full bg-accent text-accent-fg font-bold select-none shadow-sm shrink-0",
           className
         )}
       >

@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * The "More" hub: everything that doesn't earn a tab, plus the two standalone
@@ -12,7 +13,7 @@ import { CaretRight, Plus, Receipt, Tag, Trash, Users } from "@phosphor-icons/re
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { newId } from "@/lib/budget/factory";
-import { BUDGET_NAV_SECTIONS } from "./budget-nav";
+import { NAV_SECTIONS } from "@/components/ui/nav-items";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
   Card,
@@ -33,7 +34,7 @@ export function MoreView() {
 
   return (
     <>
-      {BUDGET_NAV_SECTIONS.map((section) => (
+      {NAV_SECTIONS.map((section) => (
         <Section key={section.title} title={section.title}>
           <div className="divide-y divide-separator/40 overflow-hidden rounded-card bg-bg-secondary">
             {section.items.map((item) => {
@@ -118,7 +119,7 @@ interface BillItem {
  * between them, and a multiplier applies to every item (for tax or tip).
  */
 function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { allWallets } = useBudget();
+  const { allWallets  } = useBudget(useShallow((s) => ({ allWallets: s.allWallets })));
   const [people, setPeople] = useState<string[]>([]);
   const [newPerson, setNewPerson] = useState("");
   const [items, setItems] = useState<BillItem[]>([]);
@@ -206,7 +207,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
                   current.map((i) => ({ ...i, people: i.people.filter((x) => x !== person) })),
                 );
               }}
-              className="flex items-center gap-1 rounded-full bg-green/12 px-3 py-1.5 text-caption text-green"
+              className="flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1.5 text-caption text-accent"
             >
               {person}
               <Trash size={11} />
@@ -228,7 +229,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
           <button
             type="button"
             onClick={addPerson}
-            className="shrink-0 rounded-ios bg-green px-4 text-white"
+            className="shrink-0 rounded-ios bg-accent px-4 text-accent-fg"
             aria-label="Add person"
           >
             <Plus size={18} />
@@ -294,7 +295,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
                         onClick={() => toggleSharer(item.id, person)}
                         className={cn(
                           "rounded-full px-2.5 py-1 text-caption2 transition-colors",
-                          active ? "bg-green text-white" : "bg-fill/15 text-label-secondary",
+                          active ? "bg-accent text-accent-fg" : "bg-fill/15 text-label-secondary",
                         )}
                       >
                         {person}
@@ -335,7 +336,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
 // ---------------------------------------------------------------------------
 
 function AssociatedTitlesSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { associatedTitles, upsertAssociatedTitle, deleteAssociatedTitle } = useBudget();
+  const { associatedTitles, upsertAssociatedTitle, deleteAssociatedTitle  } = useBudget(useShallow((s) => ({ associatedTitles: s.associatedTitles, upsertAssociatedTitle: s.upsertAssociatedTitle, deleteAssociatedTitle: s.deleteAssociatedTitle })));
   const { byPk } = useCategoryLookup();
 
   const [title, setTitle] = useState("");

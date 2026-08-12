@@ -42,7 +42,8 @@ const config: Config = {
         teal: "rgb(var(--sys-teal) / <alpha-value>)",
         indigo: "rgb(var(--sys-indigo) / <alpha-value>)",
         pink: "rgb(var(--sys-pink) / <alpha-value>)",
-        accent: "var(--budget-accent)",
+        accent: "rgb(var(--accent-rgb) / <alpha-value>)",
+        "accent-fg": "rgb(var(--accent-fg) / <alpha-value>)",
       },
       fontFamily: {
         sans: [
@@ -100,10 +101,15 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
       },
       animation: {
         "sheet-in": "sheet-in 0.4s cubic-bezier(0.32, 0.72, 0, 1)",
         shimmer: "shimmer 1.6s infinite",
+        "fade-in": "fade-in 0.2s ease-out",
       },
     },
   },

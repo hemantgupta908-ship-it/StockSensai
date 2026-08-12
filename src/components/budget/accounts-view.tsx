@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Accounts (Cashew's "wallets"): balances, currency, and the primary account
@@ -36,7 +37,7 @@ import {
 } from "./budget-ui";
 
 export function AccountsView() {
-  const { wallets, transactions, allWallets, settings, updateSettings } = useBudget();
+  const { wallets, transactions, allWallets, settings, updateSettings  } = useBudget(useShallow((s) => ({ wallets: s.wallets, transactions: s.transactions, allWallets: s.allWallets, settings: s.settings, updateSettings: s.updateSettings })));
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionWallet | null>(null);
   const [openMenuWalletPk, setOpenMenuWalletPk] = useState<string | null>(null);
@@ -314,15 +315,14 @@ function AccountEditor({
   onClose: () => void;
   editing?: TransactionWallet | null;
 }) {
-  const {
-    wallets,
+  const { wallets,
     transactions,
     settings,
     upsertWallet,
     deleteWallet,
     upsertTransaction,
     updateSettings,
-  } = useBudget();
+   } = useBudget(useShallow((s) => ({ wallets: s.wallets, transactions: s.transactions, settings: s.settings, upsertWallet: s.upsertWallet, deleteWallet: s.deleteWallet, upsertTransaction: s.upsertTransaction, updateSettings: s.updateSettings })));
 
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("inr");
@@ -648,7 +648,7 @@ function AccountEditor({
 const SAVINGS_COLOUR = "#7E57C2";
 
 export function AccountsSummary() {
-  const { wallets, transactions, settings, allWallets, exportDatabase, replaceDatabase } = useBudget();
+  const { wallets, transactions, settings, allWallets, exportDatabase, replaceDatabase  } = useBudget(useShallow((s) => ({ wallets: s.wallets, transactions: s.transactions, settings: s.settings, allWallets: s.allWallets, exportDatabase: s.exportDatabase, replaceDatabase: s.replaceDatabase })));
   const savings = usePolicySavings();
   const router = useRouter();
   const sorted = [...wallets].sort((a, b) => a.order - b.order);

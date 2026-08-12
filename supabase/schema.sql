@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- StockSensei schema
+-- WealthSensei schema
 --
 -- Run in the Supabase SQL editor (or `supabase db push`) after creating a
 -- project. Users are handled entirely by Supabase Auth (auth.users); every

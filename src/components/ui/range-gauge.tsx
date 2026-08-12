@@ -57,11 +57,11 @@ export function RangeGauge({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className={cn("relative w-full", compact ? "h-9" : "h-11")}>
+      <div className={cn("relative w-full", compact ? "h-6" : "h-7")}>
         {/* Track */}
         <div
           className={cn(
-            "absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-md",
+            "relative w-full overflow-hidden rounded-md",
             "bg-black/[0.04] dark:bg-white/[0.08] shadow-[inset_0_1px_3px_rgb(0,0,0,0.06)] dark:shadow-none",
             compact ? "h-6" : "h-7",
           )}
@@ -95,35 +95,25 @@ export function RangeGauge({
             }}
             className="absolute inset-y-0 rounded-sm bg-blue/80 shadow-sm"
           />
-        </div>
 
-        {/* Stop-loss tick */}
-        <div
-          className="absolute top-1/2 h-[26px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-red shadow-sm"
-          style={{ left: `${stopPos}%` }}
-          aria-hidden
-        />
-
-        {/* Current price marker */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 420, damping: 26, delay: 0.2 }}
-          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: `${pricePos}%` }}
-          role="img"
-          aria-label={`Trading at ${formatINR(currentPrice)}`}
-        >
+          {/* Stop-loss tick line */}
           <div
-            className={cn(
-              "flex items-center justify-center rounded-full border-[2.5px] bg-bg-secondary",
-              "border-label shadow-[0_3px_12px_rgb(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgb(0,0,0,0.4)]",
-              compact ? "h-[22px] w-[22px]" : "h-[26px] w-[26px]",
-            )}
-          >
-            <div className={cn("rounded-full bg-label", compact ? "h-2 w-2" : "h-2.5 w-2.5")} />
-          </div>
-        </motion.div>
+            className="absolute inset-y-0 z-10 w-[2.5px] -translate-x-1/2 bg-red shadow-sm"
+            style={{ left: `${stopPos}%` }}
+            aria-hidden
+          />
+
+          {/* Current price marker line: 100% inside track */}
+          <motion.div
+            initial={{ opacity: 0, scaleY: 0.6 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            transition={{ type: "spring", stiffness: 420, damping: 26, delay: 0.2 }}
+            className="absolute inset-y-0 z-20 w-[3px] -translate-x-1/2 bg-slate-900 shadow-sm dark:bg-white"
+            style={{ left: `${pricePos}%` }}
+            role="img"
+            aria-label={`Trading at ${formatINR(currentPrice)}`}
+          />
+        </div>
       </div>
 
       {!compact && (
@@ -161,7 +151,7 @@ export function RangeGauge({
          * render a line shorter than their neighbours and the footers stop
          * lining up across a row of the grid.
          */
-        <p className="mt-1.5 min-h-[2.45em] text-[13px] leading-snug text-label-secondary/70">
+        <p className="mt-1.5 text-[13px] leading-snug text-label-secondary/70">
           Trading at{" "}
           <span className="font-bold text-label text-sm">{formatINR(currentPrice)}</span>
           {priceInBuyZone

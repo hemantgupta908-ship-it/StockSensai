@@ -1,5 +1,41 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+/**
+ * The iOS type ramp from `tailwind.config.ts`, declared to tailwind-merge.
+ *
+ * Without this, tailwind-merge sees `text-body` and — having no idea it is a
+ * font size, because it isn't one of Tailwind's stock scale names — files it
+ * under text-*colour*. It then treats it as conflicting with the colour that
+ * came before it and drops that colour.
+ *
+ * The damage was app-wide and silent: every `<Button>` composes
+ * `VARIANTS[variant]` (which carries `text-white` / `text-blue` / `text-red`)
+ * ahead of `SIZES[size]` (which carries `text-body`), so every button lost its
+ * text colour and inherited `--label` instead. That reads as white in dark mode,
+ * which is why it went unnoticed — in light mode primary buttons were rendering
+ * black text on a blue fill at 3.9:1.
+ */
+const FONT_SIZES = [
+  "caption2",
+  "caption",
+  "footnote",
+  "subhead",
+  "body",
+  "headline",
+  "title3",
+  "title2",
+  "title1",
+  "largetitle",
+];
+
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: FONT_SIZES }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

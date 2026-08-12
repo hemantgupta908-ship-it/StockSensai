@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 import { useMemo, useRef, useState } from "react";
 import { CheckCircle, DownloadSimple, Trash, UploadSimple, X } from "@phosphor-icons/react";
@@ -28,7 +29,7 @@ export function ImportPreviewModal({
   onClose: () => void;
   defaultWalletFk: string;
 }) {
-  const { categories, wallets, associatedTitles, upsertTransactions, settings } = useBudget();
+  const { categories, wallets, associatedTitles, upsertTransactions, settings  } = useBudget(useShallow((s) => ({ categories: s.categories, wallets: s.wallets, associatedTitles: s.associatedTitles, upsertTransactions: s.upsertTransactions, settings: s.settings })));
   const { byPk, main, subsByParent } = useCategoryLookup();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -201,7 +202,7 @@ export function ImportPreviewModal({
         <div className="flex-1 overflow-y-auto p-6">
           {step === "upload" && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue/10 text-blue">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <UploadSimple size={32} />
               </div>
               <h3 className="mb-2 text-title2 font-bold text-label">Upload Excel File</h3>
@@ -218,7 +219,7 @@ export function ImportPreviewModal({
                   Download Template
                 </button>
                 
-                <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue px-4 py-3.5 text-subhead font-semibold text-white transition-colors hover:bg-blue/90 active:scale-[0.98]">
+                <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3.5 text-subhead font-semibold text-accent-fg transition-colors hover:bg-accent/90 active:scale-[0.98]">
                   <UploadSimple size={18} />
                   Upload File
                   <input
@@ -275,7 +276,7 @@ export function ImportPreviewModal({
                               <select
                                 value={p.categoryFk}
                                 onChange={(e) => handleUpdatePending(p.id, { categoryFk: e.target.value })}
-                                className="w-full rounded-md border border-separator/50 bg-bg-elevated px-2 py-1 text-sm outline-none focus:border-blue"
+                                className="w-full rounded-md border border-separator/50 bg-bg-elevated px-2 py-1 text-sm outline-none focus:border-accent"
                               >
                                 {main.map((cat) => (
                                   <optgroup key={cat.categoryPk} label={cat.name}>
@@ -293,7 +294,7 @@ export function ImportPreviewModal({
                               <select
                                 value={p.walletFk}
                                 onChange={(e) => handleUpdatePending(p.id, { walletFk: e.target.value })}
-                                className="w-full rounded-md border border-separator/50 bg-bg-elevated px-2 py-1 text-sm outline-none focus:border-blue"
+                                className="w-full rounded-md border border-separator/50 bg-bg-elevated px-2 py-1 text-sm outline-none focus:border-accent"
                               >
                                 {wallets.map(w => (
                                   <option key={w.walletPk} value={w.walletPk}>
@@ -344,7 +345,7 @@ export function ImportPreviewModal({
               </button>
               <button
                 onClick={handleSave}
-                className="rounded-xl bg-blue px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue/90 active:scale-[0.98] transition-all shadow-sm"
+                className="rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-fg hover:bg-accent/90 active:scale-[0.98] transition-all shadow-sm"
               >
                 Save Transactions
               </button>

@@ -1,24 +1,34 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { MagnifyingGlass, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, SignOut, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
-import { isActivePath, NAV_SECTIONS } from "./nav-items";
-import { EnvironmentSwitcher } from "./environment-switcher";
-import { ThemeToggle } from "./theme-toggle";
+import { useSession } from "@/components/auth/session-provider";
+import { useBudget } from "@/components/budget/budget-provider";
+import { UserAvatar } from "@/components/budget/user-avatar";
+import { NAV_SECTIONS } from "./nav-items";
+import { isActivePath } from "./nav";
 
 interface MobileSidebarProps {
   open: boolean;
   onClose: () => void;
-  onOpenSearch: () => void;
+  /** Omitted where there is no search to open, e.g. from a money screen. */
+  onOpenSearch?: () => void;
 }
 
 export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
+  const { user, signOut } = useSession();
+  const { settings  } = useBudget(useShallow((s) => ({ settings: s.settings })));
+
+  const email = user?.email || "hemantgupta908@gmail.com";
+  const username = email.split("@")[0] || "Profile";
 
   // Prevent background body scroll when mobile drawer is open
   useEffect(() => {
@@ -72,7 +82,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                 onClick={onClose}
                 className="flex items-center gap-2.5"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-blue shadow-pill">
+                <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-accent shadow-pill">
                   <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden>
                     <path
                       d="M5 22.5 12 14l5 5 9.5-11"
@@ -92,7 +102,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                 </span>
                 <div>
                   <span className="block text-headline font-bold tracking-tight text-label">
-                    StockSensei
+                    WealthSensei
                   </span>
                   <span className="block text-caption2 text-label-secondary/50">
                     NSE &amp; BSE screener
@@ -101,35 +111,20 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
               </Link>
 
               <button
+                type="button"
                 onClick={onClose}
-                className="rounded-full p-1.5 text-label-secondary/70 transition-colors hover:bg-fill/[0.12] hover:text-label"
+                className="flex h-9 w-9 items-center justify-center text-label-secondary transition-colors hover:text-label focus:outline-none"
                 aria-label="Close menu"
               >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Crossing point to the budget environment. */}
-            <div className="pt-1">
-              <EnvironmentSwitcher active="stocks" onClick={onClose} />
-            </div>
-
-            {/* Quick Search Button */}
-            <div className="pb-4 pt-3">
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenSearch();
-                }}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-separator/40 bg-bg-elevated px-3.5 py-2.5 text-subhead font-medium text-label-secondary shadow-subtle transition-all hover:border-blue/40 hover:text-label dark:border-white/[0.08]"
-              >
-                <span className="flex items-center gap-2">
-                  <MagnifyingGlass size={16} className="text-blue" />
-                  <span>Evaluate Stock...</span>
-                </span>
-                <kbd className="rounded bg-fill/[0.12] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-label-secondary opacity-70">
-                  ⌘K
-                </kbd>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             </div>
 
@@ -149,14 +144,15 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                           <Link
                             href={item.href}
                             onClick={onClose}
+                            prefetch={true}
                             className={cn(
                               "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
                               active
-                                ? "bg-blue/10 text-blue dark:bg-blue/15"
+                                ? "bg-accent/15 text-accent dark:bg-accent/20"
                                 : "text-label hover:bg-fill/[0.08]",
                             )}
                           >
-                            <Icon size={20} className="shrink-0" />
+                            <Icon size={20} weight="regular" className="shrink-0" />
                             <span className={cn("text-subhead", active && "font-semibold")}>
                               {item.label}
                             </span>
@@ -169,17 +165,45 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
               ))}
             </nav>
 
-            {/* Footer.
-                The disclaimer notice that used to sit here is gone; the drawer
-                still links to the full text under Organise, and every screen
-                carries `DisclaimerFooter`, so the standing requirement to show
-                it is still met. */}
+            {/* Profile & Logout Footer */}
             <div className="border-t border-separator/30 pt-3 dark:border-white/[0.06]">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-footnote font-medium text-label-secondary">
-                  Appearance
-                </span>
-                <ThemeToggle />
+              <div className="flex items-center justify-between gap-2 rounded-2xl p-2 transition-colors hover:bg-fill/10">
+                <Link
+                  href="/settings"
+                  onClick={onClose}
+                  className="flex flex-1 items-center gap-3 min-w-0"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-separator/50 bg-bg-secondary shadow-xs dark:border-white/10 overflow-hidden">
+                    <UserAvatar
+                      avatarVal={settings?.userAvatar || "initial"}
+                      email={email}
+                      className="h-full w-full text-base"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-footnote font-bold text-label">
+                      {username}
+                    </p>
+                    <p className="truncate text-caption2 text-label-secondary/60">
+                      {email}
+                    </p>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    onClose();
+                    await signOut();
+                    router.refresh();
+                  }}
+                  title="Sign out"
+                  aria-label="Sign out"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red text-white shadow-xs hover:bg-red/90 transition-colors focus:outline-none"
+                >
+                  <SignOut size={18} weight="regular" />
+                </button>
               </div>
             </div>
           </motion.div>

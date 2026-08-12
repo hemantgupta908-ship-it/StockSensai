@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, FileText, Info, List, Moon, ShieldCheck, SignIn, SignOut, SquaresFour, Sun, SunHorizon, User as UserIcon } from "@phosphor-icons/react";
+import { BookOpen, FileText, List, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
 
 import { usePreferences } from "@/components/preferences-provider";
-import { useTheme, type ThemePreference } from "@/components/theme-provider";
-import { useSession } from "@/components/auth/session-provider";
+import { AppearanceSettingsSection, BudgetSettingsView, ProfileSettingsSection } from "@/components/budget/budget-settings-view";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ListFooter, ListGroup, ListRow } from "@/components/ui/list";
 import { SectionLabel } from "@/components/ui/card";
@@ -22,196 +21,148 @@ import {
 } from "@/lib/preferences";
 import { THRESHOLD_PRESETS } from "@/lib/strategies/types";
 
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "System" },
-];
-
 export function SettingsView() {
   const router = useRouter();
   const { riskTolerance, setRiskTolerance, feedView, setFeedView } = usePreferences();
-  const { preference: themePreference, setPreference: setThemePreference } = useTheme();
-  const { user, authEnabled, signOut } = useSession();
-  const [signingOut, setSigningOut] = useState(false);
+  const [activeTab, setActiveTab] = useState<"markets" | "budget">("markets");
 
   const thresholds = THRESHOLD_PRESETS[riskTolerance];
 
   return (
     <PageContainer width="wide" className="space-y-6">
-      {/* Risk tolerance */}
-      <section>
-        <SectionLabel>Risk tolerance</SectionLabel>
-        <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
-          <SegmentedControl
-            options={RISK_TOLERANCES.map((value) => ({ value, label: RISK_LABELS[value] }))}
-            value={riskTolerance}
-            onChange={setRiskTolerance}
-          />
-          <p className="mt-3 text-footnote leading-relaxed text-label-secondary/65">
-            {RISK_DESCRIPTIONS[riskTolerance]}
-          </p>
+      <ProfileSettingsSection />
+      <AppearanceSettingsSection />
 
-          {/* Showing the actual numbers keeps this from being a mystery dial. */}
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-separator/40 pt-3 dark:border-white/[0.06]">
-            <Threshold label="Minimum match score" value={`${thresholds.minConfidence}/100`} />
-            <Threshold label="Minimum reward:risk" value={`${thresholds.minRewardRisk}:1`} />
-            <Threshold
-              label="Volume confirmation"
-              value={`${thresholds.volumeSurgeMultiple}x average`}
-            />
-            <Threshold
-              label="Stop distance"
-              value={`${thresholds.stopAtrMultiple}x ATR`}
-            />
-            <Threshold label="RSI oversold / overbought" value={`${thresholds.rsiOversold} / ${thresholds.rsiOverbought}`} />
-            <Threshold label="Minimum RoE (long-term)" value={`${thresholds.minRoe}%`} />
-          </dl>
-        </div>
-        <ListFooter>
-          This tunes the thresholds every strategy screens against. Conservative surfaces fewer,
-          higher-conviction ideas; aggressive surfaces more and earlier. It changes what you see —
-          it does not change how risky any individual stock actually is.
-        </ListFooter>
-      </section>
-
-      {/* Strategies */}
-      <section>
-        <SectionLabel>Strategies</SectionLabel>
-        <ListGroup>
-          <ListRow
-            icon={<BookOpen size={17} />}
-            title="Strategies & Screen Rules"
-            subtitle="Explore how all 25 screens work, from intraday to long-term"
-            href="/strategies"
-          />
-        </ListGroup>
-      </section>
-
-      {/* Feed layout */}
-      <section>
-        <SectionLabel>Ideas layout</SectionLabel>
-        <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
-          <SegmentedControl
-            options={FEED_VIEWS.map((value) => ({ value, label: FEED_VIEW_LABELS[value] }))}
-            value={feedView}
-            onChange={setFeedView}
-          />
-          <div className="mt-3 flex items-start gap-2 text-footnote leading-relaxed text-label-secondary/65">
-            {feedView === "card" ? (
-              <SquaresFour size={15} className="mt-0.5 shrink-0" />
-            ) : (
-              <List size={15} className="mt-0.5 shrink-0" />
-            )}
-            {FEED_VIEW_DESCRIPTIONS[feedView]}
-          </div>
-        </div>
-        <ListFooter>
-          Both views show the same screened ideas and the same numbers — only the density
-          changes. Cards draw the stop, buy zone and target to scale so the reward-to-risk shape
-          is visible; the list trades that picture for more ideas on screen at once.
-        </ListFooter>
-      </section>
-
-      {/* Appearance */}
-      <section>
-        <SectionLabel>Appearance</SectionLabel>
-        <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
-          <SegmentedControl
-            options={THEME_OPTIONS}
-            value={themePreference}
-            onChange={setThemePreference}
-          />
-          <div className="mt-3 flex items-center gap-2 text-footnote text-label-secondary/60">
-            {themePreference === "light" ? (
-              <Sun size={15} />
-            ) : themePreference === "dark" ? (
-              <Moon size={15} />
-            ) : (
-              <SunHorizon size={15} />
-            )}
-            {themePreference === "system"
-              ? "Following your device setting."
-              : `Always ${themePreference}.`}
-          </div>
-        </div>
-      </section>
-
-      {/* Account */}
-      <section>
-        <SectionLabel>Account</SectionLabel>
-        <ListGroup>
-          {!authEnabled ? (
-            <ListRow
-              icon={<Info size={17} />}
-              title="Running in demo mode"
-              subtitle="No Supabase project is configured, so your watchlist and journal are stored in this browser only."
-            />
-          ) : user ? (
-            <>
-              <ListRow
-                icon={<UserIcon size={17} />}
-                title={user.email ?? "Signed in"}
-                subtitle="Watchlist and journal sync to your account"
-              />
-              <ListRow
-                icon={<SignOut size={17} />}
-                title={signingOut ? "Signing out…" : "Sign out"}
-                destructive
-                onClick={async () => {
-                  setSigningOut(true);
-                  await signOut();
-                  setSigningOut(false);
-                  router.refresh();
-                }}
-              />
-            </>
-          ) : (
-            <ListRow
-              icon={<SignIn size={17} />}
-              title="Sign in"
-              subtitle="Sync your watchlist and journal across devices"
-              href="/login"
-            />
-          )}
-        </ListGroup>
-      </section>
-
-      {/* Legal */}
-      <section>
-        <SectionLabel>About</SectionLabel>
-        <ListGroup>
-          <ListRow
-            icon={<ShieldCheck size={17} />}
-            title="Disclaimer & risk disclosure"
-            subtitle="What this app is, and what it isn't"
-            href="/disclaimer"
-          />
-          <ListRow
-            icon={<FileText size={17} />}
-            title="How the strategies work"
-            subtitle="All 25 screens explained"
-            href="/strategies"
-          />
-        </ListGroup>
-        <ListFooter>
-          StockPilot is a screening and educational tool covering NSE and BSE listed companies. It
-          is not a broker, holds no client funds, places no orders, and is not registered with SEBI
-          as an Investment Adviser or Research Analyst.
-        </ListFooter>
-      </section>
-
-      <div className="pt-2">
-        <Button
-          variant="plain"
-          size="sm"
-          fullWidth
-          onClick={() => router.push("/disclaimer")}
-          className="text-label-secondary/50"
-        >
-          StockPilot · educational use only
-        </Button>
+      <div className="pt-1">
+        <SegmentedControl
+          options={[
+            { value: "markets", label: "StockSensei" },
+            { value: "budget", label: "BudgetSensei" },
+          ]}
+          value={activeTab}
+          onChange={(val) => setActiveTab(val as "markets" | "budget")}
+        />
       </div>
+
+      {activeTab === "markets" ? (
+        <div className="space-y-6">
+          {/* Risk tolerance */}
+          <section>
+            <SectionLabel>Risk tolerance</SectionLabel>
+            <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+              <SegmentedControl
+                options={RISK_TOLERANCES.map((value) => ({ value, label: RISK_LABELS[value] }))}
+                value={riskTolerance}
+                onChange={setRiskTolerance}
+              />
+              <p className="mt-3 text-footnote leading-relaxed text-label-secondary/65">
+                {RISK_DESCRIPTIONS[riskTolerance]}
+              </p>
+
+              {/* Showing the actual numbers keeps this from being a mystery dial. */}
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-separator/40 pt-3 dark:border-white/[0.06]">
+                <Threshold label="Minimum match score" value={`${thresholds.minConfidence}/100`} />
+                <Threshold label="Minimum reward:risk" value={`${thresholds.minRewardRisk}:1`} />
+                <Threshold
+                  label="Volume confirmation"
+                  value={`${thresholds.volumeSurgeMultiple}x average`}
+                />
+                <Threshold
+                  label="Stop distance"
+                  value={`${thresholds.stopAtrMultiple}x ATR`}
+                />
+                <Threshold label="RSI oversold / overbought" value={`${thresholds.rsiOversold} / ${thresholds.rsiOverbought}`} />
+                <Threshold label="Minimum RoE (long-term)" value={`${thresholds.minRoe}%`} />
+              </dl>
+            </div>
+            <ListFooter>
+              This tunes the thresholds every strategy screens against. Conservative surfaces fewer,
+              higher-conviction ideas; aggressive surfaces more and earlier. It changes what you see —
+              it does not change how risky any individual stock actually is.
+            </ListFooter>
+          </section>
+
+          {/* Strategies */}
+          <section>
+            <SectionLabel>Strategies</SectionLabel>
+            <ListGroup>
+              <ListRow
+                icon={<BookOpen size={17} />}
+                title="Strategies & Screen Rules"
+                subtitle="Explore how all 25 screens work, from intraday to long-term"
+                href="/strategies"
+              />
+            </ListGroup>
+          </section>
+
+          {/* Feed layout */}
+          <section>
+            <SectionLabel>Ideas layout</SectionLabel>
+            <div className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+              <SegmentedControl
+                options={FEED_VIEWS.map((value) => ({ value, label: FEED_VIEW_LABELS[value] }))}
+                value={feedView}
+                onChange={setFeedView}
+              />
+              <div className="mt-3 flex items-start gap-2 text-footnote leading-relaxed text-label-secondary/65">
+                {feedView === "card" ? (
+                  <SquaresFour size={15} className="mt-0.5 shrink-0" />
+                ) : (
+                  <List size={15} className="mt-0.5 shrink-0" />
+                )}
+                {FEED_VIEW_DESCRIPTIONS[feedView]}
+              </div>
+            </div>
+            <ListFooter>
+              Both views show the same screened ideas and the same numbers — only the density
+              changes. Cards draw the stop, buy zone and target to scale so the reward-to-risk shape
+              is visible; the list trades that picture for more ideas on screen at once.
+            </ListFooter>
+          </section>
+        </div>
+      ) : (
+        <BudgetSettingsView />
+      )}
+
+      {activeTab === "markets" ? (
+        <>
+          {/* Legal & Disclaimer */}
+          <section className="pt-2">
+            <SectionLabel>About</SectionLabel>
+            <ListGroup>
+              <ListRow
+                icon={<ShieldCheck size={17} />}
+                title="Disclaimer & risk disclosure"
+                subtitle="What this app is, and what it isn't"
+                href="/disclaimer"
+              />
+              <ListRow
+                icon={<FileText size={17} />}
+                title="How the strategies work"
+                subtitle="All 25 screens explained"
+                href="/strategies"
+              />
+            </ListGroup>
+            <ListFooter>
+              WealthSensei is a screening and educational tool covering NSE and BSE listed companies. It
+              is not a broker, holds no client funds, places no orders, and is not registered with SEBI
+              as an Investment Adviser or Research Analyst.
+            </ListFooter>
+          </section>
+
+          <div className="pt-2">
+            <Button
+              variant="plain"
+              size="sm"
+              fullWidth
+              onClick={() => router.push("/disclaimer")}
+              className="text-label-secondary/50"
+            >
+              WealthSensei · educational use only
+            </Button>
+          </div>
+        </>
+      ) : null}
     </PageContainer>
   );
 }

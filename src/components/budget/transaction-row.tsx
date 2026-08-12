@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * A single transaction line, shared by every list in the budget environment.
@@ -36,7 +37,7 @@ export function TransactionRow({
   showActions?: boolean;
 }) {
   const { byPk } = useCategoryLookup();
-  const { wallets, settings, upsertTransaction, upsertTransactions, objectives } = useBudget();
+  const { wallets, settings, upsertTransaction, upsertTransactions, objectives  } = useBudget(useShallow((s) => ({ wallets: s.wallets, settings: s.settings, upsertTransaction: s.upsertTransaction, upsertTransactions: s.upsertTransactions, objectives: s.objectives })));
 
   const category = byPk.get(transaction.categoryFk);
   const subCategory = transaction.subCategoryFk ? byPk.get(transaction.subCategoryFk) : null;
@@ -103,7 +104,10 @@ export function TransactionRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-subhead text-label">
-              {transaction.name || category?.name || "Transaction"}
+              {(() => {
+                const raw = transaction.name || category?.name || "Transaction";
+                return raw === "Cycle Payment" ? "Card Payment" : raw;
+              })()}
             </span>
             {transaction.type === TransactionSpecialType.subscription ||
             transaction.type === TransactionSpecialType.repetitive ? (
@@ -162,7 +166,7 @@ export function TransactionRow({
             type="button"
             onClick={pay}
             aria-label="Mark as paid"
-            className="rounded-full bg-green/12 p-1.5 text-green transition-colors hover:bg-green/20"
+            className="rounded-full bg-accent/15 p-1.5 text-accent transition-colors hover:bg-accent/20"
           >
             <Check size={15} />
           </button>

@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Spending visualisations: pie by category, cumulative line, and a calendar
@@ -34,7 +35,7 @@ function rangeStart(range: Range): Date {
 }
 
 export function AnalyticsView() {
-  const { allWallets, transactions, objectives, categories } = useBudget();
+  const { allWallets, transactions, objectives, categories  } = useBudget(useShallow((s) => ({ allWallets: s.allWallets, transactions: s.transactions, objectives: s.objectives, categories: s.categories })));
   const [range, setRange] = useState<Range>("month");
   const [direction, setDirection] = useState<"expense" | "income">("expense");
 
@@ -124,7 +125,7 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
   direction?: "outgoing" | "incoming";
 }) {
   const { byPk, subsByParent } = useCategoryLookup();
-  const { transactions } = useBudget();
+  const { transactions  } = useBudget(useShallow((s) => ({ transactions: s.transactions })));
   const [selectedPk, setSelectedPk] = useState<string | null>(null);
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set());
 
@@ -680,7 +681,7 @@ function getSmoothPath(points: { x: number; y: number }[], tension = 0.15): stri
 
 /** Running balance across the range. */
 export function LineGraph({ start, end }: { start: Date; end: Date }) {
-  const { transactions, allWallets } = useBudget();
+  const { transactions, allWallets  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets })));
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -927,7 +928,7 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
 
 /** GitHub-style calendar of daily spend. */
 export function Heatmap({ start, end }: { start: Date; end: Date }) {
-  const { transactions, allWallets } = useBudget();
+  const { transactions, allWallets  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets })));
   const heatmapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -984,7 +985,7 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
                   title={`${key}: ${value.toFixed(2)}`}
                   className={cn(
                     "h-3.5 w-3.5 rounded-[3px]",
-                    value === 0 && "bg-fill/12",
+                    value === 0 && "bg-fill/15",
                   )}
                   style={
                     value !== 0
@@ -1043,7 +1044,7 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
 
 /** This-month summary for the home screen. */
 export function SpendingSummaryWidget() {
-  const { transactions, allWallets, objectives } = useBudget();
+  const { transactions, allWallets, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives })));
 
   const summary = useMemo(() => {
     return getSpendingSummary(allWallets, transactions, objectives);
@@ -1107,7 +1108,7 @@ export function CategoryStackedBar({ byCategory, title }: { byCategory: Map<stri
 
 /** All-time category breakdown widget for the home screen (Pie charts). */
 export function CategoryBreakdownWidget() {
-  const { transactions, allWallets, objectives } = useBudget();
+  const { transactions, allWallets, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives })));
   const [mobileTab, setMobileTab] = useState<"outgoing" | "incoming">("outgoing");
 
   const expenseTotals = useMemo(
@@ -1195,24 +1196,214 @@ export function CategoryBreakdownWidget() {
   );
 }
 
-/** All-time category stacked bars widget for the home screen. */
-export function CategoryStackedBarWidget() {
-  const { transactions, allWallets, objectives, categories } = useBudget();
+/** ─── Spending Insights Widget ─── */
 
-  const expenseByCategory = useMemo(() => {
-    return getSpendingByCategory(allWallets, transactions, { income: false }, objectives);
-  }, [transactions, allWallets, objectives, categories]);
+import {
+  TrendUp,
+  TrendDown,
+  Tag,
+  PiggyBank,
+  Warning,
+  CurrencyCircleDollar,
+  ChartBar,
+  Receipt,
+} from "@phosphor-icons/react";
 
-  const incomeByCategory = useMemo(() => {
-    return getSpendingByCategory(allWallets, transactions, { income: true }, objectives);
-  }, [transactions, allWallets, objectives, categories]);
+interface Insight {
+  icon: React.ReactNode;
+  text: string;
+  color: string;
+  bgColor: string;
+}
+
+/**
+ * Smart spending insights widget for the home screen.
+ *
+ * Computes real insights from transaction data: month-over-month comparisons,
+ * top category share, savings rate, biggest single expense, average daily spend.
+ */
+export function SpendingInsightsWidget() {
+  const { transactions, allWallets, objectives, categories  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives, categories: s.categories })));
+  const { byPk } = useCategoryLookup();
+
+  const insights = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    // Filter transactions by month
+    const thisMonth = transactions.filter((t) => {
+      const d = new Date(t.dateCreated);
+      return d >= thisMonthStart && d <= now;
+    });
+    const lastMonth = transactions.filter((t) => {
+      const d = new Date(t.dateCreated);
+      return d >= lastMonthStart && d <= lastMonthEnd;
+    });
+
+    // Compute totals for this month
+    let thisExpense = 0;
+    let thisIncome = 0;
+    const thisCatSpend = new Map<string, number>();
+    let biggestExpName = "";
+    let biggestExpAmount = 0;
+
+    for (const t of thisMonth) {
+      if (t.type !== null) continue;
+      const amt = Math.abs(t.amount);
+      if (t.income) {
+        thisIncome += amt;
+      } else {
+        thisExpense += amt;
+        thisCatSpend.set(t.categoryFk, (thisCatSpend.get(t.categoryFk) ?? 0) + amt);
+        if (amt > biggestExpAmount) {
+          biggestExpAmount = amt;
+          biggestExpName = t.name || "Unnamed";
+        }
+      }
+    }
+
+    // Last month expense total
+    let lastExpense = 0;
+    for (const t of lastMonth) {
+      if (t.type !== null) continue;
+      if (!t.income) lastExpense += Math.abs(t.amount);
+    }
+
+    const result: Insight[] = [];
+
+    // 1. Month-over-month spending change
+    if (lastExpense > 0 && thisExpense > 0) {
+      const change = ((thisExpense - lastExpense) / lastExpense) * 100;
+      if (Math.abs(change) >= 5) {
+        const up = change > 0;
+        result.push({
+          icon: up
+            ? <TrendUp size={15} weight="regular" className="text-red" />
+            : <TrendDown size={15} weight="regular" className="text-green" />,
+          text: up
+            ? `Spending is up ${Math.round(Math.abs(change))}% compared to last month`
+            : `Spending is down ${Math.round(Math.abs(change))}% compared to last month — nice!`,
+          color: up ? "text-red" : "text-green",
+          bgColor: up ? "bg-red/10" : "bg-green/10",
+        });
+      }
+    }
+
+    // 2. Top category share
+    if (thisCatSpend.size > 0 && thisExpense > 0) {
+      const sorted = [...thisCatSpend.entries()].sort((a, b) => b[1] - a[1]);
+      const [topPk, topAmount] = sorted[0];
+      const topCat = byPk.get(topPk);
+      const share = Math.round((topAmount / thisExpense) * 100);
+      if (share >= 15) {
+        result.push({
+          icon: <Tag size={15} weight="regular" className="text-amber" />,
+          text: `${topCat?.name ?? "Top category"} takes ${share}% of this month's spending`,
+          color: "text-amber",
+          bgColor: "bg-amber/10",
+        });
+      }
+    }
+
+    // 3. Savings rate
+    if (thisIncome > 0) {
+      const savingsRate = Math.round(((thisIncome - thisExpense) / thisIncome) * 100);
+      if (savingsRate > 0) {
+        result.push({
+          icon: <PiggyBank size={15} weight="regular" className={savingsRate >= 20 ? "text-green" : "text-amber"} />,
+          text: `Saving ${savingsRate}% of income this month`,
+          color: savingsRate >= 20 ? "text-green" : "text-amber",
+          bgColor: savingsRate >= 20 ? "bg-green/10" : "bg-amber/10",
+        });
+      } else {
+        result.push({
+          icon: <Warning size={15} weight="regular" className="text-red" />,
+          text: `Spending exceeds income by ₹${Math.abs(Math.round(thisIncome - thisExpense)).toLocaleString("en-IN")}`,
+          color: "text-red",
+          bgColor: "bg-red/10",
+        });
+      }
+    }
+
+    // 4. Biggest single expense
+    if (biggestExpAmount > 0 && thisExpense > 0) {
+      const share = Math.round((biggestExpAmount / thisExpense) * 100);
+      if (share >= 10) {
+        const displayName = biggestExpName === "Cycle Payment" ? "Card Payment" : biggestExpName;
+        result.push({
+          icon: <CurrencyCircleDollar size={15} weight="regular" className="text-purple" />,
+          text: `"${displayName}" was the biggest expense at ₹${Math.round(biggestExpAmount).toLocaleString("en-IN")}`,
+          color: "text-label-secondary",
+          bgColor: "bg-purple/10",
+        });
+      }
+    }
+
+    // 5. Average daily spend
+    if (thisExpense > 0) {
+      const daysSoFar = Math.max(1, now.getDate());
+      const avgDaily = Math.round(thisExpense / daysSoFar);
+      result.push({
+        icon: <ChartBar size={15} weight="regular" className="text-blue" />,
+        text: `Averaging ₹${avgDaily.toLocaleString("en-IN")} per day this month`,
+        color: "text-blue",
+        bgColor: "bg-blue/10",
+      });
+    }
+
+    // 6. Transaction count
+    const thisExpCount = thisMonth.filter((t) => !t.income && t.type === null).length;
+    if (thisExpCount > 0) {
+      result.push({
+        icon: <Receipt size={15} weight="regular" className="text-teal" />,
+        text: `${thisExpCount} expense transactions recorded this month`,
+        color: "text-label-secondary",
+        bgColor: "bg-teal/10",
+      });
+    }
+
+    return result.slice(0, 4); // Show top 4 insights
+  }, [transactions, allWallets, objectives, categories, byPk]);
+
+  if (insights.length === 0) {
+    return null;
+  }
 
   return (
-    <Card className="flex flex-col gap-5 justify-center h-full !py-6">
-      <CategoryStackedBar byCategory={expenseByCategory} title="All-Time Expenses" />
-      <CategoryStackedBar byCategory={incomeByCategory} title="All-Time Income" />
+    <Card>
+      <p className="text-caption uppercase tracking-wide text-label-secondary/50 mb-3">
+        Spending Insights
+      </p>
+      <div className="flex flex-col gap-3">
+        {insights.map((insight, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3"
+          >
+            <div className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-ios",
+              insight.bgColor,
+            )}>
+              {insight.icon}
+            </div>
+            <p className="text-footnote leading-snug text-label">
+              {insight.text}
+            </p>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
 
+/** Kept for backwards compatibility — wraps the old stacked bars as an alias. */
+export function CategoryStackedBarWidget() {
+  return <SpendingInsightsWidget />;
+}
+
 export { dayKey };
+

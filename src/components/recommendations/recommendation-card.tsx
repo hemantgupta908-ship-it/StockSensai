@@ -36,85 +36,92 @@ export function RecommendationCard({
           delay: Math.min(index * 0.045, 0.35),
         }}
         className={cn(
-          "flex flex-col h-full min-h-[290px] rounded-[20px] bg-bg-secondary",
-          "border border-black/[0.04] dark:border-white/[0.06]",
-          "shadow-[0_4px_24px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgb(0,0,0,0.08)]",
-          "dark:shadow-[0_4px_24px_rgb(0,0,0,0.2)] dark:hover:shadow-[0_8px_32px_rgb(0,0,0,0.3)]",
+          "flex flex-col h-full rounded-[22px] bg-bg-secondary",
+          "border border-separator/30 dark:border-white/[0.08]",
+          "shadow-card hover:shadow-md",
           "transition-all duration-300 ease-out",
           "overflow-hidden group",
         )}
       >
         <Link href={`/stock/${r.ticker}?strategy=${r.strategyId}`} className="flex-1 flex flex-col transition-transform duration-150 active:scale-[0.985]">
-          <div className="px-5 pt-4 pb-2 flex-1 flex flex-col">
-
-              {/* Header: Ticker + Confidence */}
+          <div className="px-5 pt-4 pb-2.5 flex-1 flex flex-col justify-between">
+            <div>
+              {/* Top Row: Ticker + Exchange + Match Score Pill */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
-                  <h3 className="text-xl font-extrabold tracking-tight text-label">
+                  <h3 className="text-lg font-bold tracking-tight text-label">
                     {r.ticker}
                   </h3>
                   <ExchangeBadge exchange={r.exchange} />
                 </div>
-                <ConfidenceRing score={r.confidenceScore} size={44} />
+                <div className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-caption2 font-bold text-emerald-600 dark:text-emerald-400">
+                  <span>{r.confidenceScore}% Match</span>
+                </div>
               </div>
 
-              {/* Price + Change */}
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="numeric text-lg font-bold text-label">
-                  {formatINR(r.price)}
-                </span>
-                <ChangePill value={r.changePercent} />
+              {/* Price Spotlight + Company Name */}
+              <div className="mt-0.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="numeric text-lg font-bold text-label">
+                    {formatINR(r.price)}
+                  </span>
+                  <ChangePill value={r.changePercent} />
+                </div>
+                <p className="mt-0.5 truncate text-caption font-medium text-label-secondary/70">{r.name}</p>
               </div>
 
-              {/* Company name */}
-              <p className="mt-0.5 truncate text-[13px] text-label-secondary/70">{r.name}</p>
-
-              {/* Strategy + Sector badges */}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge tone="blue">
-                  <TrendUp size={11} />
-                  {r.strategyName}
-                </Badge>
-                <Badge tone="neutral">{r.sector}</Badge>
-              </div>
-
-              {/* Price ladder — pushed to bottom with breathing space */}
-              <div className="mt-auto pt-4">
-                <RangeGauge
-                  buyLow={r.buyRange.low}
-                  buyHigh={r.buyRange.high}
-                  sellLow={r.sellRange.low}
-                  sellHigh={r.sellRange.high}
-                  stopLoss={r.stopLoss}
-                  currentPrice={r.price}
-                />
+              {/* 2-Pill Trade Level Spotlight (Robinhood / Smallcase style) */}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-emerald-500/[0.08] p-2.5 dark:bg-emerald-500/[0.12] border border-emerald-500/20">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Buy Zone</span>
+                  <span className="numeric text-caption font-extrabold text-label">
+                    {formatINR(r.buyRange.low)} – {formatINR(r.buyRange.high)}
+                  </span>
+                </div>
+                <div className="rounded-xl bg-blue/[0.08] p-2.5 dark:bg-blue/[0.12] border border-blue/20">
+                  <div className="flex items-center justify-between">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-blue">Target</span>
+                    <span className="text-[10px] font-extrabold text-green">+{estGain.toFixed(1)}%</span>
+                  </div>
+                  <span className="numeric text-caption font-extrabold text-label">
+                    {formatINR(r.sellRange.low)} – {formatINR(r.sellRange.high)}
+                  </span>
+                </div>
               </div>
             </div>
-          </Link>
 
-        {/* Footer */}
-        <div className="flex items-center gap-2 px-5 py-3 relative">
-          <div className="absolute top-0 left-5 right-5 h-[1px] bg-black/[0.05] dark:bg-white/[0.05]" />
+            {/* Position Gauge */}
+            <div className="pt-3">
+              <RangeGauge
+                buyLow={r.buyRange.low}
+                buyHigh={r.buyRange.high}
+                sellLow={r.sellRange.low}
+                sellHigh={r.sellRange.high}
+                stopLoss={r.stopLoss}
+                currentPrice={r.price}
+              />
+            </div>
+          </div>
+        </Link>
 
-          <RiskBadge level={r.riskLevel} />
+        {/* Footer Action Strip */}
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-separator/30 dark:border-white/[0.06] bg-bg-secondary">
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge tone="blue" className="truncate">
+              <TrendUp size={11} />
+              {r.strategyName}
+            </Badge>
+            <RiskBadge level={r.riskLevel} />
+          </div>
 
-          <span className="flex items-center gap-1 text-xs font-medium text-label-secondary/60">
-            <Clock size={12} />
-            {r.holdPeriodLabel}
-          </span>
-          <span className="flex items-center gap-1 text-xs font-bold text-green/90">
-            <Target size={12} />
-            +{estGain.toFixed(1)}%
-          </span>
-
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 setInfoOpen(true);
               }}
-              className="flex items-center justify-center w-7 h-7 rounded-full bg-black/[0.04] text-label-secondary hover:bg-blue/15 hover:text-blue transition-colors dark:bg-white/[0.08]"
+              className="flex items-center justify-center w-7 h-7 rounded-full bg-fill/[0.08] text-label-secondary hover:bg-accent/15 hover:text-accent transition-colors dark:bg-white/[0.08]"
               title="Strategy explanation"
               aria-label="View strategy explanation"
             >

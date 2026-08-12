@@ -1,0 +1,7 @@
+perf: implement list virtualization and Zustand state management
+
+- Added react-virtual to transaction list view
+- Lazy loaded heavy charts with next/dynamic
+- Added prefetch to navigation links
+- Migrated BudgetProvider to use Zustand bridge to prevent unnecessary re-renders
+- Updated useBudget consumers to use useShallow selectors

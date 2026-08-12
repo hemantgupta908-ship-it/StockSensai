@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * The budget home screen.
@@ -85,7 +86,7 @@ const DEFAULT_ORDER = [
 ];
 
 export function BudgetDashboard() {
-  const { transactions, allWallets, settings, loading, updateSettings } = useBudget();
+  const { transactions, allWallets, settings, loading, updateSettings  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, settings: s.settings, loading: s.loading, updateSettings: s.updateSettings })));
   const [addOpen, setAddOpen] = useState(false);
   const [netWorthSettingsOpen, setNetWorthSettingsOpen] = useState(false);
 
@@ -179,7 +180,7 @@ export function BudgetDashboard() {
         key="netWorth"
         type="button"
         onClick={() => setNetWorthSettingsOpen(true)}
-        className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-green w-full"
+        className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent w-full"
       >
         <Card className="relative overflow-hidden flex flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
           {/* Subtle Background Net Worth Sparkline Curve */}
@@ -193,7 +194,7 @@ export function BudgetDashboard() {
                 <defs>
                   {/* Fine dot pattern (smaller dots r=0.45, 4.5px grid spacing) */}
                   <pattern id="dotGridPattern" x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
-                    <circle cx="1.5" cy="1.5" r="0.45" fill="var(--budget-accent, #007AFF)" opacity="0.85" />
+                    <circle cx="1.5" cy="1.5" r="0.45" fill="var(--accent, #007AFF)" opacity="0.85" />
                   </pattern>
 
                   {/* Vertical Fade Mask: 100% white at top near curve, fading to black at bottom */}
@@ -213,8 +214,8 @@ export function BudgetDashboard() {
                   </mask>
 
                   <linearGradient id="netWorthCardSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--budget-accent, #007AFF)" stopOpacity="0.12" />
-                    <stop offset="100%" stopColor="var(--budget-accent, #007AFF)" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="var(--accent, #007AFF)" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
@@ -236,7 +237,7 @@ export function BudgetDashboard() {
                 <polyline
                   points={sparklineData.pointsStr}
                   fill="none"
-                  stroke="var(--budget-accent, #007AFF)"
+                  stroke="var(--accent, #007AFF)"
                   strokeWidth="1"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -253,7 +254,7 @@ export function BudgetDashboard() {
       </button>
     ) : null,
     walletSwitcher: settings.showWalletSwitcher ? (
-      <Section key="walletSwitcher" title="Accounts" className="!mb-0">
+      <Section key="walletSwitcher" className="!mb-0">
         <AccountsSummary />
       </Section>
     ) : null,
@@ -351,7 +352,7 @@ export function BudgetDashboard() {
             <button 
               type="button" 
               onClick={() => setNetWorthSettingsOpen(true)}
-              className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-green"
+              className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Card className="relative overflow-hidden flex h-full flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
                 {/* Subtle Background Net Worth Sparkline Curve */}
@@ -364,7 +365,7 @@ export function BudgetDashboard() {
                     >
                       <defs>
                         <pattern id="dotGridDesktopPattern" x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
-                          <circle cx="1.5" cy="1.5" r="0.45" fill="var(--budget-accent, #007AFF)" opacity="0.85" />
+                          <circle cx="1.5" cy="1.5" r="0.45" fill="var(--accent, #007AFF)" opacity="0.85" />
                         </pattern>
                         <linearGradient id="dotFadeDesktopGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="white" stopOpacity="1" />
@@ -379,8 +380,8 @@ export function BudgetDashboard() {
                           />
                         </mask>
                         <linearGradient id="netWorthDesktopSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--budget-accent, #007AFF)" stopOpacity="0.12" />
-                          <stop offset="100%" stopColor="var(--budget-accent, #007AFF)" stopOpacity="0.0" />
+                          <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.12" />
+                          <stop offset="100%" stopColor="var(--accent, #007AFF)" stopOpacity="0.0" />
                         </linearGradient>
                       </defs>
                       <rect
@@ -398,7 +399,7 @@ export function BudgetDashboard() {
                       <polyline
                         points={sparklineData.pointsStr}
                         fill="none"
-                        stroke="var(--budget-accent, #007AFF)"
+                        stroke="var(--accent, #007AFF)"
                         strokeWidth="1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -419,7 +420,7 @@ export function BudgetDashboard() {
 
           <div className="min-w-0 space-y-4">
             {settings.showWalletSwitcher ? (
-              <Section title="Accounts" className="!mb-0">
+              <Section className="!mb-0">
                 <AccountsSummary />
               </Section>
             ) : null}
@@ -523,7 +524,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function DashboardHeaderAction() {
-  const { settings, updateSettings, wallets, exportDatabase, replaceDatabase, transactions } = useBudget();
+  const { settings, updateSettings, wallets, exportDatabase, replaceDatabase, transactions  } = useBudget(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings, wallets: s.wallets, exportDatabase: s.exportDatabase, replaceDatabase: s.replaceDatabase, transactions: s.transactions })));
   const [open, setOpen] = useState(false);
   const [editTab, setEditTab] = useState<"widgets" | "accounts">("widgets");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -746,7 +747,7 @@ export function DashboardHeaderAction() {
                     onDragEnd={() => setDraggedIndex(null)}
                     className={cn(
                       "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-border/20 select-none",
-                      draggedIndex === index && "opacity-40 scale-[0.98] border-green/50",
+                      draggedIndex === index && "opacity-40 scale-[0.98] border-accent/50",
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -825,7 +826,7 @@ export function DashboardHeaderAction() {
                         <button
                           type="button"
                           onClick={() => updateSettings({ [meta.settingKey]: true })}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green/15 text-green transition-transform hover:bg-green/25 active:scale-95"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent transition-transform hover:bg-accent/25 active:scale-95"
                           title="Add to home screen"
                         >
                           <Plus size={15} weight="bold" />
@@ -857,7 +858,7 @@ export function DashboardHeaderAction() {
                     onDragEnd={() => setDraggedAccountIndex(null)}
                     className={cn(
                       "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-border/20 select-none",
-                      draggedAccountIndex === index && "opacity-40 scale-[0.98] border-green/50",
+                      draggedAccountIndex === index && "opacity-40 scale-[0.98] border-accent/50",
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -957,7 +958,7 @@ export function DashboardHeaderAction() {
                             const newHidden = (settings.homePageHidden ?? []).filter((id) => id !== wallet.walletPk);
                             updateSettings({ homePageHidden: newHidden });
                           }}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green/15 text-green transition-transform hover:bg-green/25 active:scale-95"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent transition-transform hover:bg-accent/25 active:scale-95"
                           title="Add to home screen"
                         >
                           <Plus size={15} weight="bold" />
@@ -991,7 +992,7 @@ export function NetWorthSettingsModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { allWallets, upsertWallet, settings, updateSettings } = useBudget();
+  const { allWallets, upsertWallet, settings, updateSettings  } = useBudget(useShallow((s) => ({ allWallets: s.allWallets, upsertWallet: s.upsertWallet, settings: s.settings, updateSettings: s.updateSettings })));
 
   return (
     <Sheet open={open} onClose={onClose} title="Net Worth Settings">

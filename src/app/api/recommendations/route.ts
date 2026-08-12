@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   try {
     const feed = await getCachedFeed(style, tolerance, { force: refresh === "1" });
     return NextResponse.json(feed, {
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
     });
   } catch (error) {
     console.error("[api/recommendations] failed:", error);

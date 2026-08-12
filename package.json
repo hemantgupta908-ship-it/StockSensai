@@ -1,5 +1,5 @@
 {
-  "name": "stocksensei",
+  "name": "wealthsensei",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,12 +12,16 @@
     "check:budget": "tsx scripts/check-budget-period.ts",
     "check:symbols": "tsx scripts/check-symbols.ts",
     "smoke:yahoo": "tsx --tsconfig scripts/tsconfig.json scripts/smoke-yahoo.ts",
-    "debug:scenarios": "tsx scripts/debug-scenarios.ts"
+    "debug:scenarios": "tsx scripts/debug-scenarios.ts",
+    "check:geometry": "tsx --tsconfig scripts/tsconfig.json scripts/check-geometry.ts",
+    "check:feed": "tsx --tsconfig scripts/tsconfig.json scripts/check-feed-geometry.ts",
+    "check:all": "npm run typecheck && npm run check:geometry && npm run check:feed"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
+    "@tanstack/react-virtual": "^3.14.9",
     "clsx": "^2.1.1",
     "framer-motion": "^11.18.0",
     "lightweight-charts": "^4.2.3",
@@ -28,7 +32,8 @@
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.6.0",
     "xlsx": "^0.18.5",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",

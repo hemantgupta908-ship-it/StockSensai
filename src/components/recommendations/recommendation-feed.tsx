@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { CircleNotch, Flask, Radio, WarningCircle } from "@phosphor-icons/react";
+import { CircleNotch, Flask, ListBullets, Radio, SquaresFour, WarningCircle } from "@phosphor-icons/react";
 
 import type { RecommendationFeed as FeedPayload } from "@/lib/engine/types";
 import type { TradingStyle } from "@/lib/strategies/types";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/strategies/types";
 import { usePreferences } from "@/components/preferences-provider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SearchField } from "@/components/ui/search-field";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { RecommendationCardSkeleton, RecommendationRowSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -35,35 +36,33 @@ const FEED_GRID =
  *  the aligning, and a second column would break the scan down them. */
 const FEED_LIST = "flex flex-col gap-2";
 
-const STYLE_OPTIONS: { value: TradingStyle; label: string; caption: string }[] =
+const STYLE_OPTIONS: { value: TradingStyle; label: string }[] =
   TRADING_STYLES.map((value) => ({
     value,
     label: TRADING_STYLE_LABELS[value],
-    caption: TRADING_STYLE_CAPTIONS[value],
   }));
 
+function getInitialClientCache(): Record<string, FeedPayload> {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = localStorage.getItem("stocksensei.feed_cache");
+    return stored ? (JSON.parse(stored) as Record<string, FeedPayload>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function RecommendationFeed() {
-  const { riskTolerance, tradingStyle, setTradingStyle, feedView, hydrated } = usePreferences();
+  const { riskTolerance, tradingStyle, setTradingStyle, feedView, setFeedView, hydrated } = usePreferences();
   const [feed, setFeed] = useState<FeedPayload | null>(null);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Guards against a slow earlier request overwriting a newer one when the user
   // flicks between styles quickly.
   const requestId = useRef(0);
-  const clientFeedCache = useRef<Record<string, FeedPayload>>({});
-
-  // Initialize client cache from localStorage for 0ms instant initial render
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("stocksensei.feed_cache");
-      if (stored) {
-        clientFeedCache.current = JSON.parse(stored) as Record<string, FeedPayload>;
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  const clientFeedCache = useRef<Record<string, FeedPayload>>(getInitialClientCache());
 
   const load = useCallback(
     async (style: TradingStyle, tolerance: string, force = false) => {
@@ -82,7 +81,14 @@ export function RecommendationFeed() {
       try {
         const params = new URLSearchParams({ style, tolerance });
         if (force) params.set("refresh", "1");
-        const response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
+        let response: Response;
+        try {
+          response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
+        } catch {
+          // Retry once if server is restarting or connection flickered
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
+        }
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
         const data = (await response.json()) as FeedPayload;
         if (!data || !Array.isArray(data.recommendations)) {
@@ -119,29 +125,51 @@ export function RecommendationFeed() {
     await load(tradingStyle, riskTolerance, true);
   }, [load, tradingStyle, riskTolerance]);
 
+  const filteredRecommendations = useCallback(() => {
+    if (!feed) return [];
+    if (!query.trim()) return feed.recommendations;
+    const q = query.trim().toLowerCase();
+    return feed.recommendations.filter(
+      (r) =>
+        r.ticker.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        r.sector.toLowerCase().includes(q) ||
+        r.strategyName.toLowerCase().includes(q),
+    );
+  }, [feed, query])();
+
   const showSkeletons = loading && !feed;
 
   return (
     <div>
-      <PageContainer>
-        {/* The switcher shouldn't stretch to full width on a desktop — a
-            segmented control several hundred pixels wide stops reading as one.
-            Five styles need more room than three did, but not the whole width. */}
-        <div className="lg:max-w-3xl">
+      <PageContainer className="pt-3 sm:pt-5 mb-2">
+        <div className="lg:max-w-3xl space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search stock ideas (e.g. SBIN, Tata Power)..."
+                className="!mb-0"
+              />
+            </div>
+            <RefreshButton
+              variant="icon"
+              onRefresh={refresh}
+              loading={loading}
+              label="Refresh stock recommendations"
+            />
+          </div>
           <SegmentedControl
             options={STYLE_OPTIONS}
             value={tradingStyle}
             onChange={setTradingStyle}
-            size="lg"
             fit
           />
         </div>
-        <p className="mt-2.5 px-1 text-footnote leading-snug text-label-secondary/60">
-          {TRADING_STYLE_DESCRIPTIONS[tradingStyle]}
-        </p>
       </PageContainer>
 
-      {feed && <FeedMeta feed={feed} onRefresh={refresh} loading={loading} />}
+      {feed && <FeedMeta feed={feed} feedView={feedView} onToggleView={setFeedView} />}
 
       <PullToRefresh onRefresh={refresh}>
         <PageContainer className="space-y-3 pt-3">
@@ -193,16 +221,13 @@ export function RecommendationFeed() {
           */}
           {!error && feed && (
             <motion.div
-              // Keyed on the view too, so switching layout remounts rather than
-              // trying to reconcile cards into rows — the same reasoning as the
-              // style key above.
-              key={`${feed.style}:${feedView}`}
+              key={`${feed.style}:${feedView}:${query}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: loading ? 0.55 : 1, y: 0 }}
               transition={{ duration: 0.18 }}
               className={feedView === "list" ? FEED_LIST : FEED_GRID}
             >
-              {feed.recommendations.map((recommendation, index) =>
+              {filteredRecommendations.map((recommendation, index) =>
                 feedView === "list" ? (
                   <RecommendationRow
                     key={recommendation.id}
@@ -218,7 +243,7 @@ export function RecommendationFeed() {
                 ),
               )}
 
-              {feed.recommendations.length === 0 && (
+              {filteredRecommendations.length === 0 && (
                 <div className={feedView === "list" ? "" : "md:col-span-2 2xl:col-span-3 3xl:col-span-4"}>
                   <EmptyState style={feed.style} />
                 </div>
@@ -233,15 +258,15 @@ export function RecommendationFeed() {
 
 function FeedMeta({
   feed,
-  onRefresh,
-  loading,
+  feedView,
+  onToggleView,
 }: {
   feed: FeedPayload;
-  onRefresh: () => Promise<void>;
-  loading: boolean;
+  feedView: "card" | "list";
+  onToggleView: (view: "card" | "list") => void;
 }) {
   return (
-    <PageContainer className="mt-3 flex flex-wrap items-center justify-between gap-2">
+    <PageContainer className="mt-2.5 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <span
           className={cnBadge(feed.isLiveData)}
@@ -263,12 +288,36 @@ function FeedMeta({
           {timeAgo(feed.generatedAt)}
         </span>
       </div>
-      <RefreshButton
-        variant="pill"
-        onRefresh={onRefresh}
-        loading={loading}
-        label="Refresh ideas"
-      />
+
+      {/* Card vs List View Toggle Pill */}
+      <div className="flex items-center gap-0.5 rounded-full bg-fill/[0.10] p-0.5 dark:bg-white/[0.10]">
+        <button
+          type="button"
+          onClick={() => onToggleView("card")}
+          className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+            feedView === "card"
+              ? "bg-bg-secondary text-accent shadow-sm"
+              : "text-label-secondary/60 hover:text-label"
+          }`}
+          title="Card view"
+          aria-label="Switch to Card view"
+        >
+          <SquaresFour size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggleView("list")}
+          className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+            feedView === "list"
+              ? "bg-bg-secondary text-accent shadow-sm"
+              : "text-label-secondary/60 hover:text-label"
+          }`}
+          title="List view"
+          aria-label="Switch to List view"
+        >
+          <ListBullets size={14} />
+        </button>
+      </div>
     </PageContainer>
   );
 }

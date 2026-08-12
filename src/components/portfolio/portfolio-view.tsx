@@ -57,28 +57,10 @@ export function PortfolioView() {
   }, [entries, statusFilter, styleFilter]);
 
   const navBarProps = {
-    title: "Portfolio & Journal",
-    largeTitle: true,
+    title: "Portfolio",
     width: "wide" as const,
-    subtitle: "Real-time position tracking and trade analytics",
-    trailing: (
-      <div className="flex items-center gap-1.5">
-        <RefreshButton
-          onRefresh={refetch}
-          loading={refreshing}
-          label="Refresh quotes"
-        />
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setAddSheetOpen(true)}
-          className="inline-flex h-9 items-center gap-1 rounded-full bg-blue px-3 text-caption font-semibold text-white shadow-sm"
-          title="Add new position"
-        >
-          <Plus size={15} />
-          <span>Add</span>
-        </motion.button>
-      </div>
-    ),
+    hideSearch: true,
+    hideThemeToggle: true,
   };
 
   const exportCSV = () => {
@@ -155,6 +137,16 @@ export function PortfolioView() {
               </Link>
             </div>
           </div>
+          {/* Floating Add Position Action Button */}
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setAddSheetOpen(true)}
+            className="fixed bottom-[80px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#2c2c2e] text-white shadow-xl transition-transform active:scale-95 lg:bottom-8 lg:right-8 dark:bg-white dark:text-black"
+            title="Add stock position"
+            aria-label="Add stock position"
+          >
+            <Plus size={26} />
+          </motion.button>
         </PageContainer>
 
         <AddPositionSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} />
@@ -307,6 +299,17 @@ export function PortfolioView() {
         <AddPositionSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} />
         <CloseSheet entry={closing} onDismiss={() => setClosing(null)} onConfirm={close} />
         <EditSheet entry={editing} onDismiss={() => setEditing(null)} onConfirm={update} />
+
+        {/* Floating Add Position Action Button */}
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setAddSheetOpen(true)}
+          className="fixed bottom-[80px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#2c2c2e] text-white shadow-xl transition-transform active:scale-95 lg:bottom-8 lg:right-8 dark:bg-white dark:text-black"
+          title="Add stock position"
+          aria-label="Add stock position"
+        >
+          <Plus size={26} />
+        </motion.button>
       </PageContainer>
     </>
   );

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <>
-      <NavBar title="Settings" largeTitle width="wide" />
+      <NavBar title="Settings" hideSearch hideThemeToggle width="wide" />
       <main>
         <SettingsView />
       </main>

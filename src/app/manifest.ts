@@ -10,8 +10,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "StockSensei — NSE & BSE stock screener",
-    short_name: "StockSensei",
+    name: "WealthSensei — NSE & BSE stock screener",
+    short_name: "WealthSensei",
     description:
       "Rule-based screens for Indian stocks across intraday, short-term, swing, positional and long-term styles. An educational screener, not investment advice.",
     start_url: "/home",
@@ -32,7 +32,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Ideas", url: "/home", description: "Today's screened ideas" },
       { name: "Watchlist", url: "/watchlist", description: "Stocks you're following" },
-      { name: "Journal", url: "/portfolio", description: "Positions you've logged" },
+      { name: "Portfolio", url: "/portfolio", description: "Positions you've logged" },
     ],
   };
 }

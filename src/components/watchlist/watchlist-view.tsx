@@ -22,17 +22,9 @@ export function WatchlistView() {
 
   const navBarProps = {
     title: "Watchlist",
-    largeTitle: true,
     width: "wide" as const,
-    subtitle: "Stocks you're following",
-    trailing:
-      items.length > 0 ? (
-        <RefreshButton
-          onRefresh={refetch}
-          loading={refreshing}
-          label="Refresh watchlist quotes"
-        />
-      ) : undefined,
+    hideSearch: true,
+    hideThemeToggle: true,
   };
 
   if (loading) {

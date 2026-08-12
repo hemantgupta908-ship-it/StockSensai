@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { CONTAINER_WIDTHS, type ContainerWidth } from "./page-container";
 import { StockSearchModal } from "@/components/stock/stock-search-modal";
-import { EnvironmentSwitcherCompact } from "./environment-switcher";
 import { MobileSidebar } from "./mobile-sidebar";
 
 interface NavBarProps {
@@ -23,6 +22,8 @@ interface NavBarProps {
   showBack?: boolean;
   subtitle?: string;
   trailing?: React.ReactNode;
+  hideSearch?: boolean;
+  hideThemeToggle?: boolean;
   /**
    * Content width. Must match the page's own PageContainer, or the large title
    * won't line up with the content beneath it.
@@ -36,6 +37,8 @@ export function NavBar({
   showBack,
   subtitle,
   trailing,
+  hideSearch = false,
+  hideThemeToggle = false,
   width = "wide",
 }: NavBarProps) {
   const router = useRouter();
@@ -78,7 +81,7 @@ export function NavBar({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => router.back()}
-              className="-ml-1 flex items-center gap-0.5 rounded-lg px-1 py-1 text-blue"
+              className="-ml-1 flex items-center gap-0.5 rounded-lg px-1 py-1 text-accent"
               aria-label="Go back"
             >
               <CaretLeft size={26} />
@@ -86,16 +89,21 @@ export function NavBar({
             </motion.button>
           ) : (
             <button
+              type="button"
               onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg p-1.5 text-label transition-colors hover:bg-fill/[0.12] lg:hidden"
+              className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
               aria-label="Open menu"
               title="Open Navigation List"
             >
-              <List size={22} />
+              <div className="flex w-[18px] flex-col gap-[4px]">
+                <span className="h-[2px] w-full rounded-full bg-current" />
+                <span className="h-[2px] w-full rounded-full bg-current" />
+                <span className="h-[2px] w-full rounded-full bg-current" />
+              </div>
             </button>
           )}
 
-          <div className="flex flex-1 justify-center overflow-hidden px-2">
+          <div className="flex flex-1 items-center justify-start overflow-hidden px-1 sm:px-2">
             {title ? (
               <motion.h1
                 animate={{
@@ -111,21 +119,19 @@ export function NavBar({
           </div>
 
           <div className="flex min-w-[44px] items-center justify-end gap-1.5">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-1.5 rounded-full bg-fill/[0.12] px-2.5 py-1 text-caption2 font-semibold text-label-secondary transition-colors hover:bg-fill/[0.20] hover:text-label dark:bg-white/[0.08] dark:hover:bg-white/[0.15]"
-              title="Search and Evaluate Stock (Ctrl+K)"
-            >
-              <MagnifyingGlass size={14} className="text-blue" />
-              <span className="hidden sm:inline">Evaluate Stock</span>
-              <kbd className="hidden font-mono text-[10px] opacity-60 md:inline">⌘K</kbd>
-            </button>
-            {/* Below `lg` there is no sidebar, so the crossing point lives here. */}
-            <span className="lg:hidden">
-              <EnvironmentSwitcherCompact active="stocks" />
-            </span>
+            {!hideSearch && (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-1.5 rounded-full bg-fill/[0.12] px-2.5 py-1 text-caption2 font-semibold text-label-secondary transition-colors hover:bg-fill/[0.20] hover:text-label dark:bg-white/[0.08] dark:hover:bg-white/[0.15]"
+                title="Search and Evaluate Stock (Ctrl+K)"
+              >
+                <MagnifyingGlass size={14} className="text-accent" />
+                <span className="hidden sm:inline">Evaluate Stock</span>
+                <kbd className="hidden font-mono text-[10px] opacity-60 md:inline">⌘K</kbd>
+              </button>
+            )}
             {trailing}
-            <ThemeToggle />
+            {!hideThemeToggle && <ThemeToggle />}
           </div>
         </div>
       </header>

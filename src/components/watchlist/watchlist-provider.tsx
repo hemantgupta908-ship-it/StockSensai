@@ -71,20 +71,46 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Migrate any locally saved rows into the account on first load.
+      /*
+       * Migrate any locally saved rows into the account on first load.
+       *
+       * The local copy is only cleared once the upload has actually succeeded.
+       * Previously `writeLocal([])` ran unconditionally straight after the
+       * upsert, so any failure — offline, RLS, or the `price_at_addition`
+       * column not yet migrated — destroyed the user's watchlist without it
+       * ever reaching the server. Note the two paths below already handle that
+       * missing column; the migrate step was the one that didn't.
+       */
       const local = readLocal();
       if (local.length > 0) {
-        await supabase.from("watchlist_items").upsert(
-          local.map((item) => ({
-            user_id: user.id,
-            ticker: item.ticker,
-            name: item.name,
-            exchange: item.exchange,
-            price_at_addition: item.priceAtAddition ?? null,
-          })),
-          { onConflict: "user_id,ticker", ignoreDuplicates: true },
-        );
-        writeLocal([]);
+        const rows = local.map((item) => ({
+          user_id: user.id,
+          ticker: item.ticker,
+          name: item.name,
+          exchange: item.exchange,
+          price_at_addition: item.priceAtAddition ?? null,
+        }));
+        const options = { onConflict: "user_id,ticker", ignoreDuplicates: true } as const;
+
+        let { error: migrateError } = await supabase
+          .from("watchlist_items")
+          .upsert(rows, options);
+
+        if (migrateError?.message.includes("price_at_addition")) {
+          const withoutPrice = rows.map(({ price_at_addition: _omit, ...rest }) => rest);
+          ({ error: migrateError } = await supabase
+            .from("watchlist_items")
+            .upsert(withoutPrice, options));
+        }
+
+        if (migrateError) {
+          // Keep the local copy and try again next load. Better a duplicate
+          // upsert later — it is idempotent on (user_id, ticker) — than a
+          // watchlist that quietly disappears.
+          console.error("[watchlist] migration failed, keeping local copy:", migrateError.message);
+        } else {
+          writeLocal([]);
+        }
       }
 
       const { data, error } = await supabase

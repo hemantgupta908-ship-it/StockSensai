@@ -1,9 +1,33 @@
 import { NextResponse } from "next/server";
 
+import { cronSecret } from "@/lib/env";
 import { getMarketDataProvider, DAILY_LOOKBACK } from "@/lib/market-data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/**
+ * This endpoint is expensive and was reachable by anyone.
+ *
+ * The middleware exempts `/api/health` from the session gate, and one GET
+ * fetches quotes for the entire universe plus candles, the benchmark and
+ * fundamentals — roughly forty outbound requests against the configured
+ * provider, with a 60s budget and no rate limit. Anonymous callers could use it
+ * to bill the deployment's serverless time and hammer the upstream feed, and
+ * the response discloses the provider and instrument list besides.
+ *
+ * So it authenticates the same way the cron does: a shared-secret bearer,
+ * which keeps `curl` usable for its actual purpose (validating a live feed
+ * before switching the app over).
+ */
+function isAuthorised(request: Request): boolean {
+  if (cronSecret) {
+    return request.headers.get("authorization") === `Bearer ${cronSecret}`;
+  }
+  // No secret configured: allowed outside production, refused inside it. Same
+  // stance as the cron route, so a misconfigured deploy fails closed.
+  return process.env.NODE_ENV !== "production";
+}
 
 /**
  * Data-source health check.
@@ -17,7 +41,11 @@ export const maxDuration = 60;
  *
  *   curl localhost:3000/api/health/data-source
  */
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isAuthorised(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const provider = getMarketDataProvider();
   const startedAt = Date.now();
 

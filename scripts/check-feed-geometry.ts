@@ -14,7 +14,9 @@
 // Must be set before anything imports `@/lib/env`, which reads it once at
 // module-evaluation time. Static `import` statements are hoisted above plain
 // assignments, so the engine is pulled in dynamically below instead.
-process.env.MARKET_DATA_PROVIDER = process.env.MARKET_DATA_PROVIDER ?? "yahoo";
+// Defaults to the seeded provider so the check is deterministic and offline;
+// set MARKET_DATA_PROVIDER=yahoo to run it against live data instead.
+process.env.MARKET_DATA_PROVIDER = process.env.MARKET_DATA_PROVIDER ?? "mock";
 
 import type { RiskTolerance } from "@/lib/strategies/types";
 

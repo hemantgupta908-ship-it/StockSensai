@@ -1,8 +1,8 @@
-# StockSensei
+# WealthSensei
 
 An Indian stock **screening and educational** app for NSE/BSE-listed companies. Pick a trading style — Swing, Short-Term or Long-Term — and see which stocks currently satisfy the conditions of fifteen rule-based strategies, with the actual numbers behind every verdict.
 
-**StockSensei is not a brokerage.** It places no orders, holds no funds, and gives no personalised advice. See [`/disclaimer`](src/app/disclaimer/page.tsx).
+**WealthSensei is not a brokerage.** It places no orders, holds no funds, and gives no personalised advice. See [`/disclaimer`](src/app/disclaimer/page.tsx).
 
 ---
 

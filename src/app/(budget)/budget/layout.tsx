@@ -1,31 +1,14 @@
-import { SessionProvider } from "@/components/auth/session-provider";
-import { BudgetProvider } from "@/components/budget/budget-provider";
-import { BudgetTabBar, BudgetTabBarSpacer, BudgetSidebar } from "@/components/budget/budget-nav";
-import { BudgetThemeScope } from "@/components/budget/budget-theme-scope";
+import { AppShell } from "@/components/shell/app-shell";
 import { requireUser } from "@/lib/supabase/server";
 
 /**
- * The budget environment's shell.
+ * Money screens.
  *
- * This is a sibling of the stock app's shell rather than a page inside it: the
- * two share an auth session and nothing more, so the budget side brings its own
- * providers, navigation and theming and never renders the stock chrome.
+ * Renders the same `AppShell` as the investing side — same sidebar, same tab
+ * bar, same providers. This used to be a sibling shell with its own navigation
+ * and an environment switcher to cross between the two.
  */
 export default async function BudgetLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-
-  return (
-    <SessionProvider initialUser={user}>
-      <BudgetProvider>
-        <BudgetThemeScope>
-          <BudgetSidebar />
-          <div className="min-h-dvh lg:pl-[248px]">
-            {children}
-            <BudgetTabBarSpacer />
-          </div>
-          <BudgetTabBar />
-        </BudgetThemeScope>
-      </BudgetProvider>
-    </SessionProvider>
-  );
+  return <AppShell user={user}>{children}</AppShell>;
 }

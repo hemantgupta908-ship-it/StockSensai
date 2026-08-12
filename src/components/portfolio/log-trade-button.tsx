@@ -84,7 +84,7 @@ export function LogTradeButton({
       <Sheet open={open} onClose={() => setOpen(false)} title={`Log ${ticker}`}>
         <div className="space-y-4">
           <p className="text-footnote leading-snug text-label-secondary/60">
-            Record a position you actually took. StockSensei never places trades — this is a
+            Record a position you actually took. WealthSensei never places trades — this is a
             journal, so you can compare what the screen suggested against what you did.
           </p>
 

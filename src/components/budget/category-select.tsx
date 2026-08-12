@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * A category dropdown that can also create a category without leaving the form.
@@ -40,7 +41,7 @@ export function CategorySelect({
   /** Transfer and Balance Correction are written by their own flows. */
   includeReserved?: boolean;
 }) {
-  const { categories } = useBudget();
+  const { categories  } = useBudget(useShallow((s) => ({ categories: s.categories })));
   const [editorOpen, setEditorOpen] = useState(false);
 
   const options = categories

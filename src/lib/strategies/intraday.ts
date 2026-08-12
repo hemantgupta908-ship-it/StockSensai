@@ -260,6 +260,10 @@ const vwapReversion: Strategy = {
     // reversal bar itself.
     const stopLoss = round2(reversal!.lowSince * 0.998);
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "intraday")) return null;
 
@@ -438,6 +442,10 @@ const momentumBurst: Strategy = {
     const target = sanitiseBand(targetBand(burst.high + burstRange * 1.75, 1.2));
     const stopLoss = round2(burst.low * 0.998);
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "intraday")) return null;
 
@@ -609,6 +617,10 @@ const rangeFade: Strategy = {
     const target = sanitiseBand(targetBand(rangeHigh - height * 0.1, 0.5));
     const stopLoss = round2(rangeLow - height * 0.25);
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "intraday")) return null;
 
@@ -915,6 +927,10 @@ const closingHourTrend: Strategy = {
     const target = sanitiseBand(targetBand(sessionHigh + height * 0.5, 0.8));
     const stopLoss = round2(recentLow * 0.998);
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "intraday")) return null;
 

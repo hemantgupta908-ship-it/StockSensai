@@ -23,6 +23,7 @@ import {
   timesAverage,
 } from "./helpers";
 import {
+  bandsAreOrdered,
   minRewardRiskFor,
   requiredConditionsMet,
   rewardToRisk,
@@ -174,6 +175,10 @@ const stageTwoTrend: Strategy = {
       Math.max(sma150Now * 0.97, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.5),
     );
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
@@ -340,6 +345,10 @@ const yearHighBreakout: Strategy = {
     const target = sanitiseBand(targetBand(measuredMove, 3.5));
     const stopLoss = round2(Math.max(baseHigh * 0.94, priorHigh * 0.92));
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
@@ -532,6 +541,10 @@ const emaPullback: Strategy = {
       Math.max(structuralStop, currentPrice - atrNow * thresholds.stopAtrMultiple * 1.5),
     );
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
@@ -687,6 +700,10 @@ const goldenCross: Strategy = {
       Math.max(ema200Now * 0.97, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.5),
     );
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
@@ -840,6 +857,10 @@ const relativeStrengthLeader: Strategy = {
       Math.max(ema50Now * 0.96, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.2),
     );
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 

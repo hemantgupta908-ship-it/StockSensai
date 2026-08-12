@@ -7,7 +7,7 @@ import { DISCLAIMER_FULL } from "@/components/disclaimer";
 export const metadata: Metadata = {
   title: "Disclaimer",
   description:
-    "StockSensei is an educational stock screener, not investment advice and not a brokerage.",
+    "WealthSensei is an educational stock screener, not investment advice and not a brokerage.",
 };
 
 export default function DisclaimerPage() {
@@ -35,7 +35,7 @@ export default function DisclaimerPage() {
       </div>
 
       <div className="mt-4 space-y-4">
-        <Section title="What StockSensei is">
+        <Section title="What WealthSensei is">
           <p>
             A screening and educational tool. It applies fifteen published, rule-based trading and
             investing strategies to price and fundamental data for companies listed on the NSE and
@@ -44,7 +44,7 @@ export default function DisclaimerPage() {
           </p>
         </Section>
 
-        <Section title="What StockSensei is not">
+        <Section title="What WealthSensei is not">
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
               <strong className="text-label">Not a broker.</strong> It cannot and does not place,
@@ -88,7 +88,7 @@ export default function DisclaimerPage() {
 
         <Section title="Data">
           <p>
-            Unless a live market data provider is configured, StockSensei runs on{" "}
+            Unless a live market data provider is configured, WealthSensei runs on{" "}
             <strong className="text-label">seeded simulation data</strong> generated for
             demonstration. Feeds are labelled &ldquo;Demo data&rdquo; or &ldquo;Live data&rdquo; in
             the app so you always know which you are looking at. Simulated prices are not quotes
@@ -109,7 +109,7 @@ export default function DisclaimerPage() {
       </div>
 
       <p className="mt-6 text-center text-caption text-label-secondary/45">
-        StockSensei · educational use only
+        WealthSensei · educational use only
       </p>
     </main>
   );

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SubscriptionsView } from "@/components/budget/upcoming-view";
+import { PlanningView } from "@/components/budget/planning-view";
 import { BudgetHeader, BudgetPage } from "@/components/budget/budget-ui";
 
 export const metadata: Metadata = {
@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 export default function SubscriptionsPage() {
   return (
     <>
-      <BudgetHeader title="Subscriptions" large />
+      <BudgetHeader title="Planning" />
       <BudgetPage>
-        <SubscriptionsView />
+        <PlanningView defaultTab="subscriptions" />
       </BudgetPage>
     </>
   );

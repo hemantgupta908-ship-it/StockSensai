@@ -35,7 +35,10 @@
     --nav-bg: 249 249 249;
     --chart-grid: 232 232 237;
 
-    --budget-accent: #007AFF;
+    --accent: #0071E3;
+    --accent-rgb: 0 113 227;
+    /* Readable label on the accent; recomputed per accent by ThemeProvider. */
+    --accent-fg: 255 255 255;
 
     color-scheme: light;
   }

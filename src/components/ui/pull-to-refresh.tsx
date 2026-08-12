@@ -93,7 +93,7 @@ export function PullToRefresh({
           <motion.div style={{ rotate: refreshing ? undefined : indicatorRotate }}>
             <ArrowsClockwise
               size={17}
-              className={cn("text-blue", refreshing && "animate-spin")}
+              className={cn("text-accent", refreshing && "animate-spin")}
             />
           </motion.div>
         </div>

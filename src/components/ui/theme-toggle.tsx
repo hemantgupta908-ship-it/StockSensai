@@ -12,6 +12,10 @@ const LABELS: Record<ThemePreference, string> = {
   light: "Light",
   dark: "Dark",
   system: "Match system",
+  // Reachable from the full picker in Settings but not from this cycle — the
+  // toggle stays a three-way, and lands back on it from either.
+  oled: "OLED black",
+  sepia: "Warm sepia",
 };
 
 /**
@@ -26,16 +30,10 @@ export function ThemeToggle({ className }: { className?: string }) {
   const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
   const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : SunHorizon;
 
-  const handleToggle = () => {
-    setPreference(next);
-    try {
-      const raw = localStorage.getItem("cashew.settings");
-      const parsed = raw ? JSON.parse(raw) : {};
-      parsed.theme = next;
-      localStorage.setItem("cashew.settings", JSON.stringify(parsed));
-      window.dispatchEvent(new Event("cashew-settings-updated"));
-    } catch {}
-  };
+  // Used to also write `cashew.settings.theme` and fire an event for the budget
+  // environment to pick up. Both environments now read the same provider, so
+  // there is nothing left to notify.
+  const handleToggle = () => setPreference(next);
 
   return (
     <motion.button
@@ -69,7 +67,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         <span
           className={cn(
             "absolute bottom-[5px] right-[5px] h-[5px] w-[5px] rounded-full",
-            resolved === "dark" ? "bg-blue" : "bg-amber",
+            resolved === "dark" ? "bg-accent" : "bg-amber",
           )}
         />
       )}

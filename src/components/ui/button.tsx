@@ -6,12 +6,20 @@ import { cn } from "@/lib/utils";
 type Variant = "primary" | "secondary" | "plain" | "destructive" | "tinted";
 type Size = "sm" | "md" | "lg";
 
+/**
+ * Accent-driven rather than hardcoded blue.
+ *
+ * The default accent is `#007AFF`, which is exactly light-mode `--sys-blue`, so
+ * this changes nothing until the user picks a different accent — at which point
+ * the stock side follows it too, which is the point of having one app-wide
+ * accent rather than two environments with separate skins.
+ */
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-blue text-white shadow-pill active:bg-blue/90",
+  primary: "bg-accent text-accent-fg shadow-pill active:bg-accent/90",
   secondary:
     "bg-fill/[0.12] text-label active:bg-fill/[0.2] dark:bg-white/[0.10] dark:active:bg-white/[0.16]",
-  tinted: "bg-blue/[0.14] text-blue active:bg-blue/[0.22]",
-  plain: "bg-transparent text-blue active:opacity-60",
+  tinted: "bg-accent/[0.14] text-accent active:bg-accent/[0.22]",
+  plain: "bg-transparent text-accent active:opacity-60",
   destructive: "bg-red/[0.14] text-red active:bg-red/[0.22]",
 };
 

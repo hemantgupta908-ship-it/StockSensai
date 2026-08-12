@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Account-scoped transaction view.
@@ -15,6 +16,7 @@
  */
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowsLeftRight,
@@ -29,7 +31,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { BudgetMobileSidebar } from "./budget-nav";
+import { MobileSidebar } from "@/components/ui/mobile-sidebar";
 
 import { cn } from "@/lib/utils";
 import { type Transaction, type TransactionCategory } from "@/lib/budget/types";
@@ -60,8 +62,20 @@ import {
 } from "./budget-ui";
 import { TransactionGroup, TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
-import { ImportPreviewModal } from "./import-preview-modal";
 import { CONTAINER_WIDTHS } from "@/components/ui/page-container";
+
+/**
+ * Loaded on demand, and only once the user actually opens the importer.
+ *
+ * It pulls in `xlsx`, which is ~880 kB minified — statically imported it landed
+ * in this route's first-load bundle for every visit, whether or not anyone
+ * imported a spreadsheet. Rendering it conditionally (rather than always, with
+ * `open={false}`) is what keeps the chunk from being fetched on mount.
+ */
+const ImportPreviewModal = dynamic(
+  () => import("./import-preview-modal").then((m) => m.ImportPreviewModal),
+  { ssr: false },
+);
 
 type DirectionFilter = "all" | "expense" | "income";
 type TimeRange = "all" | "month" | "year";
@@ -153,7 +167,7 @@ function useGroupedByCycle(transactions: Transaction[], statementDay: number | n
 }
 
 export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
-  const { wallets, transactions, allWallets, settings, objectives, categories } = useBudget();
+  const { wallets, transactions, allWallets, settings, objectives, categories  } = useBudget(useShallow((s) => ({ wallets: s.wallets, transactions: s.transactions, allWallets: s.allWallets, settings: s.settings, objectives: s.objectives, categories: s.categories })));
   const { byPk, main, subsByParent } = useCategoryLookup();
 
   const wallet = wallets.find((w) => w.walletPk === walletPk);
@@ -1207,7 +1221,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                 } as any);
                 setModalOpen(true);
               }}
-              className="rounded-[10px] bg-green px-4 py-2 text-subhead font-semibold text-white transition-transform active:scale-[0.98] whitespace-nowrap"
+              className="rounded-[10px] bg-accent px-4 py-2 text-subhead font-semibold text-accent-fg transition-transform active:scale-[0.98] whitespace-nowrap"
             >
               Pay Bill
             </button>
@@ -1276,11 +1290,11 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                             setModalDefaults({
                               amount: group.unpaidAmount,
                               toWalletFk: walletPk,
-                              name: `Cycle Payment`,
+                              name: `Card Payment`,
                             } as any);
                             setModalOpen(true);
                           }}
-                          className="ml-1 rounded-[8px] bg-green/15 px-2.5 py-1 text-[12px] font-semibold text-green transition-colors hover:bg-green/25 active:scale-95"
+                          className="ml-1 rounded-[8px] bg-accent/15 px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/25 active:scale-95"
                         >
                           Pay
                         </button>
@@ -1356,13 +1370,15 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
         defaultTab={modalDefaultTab}
       />
 
-      <ImportPreviewModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        defaultWalletFk={walletPk}
-      />
+      {importOpen ? (
+        <ImportPreviewModal
+          open
+          onClose={() => setImportOpen(false)}
+          defaultWalletFk={walletPk}
+        />
+      ) : null}
 
-      <BudgetMobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
@@ -1386,7 +1402,7 @@ function NotSpendingRow({
   total: number;
   currency: string | null | undefined;
 }) {
-  const { settings } = useBudget();
+  const { settings  } = useBudget(useShallow((s) => ({ settings: s.settings })));
   return (
     <div className="flex items-center justify-between gap-3 rounded-[14px] border border-separator/40 bg-fill/5 px-3 py-2.5">
       <div className="min-w-0">

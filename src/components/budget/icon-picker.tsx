@@ -69,7 +69,7 @@ export function IconPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 rounded-ios border border-separator/50 bg-bg-elevated px-3 py-2.5 text-left transition-colors hover:border-green/50"
+        className="flex w-full items-center gap-3 rounded-ios border border-separator/50 bg-bg-elevated px-3 py-2.5 text-left transition-colors hover:border-accent/50"
       >
         <IconBadge iconName={value} colour={colour} size={30} fallback="?" />
         <span className="flex-1 text-subhead text-label">
@@ -90,7 +90,7 @@ export function IconPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${ICON_COUNT} icons — try "petrol" or "rent"`}
-              className="w-full rounded-ios bg-fill/10 py-2 pl-8 pr-8 text-footnote text-label outline-none placeholder:text-label-secondary/40 focus:ring-2 focus:ring-green/40"
+              className="w-full rounded-ios bg-fill/10 py-2 pl-8 pr-8 text-footnote text-label outline-none placeholder:text-label-secondary/40 focus:ring-2 focus:ring-accent/40"
             />
             {query ? (
               <button
@@ -131,7 +131,7 @@ export function IconPicker({
                           className={cn(
                             "flex aspect-square items-center justify-center rounded-ios transition-colors",
                             selected
-                              ? "bg-green text-white"
+                              ? "bg-accent text-accent-fg"
                               : "bg-fill/10 text-label-secondary hover:bg-fill/20 hover:text-label",
                           )}
                         >
@@ -217,7 +217,7 @@ export function ColourPicker({
           <button
             type="button"
             onClick={handleSaveColour}
-            className="text-caption2 font-semibold text-blue hover:underline"
+            className="text-caption2 font-semibold text-accent hover:underline"
           >
             Save colour
           </button>

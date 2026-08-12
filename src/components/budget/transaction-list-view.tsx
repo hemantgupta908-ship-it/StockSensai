@@ -1,12 +1,14 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * The full transactions list: search, filters, day grouping and a running
  * summary for whatever the current filter selects.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { ArrowsLeftRight, SlidersHorizontal } from "@phosphor-icons/react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import { cn } from "@/lib/utils";
 import { TransactionSpecialType, type Transaction } from "@/lib/budget/types";
@@ -29,7 +31,8 @@ import { TransactionModal } from "./transaction-modal";
 type DirectionFilter = "all" | "expense" | "income";
 
 export function TransactionListView() {
-  const { transactions, categories, wallets, allWallets, settings, objectives } = useBudget();
+  const { transactions, categories, wallets, allWallets, settings, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, categories: s.categories, wallets: s.wallets, allWallets: s.allWallets, settings: s.settings, objectives: s.objectives })));
+  const parentRef = useRef<HTMLDivElement>(null);
   const { byPk } = useCategoryLookup();
 
   const [query, setQuery] = useState("");
@@ -85,6 +88,13 @@ export function TransactionListView() {
 
   const displayed = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
 
+  const virtualizer = useWindowVirtualizer({
+    count: displayed.length,
+    estimateSize: () => 64, // Approximate row height
+    overscan: 5,
+    scrollMargin: parentRef.current?.offsetTop ?? 0,
+  });
+
   const summary = useMemo(
     () => getSpendingSummary(allWallets, displayed, objectives),
     [allWallets, displayed, objectives],
@@ -119,7 +129,7 @@ export function TransactionListView() {
           className={cn(
             "rounded-ios p-2.5 transition-colors",
             filtersActive || showFilters
-              ? "bg-green/12 text-green"
+              ? "bg-accent/15 text-accent"
               : "bg-fill/10 text-label-secondary/60",
           )}
         >
@@ -205,11 +215,36 @@ export function TransactionListView() {
               </div>
             ))
           ) : (
-            <TransactionGroup>
-              {displayed.map((t) => (
-                <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
-              ))}
-            </TransactionGroup>
+            <div ref={parentRef}>
+              <TransactionGroup>
+                <div
+                  style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const t = displayed[virtualRow.index];
+                    return (
+                      <div
+                        key={virtualRow.index}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        <TransactionRow transaction={t} onEdit={openEdit} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </TransactionGroup>
+            </div>
           )}
 
           {filtered.length > displayLimit ? (
@@ -246,7 +281,7 @@ export function TransactionListView() {
 
 /** Compact recent-transactions block for the home screen. */
 export function RecentTransactions({ limit = 8 }: { limit?: number }) {
-  const { transactions } = useBudget();
+  const { transactions  } = useBudget(useShallow((s) => ({ transactions: s.transactions })));
   const [editing, setEditing] = useState<Transaction | null>(null);
 
   const recent = useMemo(

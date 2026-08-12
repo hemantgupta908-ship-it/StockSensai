@@ -1,65 +1,119 @@
-import { BookOpen, Gear, House, Icon, Stack, Star, Wallet } from "@phosphor-icons/react";
+import {
+  ArrowsLeftRight,
+  BookOpen,
+  CalendarBlank,
+  CalendarCheck,
+  ChartLineUp,
+  ChartPie,
+  CreditCard,
+  Flag,
+  Gear,
+  House,
+  Repeat,
+  ShieldCheck,
+  Stack,
+  Star,
+  Wallet,
+} from "@phosphor-icons/react";
 
-export interface NavItem {
-  href: string;
-  label: string;
-  /** Longer label used where there is room; the sidebar keeps labels terse. */
-  description: string;
-  icon: Icon;
-}
+import type { NavItem, NavSection } from "./nav";
 
 /**
- * Destinations that get a bottom tab on mobile.
+ * Every destination in the product, in one list.
  *
- * Budget is deliberately absent: it is a separate environment reached through
- * the switcher in the header, not a peer of these screens.
+ * There used to be two manifests behind an environment switcher — one for
+ * stocks, one for budget — and crossing between them meant changing app. They
+ * are one product: what you own, what you spend, what you're researching.
+ *
+ * Two overview entries rather than one is a deliberate interim state. `/home`
+ * is still the screens feed and `/budget` still the money dashboard; a single
+ * unified dashboard replaces both later, at which point these collapse into it.
  */
-export const NAV_ITEMS: NavItem[] = [
-  { href: "/home", label: "Home", description: "Today's screened ideas", icon: House },
-  { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
-  { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Stack },
-  { href: "/portfolio", label: "Journal", description: "Plan versus what you did", icon: Wallet },
-  { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Gear },
-];
-
-/**
- * The sidebar menu, grouped to mirror the budget environment's structure so the
- * two sides of the app read as one product.
- */
-export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Overview",
     items: [
-      { href: "/home", label: "Home", description: "Today's screened ideas", icon: House },
+      {
+        href: "/budget",
+        label: "Home",
+        description: "Balances and spending",
+        icon: House,
+        exact: true,
+      },
+      { href: "/home", label: "Stock Recommendations", description: "Today's screened ideas", icon: ChartLineUp },
+    ],
+  },
+  {
+    title: "Investing",
+    items: [
       { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
+      { href: "/portfolio", label: "Portfolio", description: "Plan versus what you did", icon: Wallet },
     ],
   },
   {
-    title: "Research",
+    title: "Spending",
     items: [
-      { href: "/strategies", label: "Strategies", description: "How each screen works", icon: Stack },
+      {
+        href: "/budget/transactions",
+        label: "Transactions",
+        description: "Everything you've recorded",
+        icon: ArrowsLeftRight,
+      },
+      {
+        href: "/budget/calendar",
+        label: "Calendar",
+        description: "Monthly day-by-day view",
+        icon: CalendarBlank,
+      },
+      {
+        href: "/budget/budgets",
+        label: "Budgets",
+        description: "Spending limits by period",
+        icon: ChartPie,
+      },
     ],
   },
   {
-    title: "Portfolio",
+    title: "Planning",
     items: [
-      { href: "/portfolio", label: "Journal", description: "Plan versus what you did", icon: Wallet },
+      {
+        href: "/budget/planning",
+        label: "Planning",
+        description: "Goals, loans, policies & subscriptions",
+        icon: Flag,
+      },
+      {
+        href: "/budget/upcoming",
+        label: "Upcoming & Overdue",
+        description: "Unpaid scheduled transactions",
+        icon: CalendarCheck,
+      },
     ],
   },
   {
     title: "Organise",
     items: [
-      { href: "/settings", label: "Settings", description: "Risk, appearance, account", icon: Gear },
-      {
-        href: "/disclaimer",
-        label: "Disclaimer",
-        description: "What this app is and isn't",
-        icon: BookOpen,
-      },
+      { href: "/settings", label: "Settings", description: "Appearance, risk, account, budget", icon: Gear },
     ],
   },
 ];
 
-export function isActivePath(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+/**
+ * The five that get a bottom tab on mobile.
+ *
+ * Twenty destinations do not fit across a phone; these are the ones worth a
+ * thumb. Everything else is one tap away behind "More", which lists the
+ * sections above in full.
+ */
+export const NAV_ITEMS: NavItem[] = [
+  { href: "/budget", label: "Home", description: "Balances and spending", icon: House, exact: true },
+  {
+    href: "/budget/transactions",
+    label: "Transactions",
+    description: "Everything you've recorded",
+    icon: ArrowsLeftRight,
+  },
+  { href: "/portfolio", label: "Portfolio", description: "Plan versus what you did", icon: Wallet },
+  { href: "/home", label: "Recom.", description: "Today's screened ideas", icon: ChartLineUp },
+  { href: "/settings", label: "Settings", description: "Appearance, risk, account, budget", icon: Gear },
+];

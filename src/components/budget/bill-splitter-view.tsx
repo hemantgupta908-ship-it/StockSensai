@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 import { useMemo, useState } from "react";
 import { Plus, Receipt, Trash, Users } from "@phosphor-icons/react";
@@ -17,7 +18,7 @@ interface BillItem {
 }
 
 export function BillSplitterView() {
-  const { allWallets } = useBudget();
+  const { allWallets  } = useBudget(useShallow((s) => ({ allWallets: s.allWallets })));
   const [people, setPeople] = useState<string[]>([]);
   const [newPerson, setNewPerson] = useState("");
   const [items, setItems] = useState<BillItem[]>([]);
@@ -106,7 +107,7 @@ export function BillSplitterView() {
               <button
                 type="button"
                 onClick={addPerson}
-                className="shrink-0 rounded-ios bg-accent px-4 text-white font-medium hover:opacity-90 active:scale-95 transition-all"
+                className="shrink-0 rounded-ios bg-accent px-4 text-accent-fg font-medium hover:opacity-90 active:scale-95 transition-all"
                 aria-label="Add person"
               >
                 <Plus size={18} />
@@ -172,7 +173,7 @@ export function BillSplitterView() {
                             onClick={() => toggleSharer(item.id, person)}
                             className={cn(
                               "rounded-full px-3 py-1 text-caption2 transition-all font-medium",
-                              active ? "bg-accent text-white shadow-sm" : "bg-fill/15 text-label-secondary hover:bg-fill/25",
+                              active ? "bg-accent text-accent-fg shadow-sm" : "bg-fill/15 text-label-secondary hover:bg-fill/25",
                             )}
                           >
                             {person}

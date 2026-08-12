@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
-import { ObjectivesView } from "@/components/budget/objectives-view";
-import { ObjectiveType } from "@/lib/budget/types";
+import { PlanningView } from "@/components/budget/planning-view";
 import { BudgetHeader, BudgetPage } from "@/components/budget/budget-ui";
 
 export const metadata: Metadata = {
@@ -12,9 +11,9 @@ export const metadata: Metadata = {
 export default function LoansPage() {
   return (
     <>
-      <BudgetHeader title="Loans" backHref="/budget" />
+      <BudgetHeader title="Planning" />
       <BudgetPage>
-        <ObjectivesView type={ObjectiveType.loan} />
+        <PlanningView defaultTab="loans" />
       </BudgetPage>
     </>
   );

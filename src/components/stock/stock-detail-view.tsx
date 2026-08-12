@@ -12,7 +12,20 @@ import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 import { PageContainer } from "@/components/ui/page-container";
 import { NavBar } from "@/components/ui/nav-bar";
 import { RefreshButton } from "@/components/ui/refresh-button";
-import { CandleChart, type PriceLine } from "./candle-chart";
+import dynamic from "next/dynamic";
+import type { PriceLine } from "./candle-chart";
+
+const CandleChart = dynamic(
+  () => import("./candle-chart").then((mod) => mod.CandleChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] w-full animate-pulse items-center justify-center rounded-xl bg-fill/5">
+        <span className="text-sm text-label-secondary/50">Loading chart...</span>
+      </div>
+    ),
+  }
+);
 import { SignalDetail } from "./signal-detail";
 import { FundamentalsPanel } from "./fundamentals-panel";
 import { LogTradeButton } from "@/components/portfolio/log-trade-button";

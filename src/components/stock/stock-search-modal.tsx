@@ -191,7 +191,7 @@ export function StockSearchModal({
             >
               <div className="min-w-0 flex-1 pr-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-subhead font-bold text-label group-hover:text-purple">
+                  <span className="text-subhead font-bold tracking-wide text-label group-hover:text-purple">
                     {query.trim().toUpperCase()}
                   </span>
                   <span className="rounded bg-purple/20 px-1.5 py-0.5 text-caption2 font-semibold text-purple">
@@ -218,7 +218,7 @@ export function StockSearchModal({
               >
                 <div className="min-w-0 flex-1 pr-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-subhead font-bold text-label group-hover:text-blue">
+                    <span className="text-subhead font-bold tracking-wide text-label group-hover:text-blue">
                       {stock.ticker}
                     </span>
                     <span className="rounded bg-label-secondary/10 px-1.5 py-0.5 text-caption2 font-medium text-label-secondary">
@@ -281,7 +281,7 @@ export function StockSearchModal({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-subhead font-bold text-label">
+                  <span className="text-subhead font-bold tracking-wide text-label">
                     {preview.ticker} Strategy Scorecard
                   </span>
                   <span className="rounded-full bg-green/15 px-2 py-0.5 text-caption2 font-semibold text-green">

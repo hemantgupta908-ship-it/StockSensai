@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 import { useState } from "react";
 import { Tag, Trash } from "@phosphor-icons/react";
@@ -18,7 +19,7 @@ import {
 import { CategorySelect } from "./category-select";
 
 export function AssociatedTitlesView() {
-  const { associatedTitles, upsertAssociatedTitle, deleteAssociatedTitle } = useBudget();
+  const { associatedTitles, upsertAssociatedTitle, deleteAssociatedTitle  } = useBudget(useShallow((s) => ({ associatedTitles: s.associatedTitles, upsertAssociatedTitle: s.upsertAssociatedTitle, deleteAssociatedTitle: s.deleteAssociatedTitle })));
   const { byPk } = useCategoryLookup();
 
   const [title, setTitle] = useState("");

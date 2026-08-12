@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function BudgetsPage() {
   return (
     <>
-      <BudgetHeader title="Budgets" large width="fluid" />
+      <BudgetHeader title="Budgets" />
       <BudgetPage width="fluid">
         <BudgetsListView />
       </BudgetPage>

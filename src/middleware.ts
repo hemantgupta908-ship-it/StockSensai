@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { REMEMBER_COOKIE, authCookieMaxAge, isRemembered } from "@/lib/auth/remember";
 
 /**
  * Paths reachable without a session.
@@ -37,6 +38,12 @@ export async function middleware(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  // Token refresh rewrites the auth cookie on every navigation. Left alone it
+  // would re-apply Supabase's 400-day default and quietly undo a user who chose
+  // not to be remembered, so the choice is re-applied here too.
+  const remembered = isRemembered(request.cookies.get(REMEMBER_COOKIE)?.value);
+  const maxAge = authCookieMaxAge(remembered);
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -46,7 +53,7 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
+          response.cookies.set(name, value, { ...options, maxAge }),
         );
       },
     },
@@ -76,7 +83,7 @@ export async function middleware(request: NextRequest) {
 
   // A signed-in user has no business on the sign-in screen.
   if (user && pathname === "/login") {
-    return NextResponse.redirect(new URL("/home", request.url));
+    return NextResponse.redirect(new URL("/budget", request.url));
   }
 
   return response;

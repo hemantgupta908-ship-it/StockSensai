@@ -9,6 +9,7 @@ import {
   TRADING_STYLE_LABELS,
 } from "@/lib/strategies/types";
 import { formatINR } from "@/lib/utils";
+import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
 import { usePortfolio } from "./portfolio-provider";
 
 interface AddPositionSheetProps {
@@ -27,11 +28,31 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
   const [tradingStyle, setTradingStyle] = useState<string>("swing");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
 
   const cleanTicker = ticker.trim().toUpperCase();
   const quantityValue = Number(quantity);
   const priceValue = Number(entryPrice);
   const valid = cleanTicker.length > 0 && quantityValue > 0 && priceValue > 0 && Boolean(entryDate);
+
+  // Search matching stocks for autocomplete
+  const suggestions = ticker.trim().length >= 1
+    ? SEED_INSTRUMENTS.filter(
+        (inst) =>
+          inst.ticker.toLowerCase().includes(ticker.trim().toLowerCase()) ||
+          inst.name.toLowerCase().includes(ticker.trim().toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  function selectStock(item: (typeof SEED_INSTRUMENTS)[0]) {
+    setTicker(item.ticker);
+    setName(item.name);
+    setExchange(item.exchange);
+    setEntryPrice(item.sim.basePrice.toFixed(2));
+    setShowSuggestions(false);
+    setAutoFilled(true);
+  }
 
   async function submit() {
     if (!valid) return;
@@ -62,6 +83,7 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
       setQuantity("");
       setEntryPrice("");
       setNote("");
+      setAutoFilled(false);
       onClose();
     } finally {
       setSaving(false);
@@ -76,16 +98,52 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
         </p>
 
         <div className="grid grid-cols-3 gap-2">
-          <div className="col-span-2">
+          <div className="col-span-2 relative">
             <Field label="Symbol / Ticker *">
               <input
                 type="text"
                 value={ticker}
-                onChange={(e) => setTicker(e.target.value)}
-                placeholder="e.g. RELIANCE, TCS"
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                onChange={(e) => {
+                  setTicker(e.target.value);
+                  setShowSuggestions(true);
+                  setAutoFilled(false);
+                }}
+                placeholder="e.g. RELIANCE, SBIN"
                 className={inputClass}
               />
             </Field>
+
+            {/* Stock Autocomplete Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-separator/50 bg-bg-elevated p-1 shadow-lg dark:border-white/10 dark:bg-slate-900">
+                {suggestions.map((item) => (
+                  <button
+                    key={item.ticker}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectStock(item);
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-fill/[0.08] dark:hover:bg-white/[0.08]"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-label text-subhead">{item.ticker}</span>
+                        <span className="rounded bg-fill/15 px-1.5 py-0.5 text-[10px] font-bold text-label-secondary">
+                          {item.exchange}
+                        </span>
+                      </div>
+                      <p className="truncate text-caption2 text-label-secondary/70">{item.name}</p>
+                    </div>
+                    <span className="numeric text-caption font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatINR(item.sim.basePrice)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <Field label="Exchange">
@@ -100,6 +158,12 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
             </Field>
           </div>
         </div>
+
+        {autoFilled && (
+          <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+            <span>✨ Auto-filled company details & market price</span>
+          </p>
+        )}
 
         <Field label="Company Name (Optional)">
           <input
@@ -192,7 +256,7 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
 }
 
 const inputClass =
-  "w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label placeholder:text-label-quaternary/35 focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]";
+  "w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label placeholder:text-label-quaternary/35 focus:border-accent focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

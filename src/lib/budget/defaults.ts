@@ -215,13 +215,14 @@ export function defaultWallets(currency = "inr"): TransactionWallet[] {
 /**
  * Budget-environment settings.
  *
- * Deliberately its own namespace: none of this is shared with the stock side of
- * the app, so the two environments can be themed and configured independently.
+ * Its own namespace for everything that is genuinely budget-specific.
+ * Appearance is *not* — `theme` and `accentColour` used to live here and were
+ * applied by the budget environment on top of the stock app's, which meant the
+ * two fought over `<html>`. Both now belong to the root `ThemeProvider`, which
+ * migrates any value stored here the first time it runs.
  */
 export interface BudgetSettings {
   // Appearance
-  theme: "system" | "light" | "dark" | "oled" | "sepia";
-  accentColour: string;
   materialYou: boolean;
   outlinedIcons: boolean;
   animatedBudgetBackground: boolean;
@@ -297,8 +298,6 @@ export interface BudgetSettings {
 }
 
 export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
-  theme: "system",
-  accentColour: "#007AFF",
   materialYou: false,
   outlinedIcons: false,
   animatedBudgetBackground: true,

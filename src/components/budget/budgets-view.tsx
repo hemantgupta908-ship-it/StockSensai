@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Budgets: the list, the per-budget detail with history, and the editor.
@@ -57,7 +58,7 @@ import { TransactionGroup, TransactionRow } from "./transaction-row";
 // ---------------------------------------------------------------------------
 
 export function BudgetsListView() {
-  const { budgets } = useBudget();
+  const { budgets  } = useBudget(useShallow((s) => ({ budgets: s.budgets })));
   const [query, setQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -98,7 +99,7 @@ export function BudgetsListView() {
 
 /** Summary card: spent, remaining, progress and the period label. */
 export function BudgetCard({ budget, compact = false }: { budget: Budget; compact?: boolean }) {
-  const { transactions, categories, allWallets, objectives } = useBudget();
+  const { transactions, categories, allWallets, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, categories: s.categories, allWallets: s.allWallets, objectives: s.objectives })));
 
   const snapshot = useMemo(
     () => getBudgetSnapshot(allWallets, transactions, budget, categories, undefined, objectives),
@@ -156,8 +157,7 @@ export function BudgetCard({ budget, compact = false }: { budget: Budget; compac
 // ---------------------------------------------------------------------------
 
 export function BudgetDetailView({ budgetPk }: { budgetPk: string }) {
-  const { budgets, transactions, categories, categoryBudgetLimits, allWallets, deleteBudget } =
-    useBudget();
+  const { budgets, transactions, categories, categoryBudgetLimits, allWallets, deleteBudget  } = useBudget(useShallow((s) => ({ budgets: s.budgets, transactions: s.transactions, categories: s.categories, categoryBudgetLimits: s.categoryBudgetLimits, allWallets: s.allWallets, deleteBudget: s.deleteBudget })));
   const { byPk } = useCategoryLookup();
   const [periodIndex, setPeriodIndex] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -318,7 +318,7 @@ export function BudgetEditor({
   onClose: () => void;
   editing?: Budget;
 }) {
-  const { categories, wallets, upsertBudget, budgets } = useBudget();
+  const { categories, wallets, upsertBudget, budgets  } = useBudget(useShallow((s) => ({ categories: s.categories, wallets: s.wallets, upsertBudget: s.upsertBudget, budgets: s.budgets })));
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -499,7 +499,7 @@ export function BudgetEditor({
                     }
                     className={cn(
                       "rounded-full px-3 py-1.5 text-caption transition-colors",
-                      active ? "bg-green text-white" : "bg-fill/10 text-label-secondary",
+                      active ? "bg-accent text-accent-fg" : "bg-fill/10 text-label-secondary",
                     )}
                   >
                     {c.name}
@@ -524,7 +524,7 @@ export function BudgetEditor({
                     }
                     className={cn(
                       "rounded-full px-3 py-1.5 text-caption transition-colors",
-                      active ? "bg-green text-white" : "bg-fill/10 text-label-secondary",
+                      active ? "bg-accent text-accent-fg" : "bg-fill/10 text-label-secondary",
                     )}
                   >
                     {w.name}
@@ -576,7 +576,7 @@ export function BudgetEditor({
 
 /** Pinned budgets, for the home screen. */
 export function PinnedBudgets() {
-  const { budgets } = useBudget();
+  const { budgets  } = useBudget(useShallow((s) => ({ budgets: s.budgets })));
   const pinned = budgets.filter((b) => b.pinned && !b.archived).sort((a, b) => a.order - b.order);
 
   if (pinned.length === 0) {

@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * The budget environment's data store.
@@ -18,10 +19,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { createStore, useStore } from "zustand";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/auth/session-provider";
@@ -189,7 +192,7 @@ interface BudgetStore extends BudgetDatabase {
   exportDatabase: () => BudgetDatabase;
 }
 
-const BudgetContext = createContext<BudgetStore | null>(null);
+const BudgetStoreContext = createContext<ReturnType<typeof createStore<BudgetStore>> | null>(null);
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const { user, authEnabled } = useSession();
@@ -281,9 +284,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       try {
         localStorage.setItem(DATA_KEY, JSON.stringify(nextData));
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(nextSettings));
-        if (nextSettings.theme) {
-          localStorage.setItem("stockpilot.theme", nextSettings.theme);
-        }
+        // Theme and accent are no longer budget settings — `ThemeProvider` owns
+        // them for the whole app and persists them itself.
       } catch (e) {
         console.warn("[budget] local persist failed:", e);
       }
@@ -768,48 +770,99 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     [data.wallets, settings.primaryWalletPk, settings.exchangeRates],
   );
 
-  const value: BudgetStore = {
-    ...data,
-    loading,
-    isLocal,
-    settings,
-    allWallets,
-    updateSettings,
-    upsertTransaction,
-    upsertTransactions,
-    deleteTransaction,
-    deleteTransactions,
-    upsertCategory,
-    deleteCategory,
-    upsertWallet,
-    deleteWallet,
-    upsertBudget,
-    deleteBudget,
-    upsertObjective,
-    deleteObjective,
-    upsertCategoryLimit,
-    deleteCategoryLimit,
-    upsertAssociatedTitle,
-    deleteAssociatedTitle,
-    upsertScannerTemplate,
-    deleteScannerTemplate,
-    upsertPolicy,
-    deletePolicy,
-    mergePoliciesInto,
-    replaceDatabase,
-    resetDatabase,
-    exportDatabase,
-  };
+  /**
+   * Memoised, because this context feeds every budget screen.
+   *
+   * A fresh object literal each render makes the context value a new reference
+   * every time, so all ~25 consumers re-render on any change anywhere — the
+   * 1,466-line account view included. The mutators are already `useCallback`ed,
+   * so the only genuinely changing inputs are the state slices below.
+   */
+  const value: BudgetStore = useMemo(
+    () => ({
+      ...data,
+      loading,
+      isLocal,
+      settings,
+      allWallets,
+      updateSettings,
+      upsertTransaction,
+      upsertTransactions,
+      deleteTransaction,
+      deleteTransactions,
+      upsertCategory,
+      deleteCategory,
+      upsertWallet,
+      deleteWallet,
+      upsertBudget,
+      deleteBudget,
+      upsertObjective,
+      deleteObjective,
+      upsertCategoryLimit,
+      deleteCategoryLimit,
+      upsertAssociatedTitle,
+      deleteAssociatedTitle,
+      upsertScannerTemplate,
+      deleteScannerTemplate,
+      upsertPolicy,
+      deletePolicy,
+      mergePoliciesInto,
+      replaceDatabase,
+      resetDatabase,
+      exportDatabase,
+    }),
+    [
+      data,
+      loading,
+      isLocal,
+      settings,
+      allWallets,
+      updateSettings,
+      upsertTransaction,
+      upsertTransactions,
+      deleteTransaction,
+      deleteTransactions,
+      upsertCategory,
+      deleteCategory,
+      upsertWallet,
+      deleteWallet,
+      upsertBudget,
+      deleteBudget,
+      upsertObjective,
+      deleteObjective,
+      upsertCategoryLimit,
+      deleteCategoryLimit,
+      upsertAssociatedTitle,
+      deleteAssociatedTitle,
+      upsertScannerTemplate,
+      deleteScannerTemplate,
+      upsertPolicy,
+      deletePolicy,
+      mergePoliciesInto,
+      replaceDatabase,
+      resetDatabase,
+      exportDatabase,
+    ],
+  );
 
-  return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;
+  const storeRef = useRef<ReturnType<typeof createStore<BudgetStore>>>(undefined);
+  if (!storeRef.current) {
+    storeRef.current = createStore<BudgetStore>(() => value);
+  }
+
+  useLayoutEffect(() => {
+    storeRef.current?.setState(value);
+  }, [value]);
+
+  return <BudgetStoreContext.Provider value={storeRef.current}>{children}</BudgetStoreContext.Provider>;
 }
 
-export function useBudget(): BudgetStore {
-  const context = useContext(BudgetContext);
-  if (!context) {
+export function useBudget<T = BudgetStore>(selector?: (state: BudgetStore) => T): T {
+  const store = useContext(BudgetStoreContext);
+  if (!store) {
     throw new Error("useBudget must be used inside <BudgetProvider>");
   }
-  return context;
+  return useStore(store, selector ?? ((s) => s as unknown as T));
 }
 
 /** Categories indexed by pk, with subcategories grouped under their parent. */
@@ -820,7 +873,7 @@ export function useBudget(): BudgetStore {
  * disagree about a figure that appears on all three.
  */
 export function usePolicySavings() {
-  const { policies, transactions, allWallets, settings } = useBudget();
+  const { policies, transactions, allWallets, settings } = useBudget(useShallow((s) => ({ policies: s.policies, transactions: s.transactions, allWallets: s.allWallets, settings: s.settings })));
 
   const total = useMemo(
     () =>
@@ -839,7 +892,7 @@ export function usePolicySavings() {
 }
 
 export function useCategoryLookup() {
-  const { categories } = useBudget();
+  const { categories } = useBudget(useShallow((s) => ({ categories: s.categories })));
   return useMemo(() => {
     const all = [...categories];
     for (const sub of DEFAULT_INCOME_SUBCATEGORIES) {

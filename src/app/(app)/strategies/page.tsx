@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Strategies",
   description:
-    "The 25 rule-based strategies behind StockPilot's screens — five each for intraday, short-term, swing, positional and long-term horizons.",
+    "The 25 rule-based strategies behind WealthSensei's screens — five each for intraday, short-term, swing, positional and long-term horizons.",
 };
 
 const STYLE_ACCENT: Record<TradingStyle, string> = {
@@ -33,14 +33,15 @@ export default function StrategiesPage() {
   return (
     <>
       <NavBar
-        title="Strategies"
-        largeTitle
+        title="Trading Strategies"
+        hideSearch
+        hideThemeToggle
         width="fluid"
         subtitle="The 25 rules behind every screen" />
 
       <main className={cn("mx-auto space-y-6 pt-2", CONTAINER_WIDTHS.fluid)}>
         <p className="max-w-3xl text-footnote leading-relaxed text-label-secondary/65">
-          Every recommendation in StockPilot comes from one of these twenty-five strategies, applied
+          Every recommendation in WealthSensei comes from one of these twenty-five strategies, applied
           mechanically to price and fundamental data. Nothing is discretionary and nothing is
           hand-picked — if a stock doesn&apos;t meet a strategy&apos;s conditions, it doesn&apos;t
           appear. Read these to understand what each screen is actually testing, and just as

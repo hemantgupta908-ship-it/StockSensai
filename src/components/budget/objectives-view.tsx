@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Goals and loans. Both are Cashew `Objective` rows differing only by `type`,
@@ -10,7 +11,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { CaretRight, CreditCard, Flag } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, CreditCard, Flag, PencilSimple, Plus } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -58,11 +59,11 @@ import { TransactionGroup, TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
 
 export function ObjectivesView({ type }: { type: ObjectiveType }) {
-  const { objectives, transactions, allWallets } = useBudget();
+  const { objectives, transactions, allWallets  } = useBudget(useShallow((s) => ({ objectives: s.objectives, transactions: s.transactions, allWallets: s.allWallets })));
   const [query, setQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Objective | null>(null);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"active" | "closed">("active");
 
   const isLoan = type === ObjectiveType.loan;
 
@@ -71,26 +72,25 @@ export function ObjectivesView({ type }: { type: ObjectiveType }) {
       objectives
         .filter((o) => o.type === type && !o.archived)
         .filter((o) => {
-          if (showCompleted) return true;
           const indefinite = isIndefiniteLoan(o);
-          if (indefinite) return true;
           const percent = getObjectivePercentageComplete(allWallets, transactions, o);
-          return percent < 1;
+          const isClosed = !indefinite && percent >= 1;
+          return statusFilter === "closed" ? isClosed : !isClosed;
         })
         .filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase()))
         .sort((a, b) => a.order - b.order),
-    [objectives, type, query, showCompleted, allWallets, transactions],
+    [objectives, type, query, statusFilter, allWallets, transactions],
   );
 
   return (
     <>
       <div className="mb-4 flex flex-col gap-3">
         <SegmentedTabs
-          value={showCompleted ? "all" : "active"}
-          onChange={(v) => setShowCompleted(v === "all")}
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as "active" | "closed")}
           options={[
             { value: "active", label: "Active" },
-            { value: "all", label: "All" },
+            { value: "closed", label: "Closed" },
           ]}
         />
         {objectives.filter((o) => o.type === type).length > 3 ? (
@@ -171,7 +171,7 @@ export function ObjectiveCard({
   onEdit?: () => void;
   compact?: boolean;
 }) {
-  const { transactions, allWallets } = useBudget();
+  const { transactions, allWallets  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets })));
   const [expanded, setExpanded] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -209,27 +209,28 @@ export function ObjectiveCard({
 
   return (
     <>
-      <Card className="!p-4">
+      <Card className="group relative overflow-hidden rounded-2xl border border-separator/40 bg-bg-secondary p-5 shadow-card hover:shadow-md hover:border-accent/30 transition-all duration-200">
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="w-full text-left"
+          className="w-full text-left focus:outline-none"
         >
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-headline text-label">
+          {/* Header row */}
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5">
                 <IconBadge
                   iconName={objective.iconName}
                   colour={objective.colour}
-                  size={26}
+                  size={32}
                   fallback={objective.name}
                 />
-                <span className="truncate">
+                <h3 className="truncate text-base sm:text-lg font-bold text-label group-hover:text-accent transition-colors">
                   {objective.emojiIconName ? `${objective.emojiIconName} ` : ""}
                   {objective.name}
-                </span>
-              </p>
-              <p className="text-caption text-label-secondary/60">
+                </h3>
+              </div>
+              <p className="mt-1 text-xs text-label-secondary/60 font-medium">
                 {[
                   indefinite
                     ? "Ongoing loan"
@@ -240,7 +241,7 @@ export function ObjectiveCard({
                           year: "numeric",
                         })}`
                       : isLoan
-                        ? "Long term loan"
+                        ? "Long-term loan"
                         : objective.income
                           ? "Savings goal"
                           : "Spending goal",
@@ -253,80 +254,111 @@ export function ObjectiveCard({
               </p>
             </div>
             {reached ? (
-              <span className="shrink-0 rounded-full bg-green/12 px-2 py-0.5 text-caption2 font-semibold text-green">
+              <span className="shrink-0 rounded-full bg-green/15 px-2.5 py-1 text-xs font-bold text-green border border-green/20">
                 {isLoan ? "Accomplished" : "Reached"}
               </span>
             ) : overdue ? (
-              <span className="shrink-0 rounded-full bg-red/12 px-2 py-0.5 text-caption2 font-semibold text-red">
+              <span className="shrink-0 rounded-full bg-red/15 px-2.5 py-1 text-xs font-bold text-red border border-red/20 animate-pulse">
                 Overdue
               </span>
             ) : null}
           </div>
 
           {indefinite ? (
-            <p className="text-title3 font-semibold">
-              <Amount value={total} colour showSign />
-              <span className="ml-1 text-caption font-normal text-label-secondary/60">
-                {total >= 0 ? "owed to you" : "you owe"}
-              </span>
-            </p>
+            <div className="mt-2 rounded-xl bg-fill/5 p-3">
+              <p className="text-title3 font-bold text-label">
+                <Amount value={total} colour showSign />
+                <span className="ml-1.5 text-xs font-medium text-label-secondary/70">
+                  {total >= 0 ? "owed to you" : "you owe"}
+                </span>
+              </p>
+            </div>
           ) : (
-            <>
-              <ProgressBar percent={percent} colour={objective.colour} className="mb-2" />
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-footnote text-label-secondary">
-                  {isLoan ? "Paid " : null}
-                  <Amount value={total} className="font-semibold text-label" /> of{" "}
-                  <Amount value={objective.amount} />
-                </p>
-                <p className="text-footnote font-semibold text-label-secondary">
-                  {Math.round(percent * 100)}%
-                </p>
+            <div className="mt-3 space-y-2.5">
+              {/* Stat grid */}
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-label-secondary/50">
+                    {isLoan ? "Amount Paid" : "Total Saved"}
+                  </p>
+                  <p className="text-subhead font-bold text-label mt-0.5">
+                    <Amount value={total} className="text-label font-bold" />
+                    <span className="text-xs font-normal text-label-secondary/60"> / </span>
+                    <Amount value={objective.amount} className="text-xs font-semibold text-label-secondary/80" />
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center rounded-lg bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
+                    {Math.round(percent * 100)}%
+                  </span>
+                </div>
               </div>
+
+              {/* Progress Bar */}
+              <ProgressBar percent={percent} colour={objective.colour} height={9} className="my-1.5 bg-fill/10" />
+
+              {/* Bottom remaining detail */}
               {!reached ? (
-                <p className="mt-1 text-caption text-label-secondary/50">
-                  <Amount value={objective.amount - total} />{" "}
-                  {isLoan ? "left to pay" : "until goal reached"}
-                </p>
+                <div className="flex items-center justify-between text-xs text-label-secondary/70 pt-0.5">
+                  <span>Remaining</span>
+                  <span className="font-semibold text-label">
+                    <Amount value={objective.amount - total} /> {isLoan ? "left to pay" : "to reach goal"}
+                  </span>
+                </div>
               ) : null}
-            </>
+            </div>
           )}
+
+          {/* Expand indicator hint */}
+          <div className="mt-3 flex items-center justify-center pt-2 border-t border-separator/20 text-[11px] font-semibold text-label-secondary/40 group-hover:text-label-secondary/70 transition-colors">
+            <span>{expanded ? "Hide history & actions" : "Tap for history & actions"}</span>
+            <CaretDown size={14} className={cn("ml-1 transition-transform duration-200", expanded && "rotate-180")} />
+          </div>
         </button>
 
         {expanded ? (
-          <div className="mt-3 border-t border-separator/40 pt-3">
-            <div className="mb-2 flex gap-2">
+          <div className="mt-3 border-t border-separator/30 pt-3 space-y-3">
+            {/* Action buttons */}
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setAddOpen(true)}
-                className="flex-1 rounded-ios bg-green/12 py-2 text-footnote font-semibold text-green"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent text-accent-fg py-2 px-3 text-xs font-semibold shadow-sm hover:bg-accent/90 transition-all active:scale-[0.98]"
               >
-                Add transaction
+                <Plus size={15} weight="bold" />
+                {isLoan ? "Record Payment" : "Add Contribution"}
               </button>
               {onEdit ? (
                 <button
                   type="button"
                   onClick={onEdit}
-                  className="flex-1 rounded-ios bg-fill/10 py-2 text-footnote font-semibold text-label-secondary"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-fill/10 py-2 px-3.5 text-xs font-semibold text-label-secondary hover:bg-fill/15 transition-all active:scale-[0.98]"
                 >
+                  <PencilSimple size={15} weight="bold" />
                   Edit
                 </button>
               ) : null}
             </div>
 
-            {members.length === 0 ? (
-              <p className="py-3 text-center text-caption text-label-secondary/50">
-                No transactions added yet.
-              </p>
-            ) : (
-              <div className="-mx-4">
-                <TransactionGroup>
-                  {members.slice(0, 10).map((t) => (
-                    <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditingTx} showAccount showDate />
-                  ))}
-                </TransactionGroup>
+            {/* Transaction history box */}
+            <div className="rounded-xl bg-fill/5 border border-separator/30 p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-label-secondary/70 px-1">
+                <span>Recent History ({members.length})</span>
               </div>
-            )}
+              {members.length === 0 ? (
+                <p className="py-2 text-center text-xs text-label-secondary/50">
+                  No payments recorded yet.
+                </p>
+              ) : (
+                <div className="-mx-3 -mb-3">
+                  <TransactionGroup>
+                    {members.slice(0, 10).map((t) => (
+                      <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditingTx} showAccount showDate />
+                    ))}
+                  </TransactionGroup>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </Card>
@@ -362,8 +394,7 @@ function ObjectiveEditor({
   type: ObjectiveType;
   editing?: Objective | null;
 }) {
-  const { objectives, categories, allWallets, upsertObjective, upsertTransactions, deleteObjective } =
-    useBudget();
+  const { objectives, categories, allWallets, upsertObjective, upsertTransactions, deleteObjective  } = useBudget(useShallow((s) => ({ objectives: s.objectives, categories: s.categories, allWallets: s.allWallets, upsertObjective: s.upsertObjective, upsertTransactions: s.upsertTransactions, deleteObjective: s.deleteObjective })));
   const isLoan = type === ObjectiveType.loan;
 
   const [name, setName] = useState("");
@@ -838,7 +869,7 @@ function ObjectiveEditor({
 
 /** Pinned goals and loans, for the home screen. */
 export function PinnedObjectives() {
-  const { objectives } = useBudget();
+  const { objectives  } = useBudget(useShallow((s) => ({ objectives: s.objectives })));
   const pinned = objectives
     .filter((o) => o.pinned && !o.archived && o.type === ObjectiveType.goal)
     .sort((a, b) => a.order - b.order);

@@ -66,7 +66,7 @@ export function RecommendationInfoModal({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="font-mono text-headline font-bold text-label">{r.ticker}</h3>
+                <h3 className="text-headline font-bold tracking-wide text-label">{r.ticker}</h3>
                 <ExchangeBadge exchange={r.exchange} />
               </div>
               <p className="truncate text-footnote text-label-secondary/70">{r.name}</p>

@@ -12,9 +12,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      {/* No title: the trading-style tabs directly below already say what this
-          screen is, so a heading would only repeat them. */}
-      <NavBar width="fluid" />
+      <NavBar title="Stock Recommendations" hideSearch hideThemeToggle width="fluid" />
       <main className="pb-2">
         <RecommendationFeed />
       </main>

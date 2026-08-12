@@ -32,6 +32,7 @@ import {
   timesAverage,
 } from "./helpers";
 import {
+  bandsAreOrdered,
   minRewardRiskFor,
   requiredConditionsMet,
   rewardToRisk,
@@ -171,6 +172,10 @@ const maCrossover: Strategy = {
       Math.max(ema50Now * 0.995, currentPrice - atrNow * thresholds.stopAtrMultiple),
     );
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
@@ -344,6 +349,10 @@ const rsiReversal: Strategy = {
       stopLoss = round2(lastCandle.high + atrNow * 0.35);
     }
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, isBullish ? "bullish" : "bearish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, isBullish ? "bullish" : "bearish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
@@ -516,6 +525,10 @@ const consolidationBreakout: Strategy = {
     const target = sanitiseBand(targetBand(measuredMove, 3));
     const stopLoss = round2(Math.min(rangeHigh * 0.978, rangeHigh - atrNow * 0.8));
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
@@ -680,6 +693,10 @@ const supportResistanceBounce: Strategy = {
     const target = sanitiseBand(targetBand(nextResistance, 2.4));
     const stopLoss = round2(Math.min(support.level * 0.975, lastCandle.low - atrNow * 0.3));
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
@@ -838,6 +855,10 @@ const macdCrossover: Strategy = {
       );
     }
 
+    // A stop inside the entry band, or a target overlapping it, is not a
+    // tradeable setup — and `rewardToRisk` cannot see either, because it
+    // works from midpoints. Must run before the reward-to-risk floor.
+    if (!bandsAreOrdered(entry, target, stopLoss, isBullish ? "bullish" : "bearish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, isBullish ? "bullish" : "bearish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 

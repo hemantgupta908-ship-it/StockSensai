@@ -48,8 +48,8 @@ export function WatchlistButton({
         "relative after:absolute after:-inset-2 after:rounded-full after:content-['']",
         withLabel ? "px-3 py-1.5" : size === "sm" ? "h-7 w-7 justify-center" : "h-9 w-9 justify-center",
         saved
-          ? "bg-amber/[0.16] text-amber"
-          : "bg-fill/[0.10] text-label-secondary/55 dark:bg-white/[0.09]",
+          ? "bg-amber-500/15 text-amber-500"
+          : "bg-fill/[0.10] text-label-secondary hover:bg-amber-500/10 hover:text-amber-500 dark:bg-white/[0.09]",
         className,
       )}
     >
@@ -61,7 +61,11 @@ export function WatchlistButton({
         transition={{ type: "spring", stiffness: 500, damping: 20 }}
         className="flex"
       >
-        <Star size={iconSize} fill={saved ? "currentColor" : "none"} />
+        <Star
+          size={iconSize}
+          weight={saved ? "fill" : "regular"}
+          className={saved ? "text-amber-500" : "text-label-secondary/80"}
+        />
       </motion.span>
       {withLabel && (
         <span className="text-footnote font-semibold">{saved ? "Saved" : "Watchlist"}</span>

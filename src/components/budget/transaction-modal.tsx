@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Add / edit transaction — the flow everything else feeds.
@@ -77,8 +78,7 @@ export function TransactionModal({
   defaults?: Partial<Transaction>;
   defaultTab?: Tab;
 }) {
-  const {
-    wallets,
+  const { wallets,
     categories,
     budgets,
     objectives,
@@ -89,7 +89,7 @@ export function TransactionModal({
     upsertTransactions,
     deleteTransaction,
     upsertAssociatedTitle,
-  } = useBudget();
+   } = useBudget(useShallow((s) => ({ wallets: s.wallets, categories: s.categories, budgets: s.budgets, objectives: s.objectives, associatedTitles: s.associatedTitles, settings: s.settings, transactions: s.transactions, upsertTransaction: s.upsertTransaction, upsertTransactions: s.upsertTransactions, deleteTransaction: s.deleteTransaction, upsertAssociatedTitle: s.upsertAssociatedTitle })));
   const { main: mainCategories, subsByParent } = useCategoryLookup();
 
   const [tab, setTab] = useState<Tab>("expense");
@@ -743,7 +743,7 @@ export function TransactionModal({
               </button>
               <button
                 type="button"
-                className="flex-1 rounded-[10px] bg-green py-2.5 text-[15px] font-semibold text-white transition-colors hover:bg-green/90"
+                className="flex-1 rounded-[10px] bg-accent py-2.5 text-[15px] font-semibold text-accent-fg transition-colors hover:bg-accent/90"
                 onClick={() => handleConfirmSync(true)}
               >
                 Yes, update both

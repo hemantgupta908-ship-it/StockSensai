@@ -9,13 +9,13 @@ import { parseRiskTolerance, RISK_COOKIE } from "@/lib/preferences";
 
 export const metadata: Metadata = {
   title: {
-    default: "StockSensei — Indian stock screener",
-    template: "%s · StockSensei",
+    default: "WealthSensei — Indian stock screener",
+    template: "%s · WealthSensei",
   },
   description:
     "Rule-based screens for NSE and BSE listed stocks across intraday, short-term, swing, positional and long-term styles. An educational screener, not investment advice.",
-  applicationName: "StockSensei",
-  appleWebApp: { capable: true, title: "StockSensei", statusBarStyle: "default" },
+  applicationName: "WealthSensei",
+  appleWebApp: { capable: true, title: "WealthSensei", statusBarStyle: "default" },
   formatDetection: { telephone: false },
   icons: {
     icon: "/icon.svg",

@@ -1,4 +1,5 @@
 "use client";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Categories and subcategories.
@@ -33,7 +34,7 @@ import {
 } from "./budget-ui";
 
 export function CategoriesView() {
-  const { categories, transactions, allWallets } = useBudget();
+  const { categories, transactions, allWallets  } = useBudget(useShallow((s) => ({ categories: s.categories, transactions: s.transactions, allWallets: s.allWallets })));
   const { main, subsByParent } = useCategoryLookup();
   const [direction, setDirection] = useState<"expense" | "income">("expense");
   const [editorOpen, setEditorOpen] = useState(false);
@@ -236,7 +237,7 @@ export function CategoryEditor({
   /** Lets a picker select the category it just created. */
   onCreated?: (category: TransactionCategory) => void;
 }) {
-  const { categories, upsertCategory, deleteCategory } = useBudget();
+  const { categories, upsertCategory, deleteCategory  } = useBudget(useShallow((s) => ({ categories: s.categories, upsertCategory: s.upsertCategory, deleteCategory: s.deleteCategory })));
   const { main } = useCategoryLookup();
 
   const [name, setName] = useState("");
