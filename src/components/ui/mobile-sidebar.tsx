@@ -130,39 +130,44 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
 
             {/* Navigation List */}
             <nav className="flex-1 overflow-y-auto pt-1">
-              {NAV_SECTIONS.map((section) => (
-                <div key={section.title} className="mb-4">
-                  <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
-                    {section.title}
-                  </p>
-                  <ul className="space-y-0.5">
-                    {section.items.map((item) => {
-                      const active = isActivePath(pathname, item.href);
-                      const Icon = item.icon;
-                      return (
-                        <li key={item.href}>
-                          <Link
-                            href={item.href}
-                            onClick={onClose}
-                            prefetch={true}
-                            className={cn(
-                              "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
-                              active
-                                ? "bg-accent/15 text-accent dark:bg-accent/20"
-                                : "text-label hover:bg-fill/[0.08]",
-                            )}
-                          >
-                            <Icon size={20} weight="regular" className="shrink-0" />
-                            <span className={cn("text-subhead", active && "font-semibold")}>
-                              {item.label}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
+              {NAV_SECTIONS.map((section) => {
+                const mobileItems = section.items.filter((item) => item.label !== "Settings");
+                if (mobileItems.length === 0) return null;
+
+                return (
+                  <div key={section.title} className="mb-4">
+                    <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
+                      {section.title}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {mobileItems.map((item) => {
+                        const active = isActivePath(pathname, item.href);
+                        const Icon = item.icon;
+                        return (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              onClick={onClose}
+                              prefetch={true}
+                              className={cn(
+                                "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
+                                active
+                                  ? "bg-accent/15 text-accent dark:bg-accent/20"
+                                  : "text-label hover:bg-fill/[0.08]",
+                              )}
+                            >
+                              <Icon size={20} weight="regular" className="shrink-0" />
+                              <span className={cn("text-subhead", active && "font-semibold")}>
+                                {item.label}
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
             </nav>
 
             {/* Profile & Logout Footer */}

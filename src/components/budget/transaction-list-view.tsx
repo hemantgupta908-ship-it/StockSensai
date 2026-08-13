@@ -280,7 +280,15 @@ export function TransactionListView() {
 }
 
 /** Compact recent-transactions block for the home screen. */
-export function RecentTransactions({ limit = 8 }: { limit?: number }) {
+export function RecentTransactions({
+  limit = 8,
+  title,
+  action,
+}: {
+  limit?: number;
+  title?: string;
+  action?: React.ReactNode;
+}) {
   const { transactions  } = useBudget(useShallow((s) => ({ transactions: s.transactions })));
   const [editing, setEditing] = useState<Transaction | null>(null);
 
@@ -296,17 +304,19 @@ export function RecentTransactions({ limit = 8 }: { limit?: number }) {
 
   if (recent.length === 0) {
     return (
-      <EmptyState
-        icon={ArrowsLeftRight}
-        title="No transactions yet"
-        description="Tap the + button to record your first one."
-      />
+      <Card className="flex flex-col items-center justify-center p-6">
+        <EmptyState
+          icon={ArrowsLeftRight}
+          title="No transactions yet"
+          description="Tap the + button to record your first one."
+        />
+      </Card>
     );
   }
 
   return (
     <>
-      <TransactionGroup>
+      <TransactionGroup header={title || action ? { title, action } : undefined}>
         {recent.map((t) => (
           <TransactionRow key={t.transactionPk} transaction={t} onEdit={setEditing} showAccount />
         ))}

@@ -7,9 +7,10 @@ import { useShallow } from "zustand/react/shallow";
  * dependency to the bundle.
  */
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChartPie as PieIcon, CaretDown, CaretUp, X } from "@phosphor-icons/react";
+import { ChartPie as PieIcon, CaretDown, CaretUp, CreditCard, X } from "@phosphor-icons/react";
+import { TRANSFER_CATEGORY_PK } from "@/lib/budget/types";
 
 import { cn } from "@/lib/utils";
 import {
@@ -19,11 +20,15 @@ import {
   getCategoryTotals,
   getSpendingByCategory,
   getSpendingSummary,
+  countsTowardsTotal,
+  isExcludedFromTotals,
+  getNetWorth,
 } from "@/lib/budget/calculations";
+import { amountRatioToPrimaryCurrencyGivenPk } from "@/lib/budget/currency";
 import { getIcon } from "@/lib/budget/icons";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import { IconBadge } from "./icon-picker";
-import { Amount, Card, CategoryDot, EmptyState, SegmentedTabs, Section } from "./budget-ui";
+import { Amount, AnimatedNumberTicker, Card, CategoryDot, EmptyState, SegmentedTabs, Section } from "./budget-ui";
 
 type Range = "month" | "3months" | "year";
 
@@ -177,8 +182,9 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
     const parent = category?.mainCategoryPk ? byPk.get(category.mainCategoryPk) : null;
     const share = value / total;
     const dash = share * circumference;
-    const catName = category?.name ?? "Uncategorised";
-    const color = category?.colour ?? parent?.colour ?? "#8E8E93";
+    const isTransferCat = categoryPk === TRANSFER_CATEGORY_PK || category?.name === "Transfer";
+    const catName = isTransferCat ? "Card Payment" : (category?.name ?? "Uncategorised");
+    const color = isTransferCat ? "#007AFF" : (category?.colour ?? parent?.colour ?? "#8E8E93");
     
     const isSelected = selectedPk === categoryPk;
     const isDimmed = selectedPk !== null && !isSelected;
@@ -319,7 +325,7 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: category?.colour ?? parent?.colour ?? "#8E8E93" }} />
                     <span className={cn("min-w-0 flex-1 truncate text-label", large ? "text-[12px]" : "text-footnote")}>
                       {parent ? <span className="opacity-60">{parent.name} • </span> : null}
-                      {category?.name ?? "Uncategorised"}
+                      {categoryPk === TRANSFER_CATEGORY_PK || category?.name === "Transfer" ? "Card Payment" : (category?.name ?? "Uncategorised")}
                     </span>
                     <span className={cn("shrink-0 text-label-secondary/60 text-right w-8", large ? "text-[12px]" : "text-caption")}>
                       {Math.round(share * 100)}%
@@ -685,6 +691,16 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // The dashboard keeps a mobile and a desktop copy of this graph in the DOM at
+  // once (the breakpoint only toggles `display`), so the paint ids have to be
+  // per-instance — otherwise the hidden copy wins the `url(#…)` lookup and the
+  // visible one silently loses its mask and gradient.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const dotPatternId = `lineGraphDotPattern-${uid}`;
+  const dotFadeId = `lineGraphDotFadeGradient-${uid}`;
+  const maskId = `lineGraphMask-${uid}`;
+  const areaGradId = `lineGraphGrad-${uid}`;
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
@@ -788,16 +804,17 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
           <span className="text-caption text-label-secondary/50">
             {hoverIndex !== null ? "Selected:" : "Net change:"}
           </span>
-          <Amount value={activePoint.value} colour showSign />
+          <Amount value={activePoint.value} colour showSign animated />
         </div>
       </div>
 
       <div className="relative">
         <div className="relative overflow-x-auto no-scrollbar" ref={scrollRef}>
         <div style={{ width: `${Math.max(100, (width / 320) * 100)}%`, minWidth: '100%' }}>
+          <div className="relative h-[130px] xl:h-[175px]">
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="h-[130px] w-full cursor-crosshair touch-none overflow-visible"
+            className="block h-[130px] xl:h-[175px] w-full cursor-crosshair touch-none overflow-visible"
             preserveAspectRatio="none"
             onMouseMove={handleMove}
             onTouchMove={handleMove}
@@ -805,19 +822,19 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
             onTouchEnd={() => setHoverIndex(null)}
           >
         <defs>
-          <pattern id="lineGraphDotPattern" x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
+          <pattern id={dotPatternId} x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
             <circle cx="1.5" cy="1.5" r="0.45" fill="rgb(var(--sys-gray))" opacity="0.85" />
           </pattern>
-          <linearGradient id="lineGraphDotFadeGradient" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={dotFadeId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="white" stopOpacity="1" />
             <stop offset="35%" stopColor="white" stopOpacity="0.75" />
             <stop offset="70%" stopColor="white" stopOpacity="0.3" />
             <stop offset="100%" stopColor="white" stopOpacity="0.05" />
           </linearGradient>
-          <mask id="lineGraphMask">
-            <path d={`${path} L${width},${height} L0,${height} Z`} fill="url(#lineGraphDotFadeGradient)" />
+          <mask id={maskId}>
+            <path d={`${path} L${width},${height} L0,${height} Z`} fill={`url(#${dotFadeId})`} />
           </mask>
-          <linearGradient id="lineGraphGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={areaGradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="rgb(var(--sys-gray))" stopOpacity="0.15" />
             <stop offset="100%" stopColor="rgb(var(--sys-gray))" stopOpacity="0.0" />
           </linearGradient>
@@ -848,18 +865,21 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
           y="0"
           width={width}
           height={height}
-          fill="url(#lineGraphDotPattern)"
-          mask="url(#lineGraphMask)"
+          fill={`url(#${dotPatternId})`}
+          mask={`url(#${maskId})`}
         />
 
         {/* Subtle Gradient Background Area */}
-        <path
+        <motion.path
           d={`${path} L${width},${height} L0,${height} Z`}
-          fill="url(#lineGraphGrad)"
+          fill={`url(#${areaGradId})`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1.2, delay: 0.4 }}
         />
 
-        {/* Thin Trendline Curve */}
-        <path
+        {/* Thin Trendline Curve with Path Draw Animation */}
+        <motion.path
           d={path}
           fill="none"
           stroke="rgb(var(--sys-gray))"
@@ -867,33 +887,41 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
           strokeLinejoin="round"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
         />
 
-        {/* Hover Crosshair Line & Glowing Focus Point */}
+        {/* Hover Crosshair Line */}
         {hoverIndex !== null && activeCoord ? (
-          <g>
-            <line
-              x1={activeCoord.x}
-              y1="0"
-              x2={activeCoord.x}
-              y2={height}
-              stroke="rgb(var(--label-secondary))"
-              strokeWidth="1.5"
-              strokeDasharray="3 3"
-              opacity="0.6"
-            />
-            <circle
-              cx={activeCoord.x}
-              cy={activeCoord.y}
-              r="6"
-              fill="rgb(var(--sys-gray))"
-              stroke="#FFFFFF"
-              strokeWidth="2.5"
-              className="drop-shadow-md"
-            />
-          </g>
+          <line
+            x1={activeCoord.x}
+            y1="0"
+            x2={activeCoord.x}
+            y2={height}
+            stroke="rgb(var(--label-secondary))"
+            strokeWidth="1.5"
+            strokeDasharray="3 3"
+            opacity="0.6"
+            vectorEffect="non-scaling-stroke"
+          />
         ) : null}
       </svg>
+
+            {/* Focus point lives outside the SVG: `preserveAspectRatio="none"`
+                stretches the viewBox horizontally, which flattens a <circle>
+                into a wide ellipse. */}
+            {hoverIndex !== null && activeCoord ? (
+              <div
+                className="pointer-events-none absolute z-10 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md"
+                style={{
+                  backgroundColor: "rgb(var(--sys-gray))",
+                  left: `${(activeCoord.x / width) * 100}%`,
+                  top: `${(activeCoord.y / height) * 100}%`,
+                }}
+              />
+            ) : null}
+            </div>
 
             <div className="relative mt-1 h-4 w-full overflow-visible">
               {monthLabels.map((m, i) => {
@@ -968,12 +996,12 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
   });
 
   return (
-    <div>
+    <div className="[--col-width:17px] [--col-center:7px] xl:[--col-width:21px] xl:[--col-center:8.75px]">
       <div className="overflow-x-auto no-scrollbar" ref={heatmapRef}>
         <div className="w-max pb-1">
-          <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+          <div className="grid grid-flow-col grid-rows-7 gap-[3px] xl:gap-[3.5px]">
             {Array.from({ length: leadingBlanks }).map((_, i) => (
-              <span key={`blank-${i}`} className="h-3.5 w-3.5" />
+              <span key={`blank-${i}`} className="h-3.5 w-3.5 xl:h-[17.5px] xl:w-[17.5px]" />
             ))}
             {days.map(([key, value]) => {
               const isIncome = value > 0;
@@ -984,7 +1012,7 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
                   key={key}
                   title={`${key}: ${value.toFixed(2)}`}
                   className={cn(
-                    "h-3.5 w-3.5 rounded-[3px]",
+                    "h-3.5 w-3.5 xl:h-[17.5px] xl:w-[17.5px] rounded-[3px]",
                     value === 0 && "bg-fill/15",
                   )}
                   style={
@@ -1002,7 +1030,7 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
                 <div
                   key={`${m.year}-${m.label}-${i}`}
                   className="absolute top-0 flex flex-col items-center text-[10px] font-medium text-label-secondary/60 -translate-x-1/2 whitespace-nowrap"
-                  style={{ left: m.colIndex * 17 + 7 }}
+                  style={{ left: `calc(var(--col-width) * ${m.colIndex} + var(--col-center))` }}
                 >
                   <svg width="5" height="4" viewBox="0 0 5 4" className="fill-label-secondary/40 mb-0.5">
                     <polygon points="2.5,0 5,4 0,4" />
@@ -1055,15 +1083,123 @@ export function SpendingSummaryWidget() {
       <div className="grid grid-cols-3 gap-3 text-center">
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Income</p>
-          <Amount value={summary.income} className="text-subhead font-semibold text-green" />
+          <Amount value={summary.income} className="text-subhead font-semibold text-green" animated />
         </div>
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Expense</p>
-          <Amount value={summary.expense} className="text-subhead font-semibold text-red" />
+          <Amount value={summary.expense} className="text-subhead font-semibold text-red" animated />
         </div>
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Net</p>
-          <Amount value={summary.net} colour showSign className="text-subhead font-semibold" />
+          <Amount value={summary.net} colour showSign className="text-subhead font-semibold" animated />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/** Overall portfolio monthly averages & cash flow health for the overview dashboard. */
+export function OverallCashFlowHealthWidget() {
+  const { transactions, allWallets, objectives } = useBudget(
+    useShallow((s) => ({
+      transactions: s.transactions,
+      allWallets: s.allWallets,
+      objectives: s.objectives,
+    })),
+  );
+
+  const netWorth = useMemo(() => getNetWorth(allWallets, transactions), [allWallets, transactions]);
+
+  const stats = useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return { avgMonthlySpend: 0, avgMonthlyIncome: 0, savingsRate: 0, runwayMonths: "N/A" };
+    }
+
+    const timestamps = transactions.map((t) => new Date(t.dateCreated).getTime());
+    const minTime = Math.min(...timestamps);
+    const maxTime = Math.max(...timestamps, Date.now());
+    const days = Math.max(1, (maxTime - minTime) / (1000 * 60 * 60 * 24));
+    const months = Math.max(1, days / 30.44);
+
+    let totalExpense = 0;
+    let totalIncome = 0;
+
+    for (const t of transactions) {
+      if (!countsTowardsTotal(t)) continue;
+      if (isExcludedFromTotals(t, objectives)) continue;
+      const ratio = amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
+      const val = Math.abs(t.amount) * ratio;
+      if (t.income) totalIncome += val;
+      else totalExpense += val;
+    }
+
+    const avgMonthlySpend = totalExpense / months;
+    const avgMonthlyIncome = totalIncome / months;
+
+    let savingsRate = 0;
+    if (totalIncome > 0) {
+      savingsRate = Math.round(((totalIncome - totalExpense) / totalIncome) * 100);
+    }
+
+    let runwayMonths = "∞";
+    if (netWorth > 0 && avgMonthlySpend > 0) {
+      const r = netWorth / avgMonthlySpend;
+      runwayMonths = r > 120 ? ">10 yrs" : `${r.toFixed(1)} mos`;
+    } else if (netWorth <= 0) {
+      runwayMonths = "0 mos";
+    }
+
+    return {
+      avgMonthlySpend,
+      avgMonthlyIncome,
+      savingsRate,
+      runwayMonths,
+    };
+  }, [transactions, allWallets, objectives, netWorth]);
+
+  return (
+    <Card className="!py-2.5 !px-4 border border-separator/15">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Left Label */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <TrendUp size={16} weight="bold" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-label">
+              Monthly Run Rate & Runway
+            </h3>
+            <p className="text-[10px] font-medium text-label-secondary/50 hidden sm:block">
+              Portfolio averages & financial health
+            </p>
+          </div>
+        </div>
+
+        {/* Right Metric Pillars in a sleek horizontal row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 text-left sm:text-right items-center">
+          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+            <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Spend</p>
+            <Amount value={stats.avgMonthlySpend} className="text-subhead font-bold text-red" animated />
+          </div>
+
+          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+            <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Income</p>
+            <Amount value={stats.avgMonthlyIncome} className="text-subhead font-bold text-green" animated />
+          </div>
+
+          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+            <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Savings Rate</p>
+            <span className={cn("text-subhead font-bold tabular-nums block", stats.savingsRate >= 0 ? "text-green" : "text-red")}>
+              {stats.savingsRate >= 0 ? `+${stats.savingsRate}%` : `${stats.savingsRate}%`}
+            </span>
+          </div>
+
+          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+            <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Est. Runway</p>
+            <span className="text-subhead font-bold text-label tabular-nums block">
+              {stats.runwayMonths}
+            </span>
+          </div>
         </div>
       </div>
     </Card>
@@ -1196,203 +1332,177 @@ export function CategoryBreakdownWidget() {
   );
 }
 
-/** ─── Spending Insights Widget ─── */
+/** ─── Top Category Trends Widget ─── */
 
 import {
   TrendUp,
   TrendDown,
-  Tag,
-  PiggyBank,
-  Warning,
-  CurrencyCircleDollar,
-  ChartBar,
-  Receipt,
 } from "@phosphor-icons/react";
 
-interface Insight {
-  icon: React.ReactNode;
-  text: string;
-  color: string;
-  bgColor: string;
-}
-
 /**
- * Smart spending insights widget for the home screen.
- *
- * Computes real insights from transaction data: month-over-month comparisons,
- * top category share, savings rate, biggest single expense, average daily spend.
+ * Top Expense Categories & Month-over-Month Trends widget.
+ * Ranks top spending categories for the current month with percentage share,
+ * total amount, progress bar, and month-over-month trend indicators.
  */
-export function SpendingInsightsWidget() {
-  const { transactions, allWallets, objectives, categories  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives, categories: s.categories })));
+export function TopCategoryTrendsWidget() {
+  const { transactions } = useBudget(useShallow((s) => ({ transactions: s.transactions })));
   const { byPk } = useCategoryLookup();
 
-  const insights = useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
+  const data = useMemo(() => {
+    if (!transactions || transactions.length === 0) return { topCategories: [], totalExpense: 0 };
 
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
-    // Filter transactions by month
-    const thisMonth = transactions.filter((t) => {
-      const d = new Date(t.dateCreated);
-      return d >= thisMonthStart && d <= now;
-    });
-    const lastMonth = transactions.filter((t) => {
-      const d = new Date(t.dateCreated);
-      return d >= lastMonthStart && d <= lastMonthEnd;
-    });
-
-    // Compute totals for this month
-    let thisExpense = 0;
-    let thisIncome = 0;
     const thisCatSpend = new Map<string, number>();
-    let biggestExpName = "";
-    let biggestExpAmount = 0;
+    const lastCatSpend = new Map<string, number>();
+    let totalExpense = 0;
 
-    for (const t of thisMonth) {
-      if (t.type !== null) continue;
+    for (const t of transactions) {
+      if (!countsTowardsTotal(t)) continue;
+      if (t.income) continue;
+      const d = new Date(t.dateCreated);
       const amt = Math.abs(t.amount);
-      if (t.income) {
-        thisIncome += amt;
-      } else {
-        thisExpense += amt;
+
+      if (d >= thisMonthStart && d <= now) {
+        totalExpense += amt;
         thisCatSpend.set(t.categoryFk, (thisCatSpend.get(t.categoryFk) ?? 0) + amt);
-        if (amt > biggestExpAmount) {
-          biggestExpAmount = amt;
-          biggestExpName = t.name || "Unnamed";
-        }
+      } else if (d >= lastMonthStart && d <= lastMonthEnd) {
+        lastCatSpend.set(t.categoryFk, (lastCatSpend.get(t.categoryFk) ?? 0) + amt);
       }
     }
 
-    // Last month expense total
-    let lastExpense = 0;
-    for (const t of lastMonth) {
-      if (t.type !== null) continue;
-      if (!t.income) lastExpense += Math.abs(t.amount);
-    }
+    const sorted = [...thisCatSpend.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
 
-    const result: Insight[] = [];
+    const topCategories = sorted.map(([catPk, amount]) => {
+      const category = byPk.get(catPk);
+      const parent = category?.mainCategoryPk ? byPk.get(category.mainCategoryPk) : null;
+      const isTransferCat = catPk === TRANSFER_CATEGORY_PK || category?.name === "Transfer";
+      const catName = isTransferCat ? "Card Payment" : (category?.name ?? "Uncategorised");
+      const color = isTransferCat ? "#007AFF" : (category?.colour ?? parent?.colour ?? "#8E8E93");
+      const iconName = isTransferCat ? undefined : (category?.iconName ?? parent?.iconName);
+      const emoji = isTransferCat ? "💳" : (category?.emojiIconName ?? parent?.emojiIconName ?? "✨");
+      const Icon = isTransferCat ? CreditCard : getIcon(iconName);
 
-    // 1. Month-over-month spending change
-    if (lastExpense > 0 && thisExpense > 0) {
-      const change = ((thisExpense - lastExpense) / lastExpense) * 100;
-      if (Math.abs(change) >= 5) {
-        const up = change > 0;
-        result.push({
-          icon: up
-            ? <TrendUp size={15} weight="regular" className="text-red" />
-            : <TrendDown size={15} weight="regular" className="text-green" />,
-          text: up
-            ? `Spending is up ${Math.round(Math.abs(change))}% compared to last month`
-            : `Spending is down ${Math.round(Math.abs(change))}% compared to last month — nice!`,
-          color: up ? "text-red" : "text-green",
-          bgColor: up ? "bg-red/10" : "bg-green/10",
-        });
+      const lastAmount = lastCatSpend.get(catPk) ?? 0;
+      let momChange: number | null = null;
+      if (lastAmount > 0) {
+        momChange = Math.round(((amount - lastAmount) / lastAmount) * 100);
       }
-    }
 
-    // 2. Top category share
-    if (thisCatSpend.size > 0 && thisExpense > 0) {
-      const sorted = [...thisCatSpend.entries()].sort((a, b) => b[1] - a[1]);
-      const [topPk, topAmount] = sorted[0];
-      const topCat = byPk.get(topPk);
-      const share = Math.round((topAmount / thisExpense) * 100);
-      if (share >= 15) {
-        result.push({
-          icon: <Tag size={15} weight="regular" className="text-amber" />,
-          text: `${topCat?.name ?? "Top category"} takes ${share}% of this month's spending`,
-          color: "text-amber",
-          bgColor: "bg-amber/10",
-        });
-      }
-    }
+      const sharePct = totalExpense > 0 ? Math.round((amount / totalExpense) * 100) : 0;
 
-    // 3. Savings rate
-    if (thisIncome > 0) {
-      const savingsRate = Math.round(((thisIncome - thisExpense) / thisIncome) * 100);
-      if (savingsRate > 0) {
-        result.push({
-          icon: <PiggyBank size={15} weight="regular" className={savingsRate >= 20 ? "text-green" : "text-amber"} />,
-          text: `Saving ${savingsRate}% of income this month`,
-          color: savingsRate >= 20 ? "text-green" : "text-amber",
-          bgColor: savingsRate >= 20 ? "bg-green/10" : "bg-amber/10",
-        });
-      } else {
-        result.push({
-          icon: <Warning size={15} weight="regular" className="text-red" />,
-          text: `Spending exceeds income by ₹${Math.abs(Math.round(thisIncome - thisExpense)).toLocaleString("en-IN")}`,
-          color: "text-red",
-          bgColor: "bg-red/10",
-        });
-      }
-    }
+      return {
+        catPk,
+        catName,
+        color,
+        Icon,
+        emoji,
+        amount,
+        lastAmount,
+        momChange,
+        sharePct,
+      };
+    });
 
-    // 4. Biggest single expense
-    if (biggestExpAmount > 0 && thisExpense > 0) {
-      const share = Math.round((biggestExpAmount / thisExpense) * 100);
-      if (share >= 10) {
-        const displayName = biggestExpName === "Cycle Payment" ? "Card Payment" : biggestExpName;
-        result.push({
-          icon: <CurrencyCircleDollar size={15} weight="regular" className="text-purple" />,
-          text: `"${displayName}" was the biggest expense at ₹${Math.round(biggestExpAmount).toLocaleString("en-IN")}`,
-          color: "text-label-secondary",
-          bgColor: "bg-purple/10",
-        });
-      }
-    }
+    return { topCategories, totalExpense };
+  }, [transactions, byPk]);
 
-    // 5. Average daily spend
-    if (thisExpense > 0) {
-      const daysSoFar = Math.max(1, now.getDate());
-      const avgDaily = Math.round(thisExpense / daysSoFar);
-      result.push({
-        icon: <ChartBar size={15} weight="regular" className="text-blue" />,
-        text: `Averaging ₹${avgDaily.toLocaleString("en-IN")} per day this month`,
-        color: "text-blue",
-        bgColor: "bg-blue/10",
-      });
-    }
-
-    // 6. Transaction count
-    const thisExpCount = thisMonth.filter((t) => !t.income && t.type === null).length;
-    if (thisExpCount > 0) {
-      result.push({
-        icon: <Receipt size={15} weight="regular" className="text-teal" />,
-        text: `${thisExpCount} expense transactions recorded this month`,
-        color: "text-label-secondary",
-        bgColor: "bg-teal/10",
-      });
-    }
-
-    return result.slice(0, 4); // Show top 4 insights
-  }, [transactions, allWallets, objectives, categories, byPk]);
-
-  if (insights.length === 0) {
-    return null;
+  if (data.topCategories.length === 0) {
+    return (
+      <Card className="!p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-label-secondary/60 mb-2">
+          Top Categories & Trends
+        </h3>
+        <p className="text-footnote text-label-secondary/50 py-4 text-center">
+          No expenses recorded for this month yet.
+        </p>
+      </Card>
+    );
   }
 
   return (
-    <Card>
-      <p className="text-caption uppercase tracking-wide text-label-secondary/50 mb-3">
-        Spending Insights
-      </p>
-      <div className="flex flex-col gap-3">
-        {insights.map((insight, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3"
-          >
-            <div className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-ios",
-              insight.bgColor,
-            )}>
-              {insight.icon}
+    <Card className="flex flex-col !p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-label-secondary/60">
+            Top Categories & Trends
+          </h3>
+          <p className="text-[11px] font-medium text-label-secondary/50">
+            This Month vs Last Month
+          </p>
+        </div>
+        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+          Top 5
+        </span>
+      </div>
+
+      <div className="space-y-2.5 divide-y divide-separator/20">
+        {data.topCategories.map((cat, i) => (
+          <div key={cat.catPk} className={cn(i > 0 && "pt-2.5")}>
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-caption"
+                  style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                >
+                  {cat.Icon ? <cat.Icon size={14} weight="bold" /> : <span>{cat.emoji}</span>}
+                </div>
+                <span className="truncate text-subhead font-semibold text-label">
+                  {cat.catName}
+                </span>
+                <span className="shrink-0 text-caption text-label-secondary/50 font-medium">
+                  {cat.sharePct}%
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Amount value={cat.amount} className="text-subhead font-bold" />
+                {cat.momChange !== null ? (
+                  <span
+                    className={cn(
+                      "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md",
+                      cat.momChange > 0
+                        ? "bg-red/10 text-red"
+                        : cat.momChange < 0
+                        ? "bg-green/10 text-green"
+                        : "bg-fill/10 text-label-secondary",
+                    )}
+                  >
+                    {cat.momChange > 0 ? (
+                      <>
+                        <TrendUp size={11} weight="bold" />+{cat.momChange}%
+                      </>
+                    ) : cat.momChange < 0 ? (
+                      <>
+                        <TrendDown size={11} weight="bold" />{cat.momChange}%
+                      </>
+                    ) : (
+                      "0%"
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-blue/10 text-blue">
+                    New
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="text-footnote leading-snug text-label">
-              {insight.text}
-            </p>
+
+            {/* Visual Progress Bar */}
+            <div className="h-1.5 w-full rounded-full bg-fill/15 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.max(4, cat.sharePct)}%`,
+                  backgroundColor: cat.color,
+                }}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -1400,9 +1510,12 @@ export function SpendingInsightsWidget() {
   );
 }
 
-/** Kept for backwards compatibility — wraps the old stacked bars as an alias. */
+export function SpendingInsightsWidget() {
+  return <TopCategoryTrendsWidget />;
+}
+
 export function CategoryStackedBarWidget() {
-  return <SpendingInsightsWidget />;
+  return <TopCategoryTrendsWidget />;
 }
 
 export { dayKey };

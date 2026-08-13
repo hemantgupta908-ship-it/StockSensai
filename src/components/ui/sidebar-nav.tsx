@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { MagnifyingGlass, SignOut } from "@phosphor-icons/react";
 
 import { useSession } from "@/components/auth/session-provider";
+import { useBudget } from "@/components/budget/budget-provider";
+import { UserAvatar } from "@/components/budget/user-avatar";
 import { StockSearchModal } from "@/components/stock/stock-search-modal";
 import { BrandMark } from "@/components/auth/auth-artwork";
 import { NavSidebar, SIDEBAR_WIDTH } from "./nav";
@@ -22,7 +26,11 @@ export { SIDEBAR_WIDTH };
 export function SidebarNav() {
   const router = useRouter();
   const { user, signOut } = useSession();
+  const { settings } = useBudget(useShallow((s) => ({ settings: s.settings })));
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const email = user?.email || "hemantgupta908@gmail.com";
+  const username = email.split("@")[0] || "Profile";
 
   const header = (
     <>
@@ -54,31 +62,42 @@ export function SidebarNav() {
   );
 
   const footer = (
-    <button
-      onClick={async () => {
-        await signOut();
-        router.refresh();
-      }}
-      className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-fill/10"
-    >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent shadow-sm ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-accent-fg">
-        <span className="text-footnote font-bold">
-          {user?.email?.charAt(0).toUpperCase() || "U"}
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-footnote font-semibold text-label">
-          {user?.email?.split("@")[0] || "User"}
-        </p>
-        <p className="truncate text-caption2 text-label-secondary/70">
-          {user?.email || "Signed in"}
-        </p>
-      </div>
-      <SignOut
-        size={16}
-        className="shrink-0 text-label-secondary/50 transition-colors group-hover:text-label"
-      />
-    </button>
+    <div className="flex items-center justify-between gap-2 rounded-2xl p-2 transition-colors hover:bg-fill/10">
+      <Link
+        href="/settings"
+        className="flex flex-1 items-center gap-3 min-w-0"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-separator/50 bg-bg-secondary shadow-xs dark:border-white/10 overflow-hidden">
+          <UserAvatar
+            avatarVal={settings?.userAvatar || "initial"}
+            email={email}
+            className="h-full w-full text-base"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-footnote font-bold text-label">
+            {username}
+          </p>
+          <p className="truncate text-caption2 text-label-secondary/60">
+            {email}
+          </p>
+        </div>
+      </Link>
+
+      <button
+        type="button"
+        onClick={async (e) => {
+          e.stopPropagation();
+          await signOut();
+          router.refresh();
+        }}
+        title="Sign out"
+        aria-label="Sign out"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red text-white shadow-xs hover:bg-red/90 transition-colors focus:outline-none"
+      >
+        <SignOut size={18} weight="regular" />
+      </button>
+    </div>
   );
 
   return (

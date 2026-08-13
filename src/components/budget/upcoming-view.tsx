@@ -369,11 +369,11 @@ export function UpcomingWidget() {
         <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Upcoming</p>
-            <Amount value={upcomingTotal} className="text-subhead font-semibold text-label" />
+            <Amount value={upcomingTotal} className="text-subhead font-semibold text-label" animated />
           </div>
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Overdue</p>
-            <Amount value={overdueTotal} className="text-subhead font-semibold text-red" />
+            <Amount value={overdueTotal} className="text-subhead font-semibold text-red" animated />
           </div>
         </div>
       </Card>
@@ -431,11 +431,11 @@ export function CreditDebtWidget() {
         <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Lent</p>
-            <Amount value={lent} className="text-subhead font-semibold text-green" />
+            <Amount value={lent} className="text-subhead font-semibold text-green" animated />
           </div>
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Borrowed</p>
-            <Amount value={borrowed} className="text-subhead font-semibold text-red" />
+            <Amount value={borrowed} className="text-subhead font-semibold text-red" animated />
           </div>
         </div>
       </Card>

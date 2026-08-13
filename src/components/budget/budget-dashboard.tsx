@@ -52,7 +52,7 @@ import { PinnedObjectives } from "./objectives-view";
 import { RecentTransactions } from "./transaction-list-view";
 import { CreditDebtWidget, UpcomingWidget } from "./upcoming-view";
 import { PoliciesWidget } from "./policies-view";
-import { SpendingSummaryWidget, CategoryBreakdownWidget, CategoryStackedBarWidget, LineGraph, Heatmap } from "./analytics-view";
+import { SpendingSummaryWidget, CategoryBreakdownWidget, CategoryStackedBarWidget, OverallCashFlowHealthWidget, LineGraph, Heatmap } from "./analytics-view";
 import { TransactionModal } from "./transaction-modal";
 import { type BudgetSettings } from "@/lib/budget/defaults";
 
@@ -60,22 +60,23 @@ const WIDGET_META: { id: string; label: string; settingKey: keyof BudgetSettings
   { id: "netWorth", label: "Net Worth", settingKey: "showNetWorth", icon: TrendUp },
   { id: "walletSwitcher", label: "Accounts", settingKey: "showWalletSwitcher", icon: CreditCard },
   { id: "allSpendingSummary", label: "Income & Expenses", settingKey: "showAllSpendingSummary", icon: ArrowsLeftRight },
+  { id: "cashFlowHealth", label: "Monthly Averages & Runway", settingKey: "showCashFlowHealth", icon: TrendUp },
   { id: "budgets", label: "Budgets", settingKey: "showPinnedBudgets", icon: ChartPie },
   { id: "objectives", label: "Goals", settingKey: "showObjectives", icon: Target },
   { id: "creditDebt", label: "Lent & Borrowed", settingKey: "showCreditDebt", icon: HandCoins },
   { id: "upcoming", label: "Overdue & Upcoming", settingKey: "showUpcomingTransactions", icon: Calendar },
   { id: "policies", label: "Policies", settingKey: "showPolicies", icon: ShieldCheck },
-  { id: "recentTransactions", label: "Transactions List", settingKey: "showRecentTransactions", icon: ListDashes },
-  { id: "transactions", label: "Transactions List", settingKey: "showRecentTransactions", icon: ListDashes },
-  { id: "pieChart", label: "Pie Chart", settingKey: "showPieChart", icon: ChartPie },
-  { id: "lineGraph", label: "Spending Graph", settingKey: "showLineGraph", icon: ChartLine },
-  { id: "heatmap", label: "Heatmap", settingKey: "showHeatmap", icon: SquaresFour },
+  { id: "recentTransactions", label: "Recent Transactions", settingKey: "showRecentTransactions", icon: ListDashes },
+  { id: "pieChart", label: "Pie & Category Trends", settingKey: "showPieChart", icon: ChartPie },
+  { id: "lineGraph", label: "Net Worth Line Graph", settingKey: "showLineGraph", icon: ChartLine },
+  { id: "heatmap", label: "Daily Spending Heatmap", settingKey: "showHeatmap", icon: SquaresFour },
 ];
 
 const DEFAULT_ORDER = [
   "netWorth",
   "walletSwitcher",
   "allSpendingSummary",
+  "cashFlowHealth",
   "creditDebt",
   "upcoming",
   "policies",
@@ -185,7 +186,7 @@ export function BudgetDashboard() {
         <Card className="relative overflow-hidden flex flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
           {/* Subtle Background Net Worth Sparkline Curve */}
           {sparklineData ? (
-            <div className="absolute inset-0 pointer-events-none opacity-25 dark:opacity-20 transition-opacity group-hover:opacity-40">
+            <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-75 transition-opacity group-hover:opacity-90">
               <svg
                 viewBox={`0 0 ${sparklineData.w} ${sparklineData.h}`}
                 className="h-full w-full overflow-visible"
@@ -214,7 +215,7 @@ export function BudgetDashboard() {
                   </mask>
 
                   <linearGradient id="netWorthCardSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.12" />
+                    <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.2" />
                     <stop offset="100%" stopColor="var(--accent, #007AFF)" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
@@ -238,7 +239,7 @@ export function BudgetDashboard() {
                   points={sparklineData.pointsStr}
                   fill="none"
                   stroke="var(--accent, #007AFF)"
-                  strokeWidth="1"
+                  strokeWidth="1.75"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -248,7 +249,7 @@ export function BudgetDashboard() {
 
           <div className="relative z-10">
             <p className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">Net worth</p>
-            <Amount value={netWorth} className="text-largetitle font-bold" colour />
+            <Amount value={netWorth} className="text-largetitle font-bold" colour animated />
           </div>
         </Card>
       </button>
@@ -261,6 +262,11 @@ export function BudgetDashboard() {
     allSpendingSummary: settings.showAllSpendingSummary ? (
       <Section key="allSpendingSummary" className="!mb-0">
         <SpendingSummaryWidget />
+      </Section>
+    ) : null,
+    cashFlowHealth: (settings.showCashFlowHealth ?? true) ? (
+      <Section key="cashFlowHealth" className="!mb-0">
+        <OverallCashFlowHealthWidget />
       </Section>
     ) : null,
     budgets: settings.showPinnedBudgets ? (
@@ -289,14 +295,14 @@ export function BudgetDashboard() {
       </Section>
     ) : null,
     recentTransactions: (settings.showRecentTransactions ?? true) ? (
-      <Section key="recentTransactions" title="Recent transactions" action={<SeeAll href="/budget/transactions" />} className="!mb-0">
-        <RecentTransactions />
-      </Section>
+      <div key="recentTransactions">
+        <RecentTransactions title="Recent transactions" action={<SeeAll href="/budget/transactions" />} limit={5} />
+      </div>
     ) : null,
     transactions: (settings.showRecentTransactions ?? true) ? (
-      <Section key="transactions" title="Recent transactions" action={<SeeAll href="/budget/transactions" />} className="!mb-0">
-        <RecentTransactions />
-      </Section>
+      <div key="transactions">
+        <RecentTransactions title="Recent transactions" action={<SeeAll href="/budget/transactions" />} limit={5} />
+      </div>
     ) : null,
     pieChart: (settings.showPieChart ?? true) ? (
       <div key="pieChart" className="space-y-6">
@@ -346,134 +352,109 @@ export function BudgetDashboard() {
 
       {/* Desktop View: Structured 2-column layout */}
       <div className="hidden xl:block">
-        {/* Hero: Net worth & accounts summary */}
-        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(260px,340px)_1fr]">
-          {settings.showNetWorth ? (
-            <button 
-              type="button" 
-              onClick={() => setNetWorthSettingsOpen(true)}
-              className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <Card className="relative overflow-hidden flex h-full flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
-                {/* Subtle Background Net Worth Sparkline Curve */}
-                {sparklineData ? (
-                  <div className="absolute inset-0 pointer-events-none opacity-25 dark:opacity-20 transition-opacity group-hover:opacity-40">
-                    <svg
-                      viewBox={`0 0 ${sparklineData.w} ${sparklineData.h}`}
-                      className="h-full w-full overflow-visible"
-                      preserveAspectRatio="none"
-                    >
-                      <defs>
-                        <pattern id="dotGridDesktopPattern" x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
-                          <circle cx="1.5" cy="1.5" r="0.45" fill="var(--accent, #007AFF)" opacity="0.85" />
-                        </pattern>
-                        <linearGradient id="dotFadeDesktopGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="white" stopOpacity="1" />
-                          <stop offset="35%" stopColor="white" stopOpacity="0.75" />
-                          <stop offset="70%" stopColor="white" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="white" stopOpacity="0.05" />
-                        </linearGradient>
-                        <mask id="sparklineDesktopMask">
-                          <polygon
-                            points={`0,${sparklineData.h} ${sparklineData.pointsStr} ${sparklineData.w},${sparklineData.h}`}
-                            fill="url(#dotFadeDesktopGradient)"
-                          />
-                        </mask>
-                        <linearGradient id="netWorthDesktopSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.12" />
-                          <stop offset="100%" stopColor="var(--accent, #007AFF)" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <rect
-                        x="0"
-                        y="0"
-                        width={sparklineData.w}
-                        height={sparklineData.h}
-                        fill="url(#dotGridDesktopPattern)"
-                        mask="url(#sparklineDesktopMask)"
-                      />
-                      <polygon
-                        points={`0,${sparklineData.h} ${sparklineData.pointsStr} ${sparklineData.w},${sparklineData.h}`}
-                        fill="url(#netWorthDesktopSparkGrad)"
-                      />
-                      <polyline
-                        points={sparklineData.pointsStr}
-                        fill="none"
-                        stroke="var(--accent, #007AFF)"
-                        strokeWidth="1"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+        {/* Hero Section: Net Worth + Accounts + Stat Strip + Full-Width Monthly Averages */}
+        <div className="mb-6 space-y-4">
+          {/* Row 1 & 2 Grid: Net Worth (spanning 2-row height) + Accounts & Stat Strip */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(260px,340px)_1fr] items-stretch">
+            {settings.showNetWorth ? (
+              <button 
+                type="button" 
+                onClick={() => setNetWorthSettingsOpen(true)}
+                className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent h-full flex flex-col"
+              >
+                <Card className="relative overflow-hidden flex h-full flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
+                  {/* Subtle Background Net Worth Sparkline Curve */}
+                  {sparklineData ? (
+                    <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-75 transition-opacity group-hover:opacity-90">
+                      <svg
+                        viewBox={`0 0 ${sparklineData.w} ${sparklineData.h}`}
+                        className="h-full w-full overflow-visible"
+                        preserveAspectRatio="none"
+                      >
+                        <defs>
+                          <pattern id="dotGridDesktopPattern" x="0" y="0" width="4.5" height="4.5" patternUnits="userSpaceOnUse">
+                            <circle cx="1.5" cy="1.5" r="0.45" fill="var(--accent, #007AFF)" opacity="0.85" />
+                          </pattern>
+                          <linearGradient id="dotFadeDesktopGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="white" stopOpacity="1" />
+                            <stop offset="35%" stopColor="white" stopOpacity="0.75" />
+                            <stop offset="70%" stopColor="white" stopOpacity="0.3" />
+                            <stop offset="100%" stopColor="white" stopOpacity="0.05" />
+                          </linearGradient>
+                          <mask id="sparklineDesktopMask">
+                            <polygon
+                              points={`0,${sparklineData.h} ${sparklineData.pointsStr} ${sparklineData.w},${sparklineData.h}`}
+                              fill="url(#dotFadeDesktopGradient)"
+                            />
+                          </mask>
+                          <linearGradient id="netWorthDesktopSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent, #007AFF)" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="var(--accent, #007AFF)" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+                        <rect
+                          x="0"
+                          y="0"
+                          width={sparklineData.w}
+                          height={sparklineData.h}
+                          fill="url(#dotGridDesktopPattern)"
+                          mask="url(#sparklineDesktopMask)"
+                        />
+                        <polygon
+                          points={`0,${sparklineData.h} ${sparklineData.pointsStr} ${sparklineData.w},${sparklineData.h}`}
+                          fill="url(#netWorthDesktopSparkGrad)"
+                        />
+                        <polyline
+                          points={sparklineData.pointsStr}
+                          fill="none"
+                          stroke="var(--accent, #007AFF)"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  ) : null}
+
+                  <div className="relative z-10">
+                    <p className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">
+                      Net worth
+                    </p>
+                    <Amount value={netWorth} className="text-largetitle font-bold" colour animated />
                   </div>
-                ) : null}
-
-                <div className="relative z-10">
-                  <p className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">
-                    Net worth
-                  </p>
-                  <Amount value={netWorth} className="text-largetitle font-bold" colour />
-                </div>
-              </Card>
-            </button>
-          ) : null}
-
-          <div className="min-w-0 space-y-4">
-            {settings.showWalletSwitcher ? (
-              <Section className="!mb-0">
-                <AccountsSummary />
-              </Section>
+                </Card>
+              </button>
             ) : null}
-            {settings.showAllSpendingSummary ? (
-              <Section className="!mb-0">
-                <SpendingSummaryWidget />
-              </Section>
-            ) : null}
+
+            <div className="min-w-0 space-y-4 flex flex-col justify-between">
+              {settings.showWalletSwitcher ? (
+                <Section className="!mb-0">
+                  <AccountsSummary />
+                </Section>
+              ) : null}
+
+              {/* Stat strip beside the accounts: income/expense/net, lent/borrowed, upcoming/overdue, policies */}
+              <div className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
+                {settings.showAllSpendingSummary ? <SpendingSummaryWidget /> : null}
+                {settings.showCreditDebt ? <CreditDebtWidget /> : null}
+                {settings.showUpcomingTransactions ? <UpcomingWidget /> : null}
+                {settings.showPolicies ? <PoliciesWidget /> : null}
+              </div>
+            </div>
           </div>
+
+          {/* Full Row Width: Overall Monthly Averages & Cash Flow Health Run Rate */}
+          {(settings.showCashFlowHealth ?? true) ? (
+            <div className="w-full">
+              <OverallCashFlowHealthWidget />
+            </div>
+          ) : null}
         </div>
 
         {/* Balanced 2-column grid on wide screens */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-          {/* Left Column: Financial overview cards & Recent Transactions */}
+          {/* Left Column: Net worth trend, heatmap & Recent Transactions */}
           <div className="space-y-6 min-w-0">
-            {settings.showCreditDebt ? (
-              <Section className="!mb-0">
-                <CreditDebtWidget />
-              </Section>
-            ) : null}
-
-            {settings.showUpcomingTransactions ? (
-              <Section className="!mb-0">
-                <UpcomingWidget />
-              </Section>
-            ) : null}
-
-            {settings.showPolicies ? (
-              <Section className="!mb-0">
-                <PoliciesWidget />
-              </Section>
-            ) : null}
-
-            {settings.showRecentTransactions ?? true ? (
-              <Section title="Recent transactions" action={<SeeAll href="/budget/transactions" />} className="!mb-0">
-                <RecentTransactions />
-              </Section>
-            ) : null}
-          </div>
-
-          {/* Right Column: Analytics, Breakdown Widgets, Trend Graph & Heatmap */}
-          <div className="space-y-6 min-w-0">
-            {settings.showPieChart ?? true ? (
-              <>
-                <Section className="!mb-0">
-                  <CategoryBreakdownWidget />
-                </Section>
-                <Section className="!mb-0">
-                  <CategoryStackedBarWidget />
-                </Section>
-              </>
-            ) : null}
-
             {settings.showLineGraph ? (
               <Section className="!mb-0">
                 <Card>
@@ -488,6 +469,24 @@ export function BudgetDashboard() {
                   <Heatmap start={allTimeStart} end={new Date()} />
                 </Card>
               </Section>
+            ) : null}
+
+            {settings.showRecentTransactions ?? true ? (
+              <RecentTransactions title="Recent transactions" action={<SeeAll href="/budget/transactions" />} limit={5} />
+            ) : null}
+          </div>
+
+          {/* Right Column: All-time outgoing / incoming breakdowns */}
+          <div className="space-y-6 min-w-0">
+            {settings.showPieChart ?? true ? (
+              <>
+                <Section className="!mb-0">
+                  <CategoryBreakdownWidget />
+                </Section>
+                <Section className="!mb-0">
+                  <CategoryStackedBarWidget />
+                </Section>
+              </>
             ) : null}
           </div>
         </div>

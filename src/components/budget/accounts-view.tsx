@@ -696,19 +696,15 @@ export function AccountsSummary() {
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-caption font-medium text-label-secondary/80">{wallet.name}</p>
               </div>
-              <p
+              <div
                 className={cn(
                   "text-title3 font-bold tracking-tight tabular-nums",
                   balance < 0 ? "text-red" : "text-label",
                   settings.hideAmounts && "font-mono tracking-widest text-label-secondary/50",
                 )}
               >
-                {formatCurrencyAmount(balance, wallet.currency, {
-                  decimals: settings.showDecimals ? wallet.decimals : 0,
-                  compact: false,
-                  obfuscate: settings.hideAmounts,
-                })}
-              </p>
+                <Amount value={balance} currency={wallet.currency} />
+              </div>
             </div>
           </div>
         );

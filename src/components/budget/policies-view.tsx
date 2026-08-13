@@ -918,11 +918,11 @@ export function PoliciesWidget({ limit = 3 }: { limit?: number }) {
         <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Collected</p>
-            <Amount value={totalCollections} className="text-subhead font-semibold text-label" />
+            <Amount value={totalCollections} className="text-subhead font-semibold text-label" animated />
           </div>
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Annual Premium</p>
-            <Amount value={annualPremium} className="text-subhead font-semibold text-label" />
+            <Amount value={annualPremium} className="text-subhead font-semibold text-label" animated />
           </div>
         </div>
       </Card>

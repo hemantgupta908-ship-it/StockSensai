@@ -147,20 +147,52 @@ export function Card({
   );
 }
 
-export function AnimatedNumberTicker({ value, className }: { value: number; className?: string }) {
+function OdometerDigit({ digit, delay = 0 }: { digit: number; delay?: number }) {
   return (
-    <AnimatePresence mode="wait">
+    <span className="inline-block relative overflow-hidden h-[1.15em] select-none align-bottom">
       <motion.span
-        key={value}
-        initial={{ opacity: 0.6, y: 3, filter: "blur(2px)" }}
-        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        exit={{ opacity: 0.6, y: -3, filter: "blur(2px)" }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
-        className={className}
+        initial={{ y: "0%" }}
+        animate={{ y: `-${digit * 10}%` }}
+        transition={{
+          duration: 1.8,
+          delay,
+          ease: [0.16, 1, 0.3, 1],
+        }}
+        className="flex flex-col items-center"
       >
-        {value}
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
+          <span key={d} className="h-[1.15em] leading-[1.15em] flex items-center justify-center">
+            {d}
+          </span>
+        ))}
       </motion.span>
-    </AnimatePresence>
+    </span>
+  );
+}
+
+export function AnimatedNumberTicker({ value, className }: { value: string | number; className?: string }) {
+  const strValue = String(value);
+  const characters = strValue.split("");
+
+  let digitCount = 0;
+
+  return (
+    <span className={cn("inline-flex items-baseline tabular-nums leading-none", className)}>
+      {characters.map((char, index) => {
+        const isDigit = char >= "0" && char <= "9";
+        if (isDigit) {
+          const digit = parseInt(char, 10);
+          const currentDelay = digitCount * 0.08;
+          digitCount++;
+          return <OdometerDigit key={`${index}-${char}`} digit={digit} delay={currentDelay} />;
+        }
+        return (
+          <span key={`${index}-${char}`} className="inline-block">
+            {char}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -200,6 +232,7 @@ export function Amount({
   colour = false,
   decimals,
   compact = false,
+  animated = false,
 }: {
   value: number;
   currency?: string | null;
@@ -209,6 +242,8 @@ export function Amount({
   colour?: boolean;
   decimals?: number;
   compact?: boolean;
+  /** Enable mechanical odometer rolling animation for hero metrics. */
+  animated?: boolean;
 }) {
   const { allWallets, settings  } = useBudget(useShallow((s) => ({ allWallets: s.allWallets, settings: s.settings })));
   const code = currency ?? allWallets.primaryCurrency;
@@ -228,7 +263,7 @@ export function Amount({
         className,
       )}
     >
-      <AnimatedNumberTicker value={text as any} />
+      {animated ? <AnimatedNumberTicker value={text} /> : text}
     </span>
   );
 }

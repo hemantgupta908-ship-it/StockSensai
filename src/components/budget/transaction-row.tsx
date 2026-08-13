@@ -29,12 +29,19 @@ export function TransactionRow({
   showAccount,
   showDate = false,
   showActions = true,
+  large = false,
 }: {
   transaction: Transaction;
   onEdit?: (t: Transaction) => void;
   showAccount?: boolean;
   showDate?: boolean;
   showActions?: boolean;
+  /**
+   * Steps the row up one rung of the type ramp from `lg` up, for screens that
+   * give the list a column of its own rather than the full width of a phone.
+   * Opt-in and desktop-only, so every existing caller renders identically.
+   */
+  large?: boolean;
 }) {
   const { byPk } = useCategoryLookup();
   const { wallets, settings, upsertTransaction, upsertTransactions, objectives  } = useBudget(useShallow((s) => ({ wallets: s.wallets, settings: s.settings, upsertTransaction: s.upsertTransaction, upsertTransactions: s.upsertTransactions, objectives: s.objectives })));
@@ -86,7 +93,7 @@ export function TransactionRow({
   }
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
+    <div className={cn("flex items-center gap-3 px-3 py-2.5", large && "lg:px-4 lg:py-3")}>
       <button
         type="button"
         onClick={() => onEdit?.(transaction)}
@@ -103,7 +110,7 @@ export function TransactionRow({
 
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-subhead text-label">
+            <span className={cn("truncate text-subhead text-label", large && "lg:text-body")}>
               {(() => {
                 const raw = transaction.name || category?.name || "Transaction";
                 return raw === "Cycle Payment" ? "Card Payment" : raw;
@@ -118,7 +125,12 @@ export function TransactionRow({
             ) : null}
           </span>
 
-          <span className="flex items-center gap-1.5 text-caption text-label-secondary/60">
+          <span
+            className={cn(
+              "flex items-center gap-1.5 text-caption text-label-secondary/60",
+              large && "lg:text-footnote",
+            )}
+          >
             {overdue ? (
               <span className="flex items-center gap-0.5 font-medium text-red">
                 <Clock size={10} /> Overdue
@@ -131,7 +143,7 @@ export function TransactionRow({
             {transaction.skipPaid ? <span className="text-label-secondary/50">Skipped</span> : null}
             <span className="truncate">
               {showDate ? `${new Date(transaction.dateCreated).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ` : ""}
-              {subCategory ? `${category?.name} › ${subCategory.name}` : (category?.name ?? "")}
+              {subCategory ? `${category?.name} › ${subCategory.name}` : (transfer && (transaction.name === "Card Payment" || transaction.name === "Cycle Payment") ? "Card Payment" : (category?.name ?? ""))}
               {showAccount || settings.accountLabel ? ` · ${wallet?.name ?? ""}` : ""}
               {transaction.reoccurrence !== null && transaction.periodLength !== null
                 ? ` · ${reoccurrenceLabel(transaction.reoccurrence, transaction.periodLength)}`
@@ -146,6 +158,7 @@ export function TransactionRow({
           showSign
           className={cn(
             "shrink-0 text-subhead font-semibold",
+            large && "lg:text-body",
             amountColor,
             unsettled && "opacity-50",
           )}
@@ -177,9 +190,25 @@ export function TransactionRow({
 }
 
 /** A card of transaction rows with hairline separators. */
-export function TransactionGroup({ children }: { children: React.ReactNode }) {
+export function TransactionGroup({
+  children,
+  header,
+}: {
+  children: React.ReactNode;
+  header?: { title?: string; action?: React.ReactNode };
+}) {
   return (
     <div className="divide-y divide-separator/40 overflow-hidden rounded-card bg-bg-secondary">
+      {header ? (
+        <div className="flex items-center justify-between px-4 py-3">
+          {header.title ? (
+            <h2 className="text-footnote font-semibold uppercase tracking-wide text-label-secondary/60">
+              {header.title}
+            </h2>
+          ) : <div />}
+          {header.action}
+        </div>
+      ) : null}
       {children}
     </div>
   );

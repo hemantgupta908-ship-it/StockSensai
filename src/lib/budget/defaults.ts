@@ -261,6 +261,7 @@ export interface BudgetSettings {
   showLineGraph: boolean;
   showHeatmap: boolean;
   showAllSpendingSummary: boolean;
+  showCashFlowHealth: boolean;
   showWalletSwitcher: boolean;
   showRecentTransactions: boolean;
 
@@ -322,6 +323,7 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
     "netWorth",
     "walletSwitcher",
     "allSpendingSummary",
+    "cashFlowHealth",
     "creditDebt",
     "upcoming",
     "policies",
@@ -341,6 +343,7 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
   showLineGraph: true,
   showHeatmap: true,
   showAllSpendingSummary: true,
+  showCashFlowHealth: true,
   showWalletSwitcher: true,
   showRecentTransactions: true,
 

@@ -34,7 +34,7 @@ import Link from "next/link";
 import { MobileSidebar } from "@/components/ui/mobile-sidebar";
 
 import { cn } from "@/lib/utils";
-import { type Transaction, type TransactionCategory } from "@/lib/budget/types";
+import { TransactionSpecialType, type Transaction, type TransactionCategory } from "@/lib/budget/types";
 import {
   affectsWalletBalance,
   getWalletBalance,
@@ -49,6 +49,7 @@ import { getCreditCardStatus, isCreditCard, dayInMonth } from "@/lib/budget/cred
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { getIcon } from "@/lib/budget/icons";
 import { useBudget, useCategoryLookup } from "./budget-provider";
+import { CategoryBreakdown } from "./analytics-view";
 import { IconBadge } from "./icon-picker";
 import {
   Amount,
@@ -381,6 +382,23 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
     return [...activeBreakdown.entries()].sort((a, b) => b[1].sum - a[1].sum);
   }, [activeBreakdown]);
 
+  const outgoingMap = useMemo(
+    () => new Map([...outgoingByCategory.entries()].map(([k, v]) => [k, v.sum])),
+    [outgoingByCategory],
+  );
+  const outgoingCounts = useMemo(
+    () => new Map([...outgoingByCategory.entries()].map(([k, v]) => [k, v.count])),
+    [outgoingByCategory],
+  );
+  const incomingMap = useMemo(
+    () => new Map([...incomingByCategory.entries()].map(([k, v]) => [k, v.sum])),
+    [incomingByCategory],
+  );
+  const incomingCounts = useMemo(
+    () => new Map([...incomingByCategory.entries()].map(([k, v]) => [k, v.count])),
+    [incomingByCategory],
+  );
+
   // Filtered transactions for list view
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -439,6 +457,74 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
       return { ...group, unpaidAmount };
     });
   }, [cycleGroups, card]);
+
+  const spendingVelocity = useMemo(() => {
+    const expenses = walletTransactions.filter((t) => countsTowardsTotal(t) && !t.income);
+    if (expenses.length === 0) {
+      return {
+        peakDayName: "N/A",
+        peakDayPct: 0,
+        peakWindowName: "N/A",
+        peakWindowPct: 0,
+        avgTxSize: 0,
+        recurringPct: 0,
+      };
+    }
+
+    let totalExpense = 0;
+    let recurringExpense = 0;
+    const dayOfWeekSpend = [0, 0, 0, 0, 0, 0, 0];
+    const monthWindowSpend = [0, 0, 0];
+
+    for (const t of expenses) {
+      const amt = Math.abs(t.amount);
+      totalExpense += amt;
+
+      const d = new Date(t.dateCreated);
+      const dayOfWeek = d.getDay();
+      dayOfWeekSpend[dayOfWeek] += amt;
+
+      const dateNum = d.getDate();
+      if (dateNum <= 10) monthWindowSpend[0] += amt;
+      else if (dateNum <= 20) monthWindowSpend[1] += amt;
+      else monthWindowSpend[2] += amt;
+
+      if (
+        t.type === TransactionSpecialType.subscription ||
+        t.type === TransactionSpecialType.repetitive
+      ) {
+        recurringExpense += amt;
+      }
+    }
+
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    let maxDayIdx = 0;
+    for (let i = 1; i < 7; i++) {
+      if (dayOfWeekSpend[i] > dayOfWeekSpend[maxDayIdx]) maxDayIdx = i;
+    }
+    const peakDayName = dayNames[maxDayIdx];
+    const peakDayPct = totalExpense > 0 ? Math.round((dayOfWeekSpend[maxDayIdx] / totalExpense) * 100) : 0;
+
+    const windowNames = ["Days 1–10", "Days 11–20", "Days 21–31"];
+    let maxWindowIdx = 0;
+    for (let i = 1; i < 3; i++) {
+      if (monthWindowSpend[i] > monthWindowSpend[maxWindowIdx]) maxWindowIdx = i;
+    }
+    const peakWindowName = windowNames[maxWindowIdx];
+    const peakWindowPct = totalExpense > 0 ? Math.round((monthWindowSpend[maxWindowIdx] / totalExpense) * 100) : 0;
+
+    const avgTxSize = totalExpense / expenses.length;
+    const recurringPct = totalExpense > 0 ? Math.round((recurringExpense / totalExpense) * 100) : 0;
+
+    return {
+      peakDayName,
+      peakDayPct,
+      peakWindowName,
+      peakWindowPct,
+      avgTxSize,
+      recurringPct,
+    };
+  }, [walletTransactions]);
 
   const isPrimary = wallet?.walletPk === settings.primaryWalletPk;
 
@@ -682,29 +768,42 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
                       vectorEffect="non-scaling-stroke"
                     />
                     {accountHoverIndex !== null && activeCoord ? (
-                      <g>
-                        <line
-                          x1={activeCoord.x}
-                          y1="0"
-                          x2={activeCoord.x}
-                          y2={height}
-                          stroke="rgb(var(--label-secondary))"
-                          strokeWidth="1.5"
-                          strokeDasharray="3 3"
-                          opacity="0.6"
-                        />
-                        <circle
-                          cx={activeCoord.x}
-                          cy={activeCoord.y}
-                          r="6"
-                          fill={accent}
-                          stroke="#FFFFFF"
-                          strokeWidth="2.5"
-                          className="drop-shadow-md"
-                        />
-                      </g>
+                      <line
+                        x1={activeCoord.x}
+                        y1="0"
+                        x2={activeCoord.x}
+                        y2={height}
+                        stroke="rgb(var(--label-secondary))"
+                        strokeWidth="1.5"
+                        strokeDasharray="3 3"
+                        opacity="0.6"
+                        vectorEffect="non-scaling-stroke"
+                      />
                     ) : null}
                   </svg>
+                );
+              })()}
+              {accountHoverIndex !== null && (() => {
+                const values = trendPoints.map((p) => p.value);
+                const min = Math.min(...values, 0);
+                const max = Math.max(...values, 0);
+                const span = max - min || 1;
+                const width = 320;
+                const height = 120;
+                const coords = trendPoints.map((p, i) => ({
+                  x: (i / (trendPoints.length - 1)) * width,
+                  y: height - ((p.value - min) / span) * height,
+                }));
+                const activeCoord = coords[accountHoverIndex];
+                return (
+                  <div
+                    className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md z-10"
+                    style={{
+                      backgroundColor: accent || "rgb(var(--sys-gray))",
+                      left: `${(activeCoord.x / width) * 100}%`,
+                      top: `${(activeCoord.y / height) * 100}%`,
+                    }}
+                  />
                 );
               })()}
             </div>
@@ -717,72 +816,57 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
           </div>
         ) : null}
 
-        {/* 5. Dual Stacked Horizontal Category Bars Card */}
-        {activeTotal > 0 ? (
-          <div className="rounded-[22px] bg-bg-secondary p-5 shadow-sm space-y-4">
-            {/* Outgoing Horizontal Stack Bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-caption font-semibold text-label-secondary/70">
-                <span className="flex items-center gap-1 text-red">🔻 Outgoing</span>
-                <span>₹{breakdownStats.expenseSum.toLocaleString("en-IN")}</span>
-              </div>
-              <div className="flex h-4 w-full overflow-hidden rounded-full bg-fill/10 p-0.5">
-                {[...outgoingByCategory.entries()].map(([catPk, item]) => {
-                  const category = byPk.get(catPk);
-                  const parent = category?.mainCategoryPk ? byPk.get(category.mainCategoryPk) : null;
-                  const catColor = category?.colour ?? parent?.colour ?? "#8E8E93";
-                  const pct = (item.sum / (breakdownStats.expenseSum || 1)) * 100;
-                  if (pct <= 0) return null;
-                  return (
-                    <div
-                      key={`out-bar-${catPk}`}
-                      className="h-full first:rounded-l-full last:rounded-r-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: catColor }}
-                      title={`${category?.name}: ₹${item.sum}`}
-                    />
-                  );
-                })}
-              </div>
+        {/* 5. Spending Velocity & Behavioral Patterns Widget */}
+        <div className="rounded-[22px] bg-bg-secondary p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">
+                Spending Velocity & Behavioral Patterns
+              </h3>
+              <p className="text-caption2 text-label-secondary/50">
+                Account spending habits, timing, and transaction velocity
+              </p>
+            </div>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+              Behavior Analytics
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="rounded-xl bg-fill/5 p-3">
+              <p className="text-caption2 uppercase tracking-wide text-label-secondary/50 mb-1">Peak Spend Day</p>
+              <span className="text-subhead font-bold text-label block">
+                {spendingVelocity.peakDayName}
+              </span>
+              <p className="text-[10px] text-label-secondary/40 mt-0.5">{spendingVelocity.peakDayPct}% of weekly spend</p>
             </div>
 
-            {/* Incoming Horizontal Bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-caption font-semibold text-label-secondary/70">
-                <span className="flex items-center gap-1 text-green">🔺 Incoming</span>
-                <span>₹{breakdownStats.incomeSum.toLocaleString("en-IN")}</span>
-              </div>
-              <div className="flex h-4 w-full overflow-hidden rounded-full bg-fill/10 p-0.5">
-                {[...incomingByCategory.entries()].map(([catPk, item]) => {
-                  const category = byPk.get(catPk);
-                  const parent = category?.mainCategoryPk ? byPk.get(category.mainCategoryPk) : null;
-                  const catColor = category?.colour ?? parent?.colour ?? "#4CAF50";
-                  const pct = (item.sum / (breakdownStats.incomeSum || 1)) * 100;
-                  if (pct <= 0) return null;
-                  return (
-                    <div
-                      key={`inc-bar-${catPk}`}
-                      className="h-full first:rounded-l-full last:rounded-r-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: catColor }}
-                      title={`${category?.name}: ₹${item.sum}`}
-                    />
-                  );
-                })}
-              </div>
+            <div className="rounded-xl bg-fill/5 p-3">
+              <p className="text-caption2 uppercase tracking-wide text-label-secondary/50 mb-1">Peak Time Window</p>
+              <span className="text-subhead font-bold text-label block">
+                {spendingVelocity.peakWindowName}
+              </span>
+              <p className="text-[10px] text-label-secondary/40 mt-0.5">{spendingVelocity.peakWindowPct}% of monthly spend</p>
             </div>
 
-            {/* X-axis tick markers */}
-            <div className="flex justify-between px-1 text-[10px] font-medium text-label-secondary/50 pt-1">
-              <span>₹0</span>
-              <span>{formatCompactAmount((breakdownStats.expenseSum + breakdownStats.incomeSum) * 0.25)}</span>
-              <span>{formatCompactAmount((breakdownStats.expenseSum + breakdownStats.incomeSum) * 0.5)}</span>
-              <span>{formatCompactAmount((breakdownStats.expenseSum + breakdownStats.incomeSum) * 0.75)}</span>
-              <span>{formatCompactAmount(Math.max(breakdownStats.expenseSum, breakdownStats.incomeSum))}</span>
+            <div className="rounded-xl bg-fill/5 p-3">
+              <p className="text-caption2 uppercase tracking-wide text-label-secondary/50 mb-1">Avg Purchase</p>
+              <Amount value={spendingVelocity.avgTxSize} className="text-subhead font-bold text-label" />
+              <p className="text-[10px] text-label-secondary/40 mt-0.5">per transaction</p>
+            </div>
+
+            <div className="rounded-xl bg-fill/5 p-3">
+              <p className="text-caption2 uppercase tracking-wide text-label-secondary/50 mb-1">Recurring Share</p>
+              <span className="text-subhead font-bold text-accent block">
+                {spendingVelocity.recurringPct}%
+              </span>
+              <p className="text-[10px] text-label-secondary/40 mt-0.5">fixed subscriptions</p>
             </div>
           </div>
-        ) : null}
+        </div>
 
-        {/* 6. Outgoing / Incoming Doughnut Switcher Card */}
-        <div className="rounded-[24px] bg-bg-secondary p-5 shadow-sm space-y-4">
+        {/* 6. Outgoing / Incoming Doughnut Switcher (Mobile) vs 2 Side-by-Side Cards (Desktop) */}
+        <div className="sm:hidden rounded-[24px] bg-bg-secondary p-5 shadow-sm space-y-4">
           {/* Segmented Tab Switcher */}
           <div className="flex rounded-full bg-fill/10 p-1 text-subhead font-semibold">
             <button
@@ -1196,6 +1280,23 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
               </button>
             </div>
           ) : null}
+        </div>
+
+        {/* Desktop / Tablet 2 Side-by-Side Cards */}
+        <div className="hidden sm:grid grid-cols-2 gap-4">
+          <Card className="flex flex-col !p-5">
+            <h3 className="text-caption font-semibold uppercase tracking-wide text-label-secondary/60 mb-3">
+              Outgoing
+            </h3>
+            <CategoryBreakdown byCategory={outgoingMap} counts={outgoingCounts} direction="outgoing" noCard layout="col" />
+          </Card>
+
+          <Card className="flex flex-col !p-5">
+            <h3 className="text-caption font-semibold uppercase tracking-wide text-label-secondary/60 mb-3">
+              Incoming
+            </h3>
+            <CategoryBreakdown byCategory={incomingMap} counts={incomingCounts} direction="incoming" noCard layout="col" />
+          </Card>
         </div>
 
         {/* 8. Statement Card (if credit card) */}

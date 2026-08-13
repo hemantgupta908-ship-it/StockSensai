@@ -11,8 +11,14 @@ export const metadata: Metadata = {
 export default function CalendarPage() {
   return (
     <>
-      <BudgetHeader title="Calendar" backHref="/budget" />
-      <BudgetPage>
+      {/*
+        `fluid` rather than `wide`: this screen is a grid beside a side panel, and
+        a 1180px cap left a few hundred pixels of gutter either side on a desktop
+        display. Header and page must carry the same width or the title stops
+        lining up with the content.
+      */}
+      <BudgetHeader title="Calendar" backHref="/budget" width="fluid" />
+      <BudgetPage width="fluid">
         <CalendarView />
       </BudgetPage>
     </>
