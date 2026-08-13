@@ -7,13 +7,11 @@ import { CheckCircle, Eye, EyeSlash, Warning } from "@phosphor-icons/react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
-const BRAND = "bg-[#0E7A43] active:bg-[#0B6437] dark:bg-[#12904D] dark:active:bg-[#0E7A43]";
-
 const FIELD =
   "w-full rounded-[12px] border border-separator/50 bg-bg-secondary px-4 py-3 text-body text-label " +
-  "placeholder:text-label-quaternary/40 transition-colors " +
-  "focus:border-[#0E7A43] focus:outline-none focus:ring-2 focus:ring-[#0E7A43]/20 " +
-  "dark:border-white/[0.10] dark:bg-white/[0.04] dark:focus:border-[#3ECF7E] dark:focus:ring-[#3ECF7E]/20";
+  "placeholder:text-label-quaternary/55 transition-colors " +
+  "focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 " +
+  "dark:border-white/[0.10] dark:bg-white/[0.04]";
 
 const MIN_LENGTH = 8;
 
@@ -89,7 +87,7 @@ export function ResetPasswordForm({ configured }: { configured: boolean }) {
   if (done) {
     return (
       <div className="space-y-4 rounded-card border border-separator/40 bg-bg-secondary p-6 text-center shadow-card dark:border-white/[0.06] dark:bg-white/[0.03]">
-        <CheckCircle size={36} className="mx-auto text-[#0E7A43] dark:text-[#3ECF7E]" />
+        <CheckCircle size={36} className="mx-auto text-accent" />
         <div>
           <h2 className="text-headline font-semibold text-label">Password updated</h2>
           <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">
@@ -99,7 +97,6 @@ export function ResetPasswordForm({ configured }: { configured: boolean }) {
         <Button
           fullWidth
           size="lg"
-          className={BRAND}
           onClick={() => {
             router.push("/home");
             router.refresh();
@@ -183,7 +180,6 @@ export function ResetPasswordForm({ configured }: { configured: boolean }) {
         type="submit"
         fullWidth
         size="lg"
-        className={BRAND}
         disabled={working || hasSession === false}
       >
         {working ? "Saving…" : "Save new password"}

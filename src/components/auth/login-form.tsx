@@ -13,17 +13,18 @@ type Mode = "signin" | "signup";
 type Status = "idle" | "working" | "check-email" | "reset-sent";
 
 /**
- * Panel green, reused for the CTA and links so the two halves agree.
+ * Links and icons use the app-wide accent rather than a login-only green.
  *
- * Pulled back from the old #0E7A43 to a slightly less saturated shade: beside
- * the white form half, the higher-chroma green read as a harsh slab. White text
- * sits at 6.0:1 here, comfortably over the 4.5:1 AA floor 17px semibold needs.
+ * This screen used to hardcode its own brand colour, which meant the one screen
+ * every user sees first was also the one screen that ignored their accent. The
+ * CTA is plain `<Button variant="primary">` for the same reason — overriding its
+ * background with a className also threw away `shadow-pill` and swapped the
+ * computed `--accent-fg` for a flat `text-white`, which is what made the button
+ * look foreign next to the rest of the app.
  *
- * The dark-mode value stays only a shade lighter than the light one: a brighter
- * green (#12904D was the first pick) drops white text to 4.15:1, under AA.
+ * The green panel stays: it is brand furniture, not an interactive control.
  */
-const BRAND = "bg-[#17714A] active:bg-[#125C3C] dark:bg-[#17784E] dark:active:bg-[#12603E]";
-const BRAND_TEXT = "text-[#17714A] dark:text-[#3ECF7E]";
+const BRAND_TEXT = "text-accent";
 
 /**
  * Accounts created from a bare username get a synthetic address on this domain.
@@ -49,8 +50,8 @@ const GOOGLE_ENABLED = process.env.NEXT_PUBLIC_OAUTH_GOOGLE === "1";
 const FIELD =
   "w-full rounded-[12px] border border-separator/50 bg-bg px-4 py-3 text-body text-label " +
   "placeholder:text-label-quaternary/55 transition-colors " +
-  "focus:border-[#17714A] focus:outline-none focus:ring-2 focus:ring-[#17714A]/20 " +
-  "dark:border-white/[0.10] dark:bg-white/[0.04] dark:focus:border-[#3ECF7E] dark:focus:ring-[#3ECF7E]/20";
+  "focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 " +
+  "dark:border-white/[0.10] dark:bg-white/[0.04]";
 
 const LABEL = "mb-1.5 block text-footnote font-semibold text-label";
 
@@ -96,7 +97,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
   if (!configured) {
     return (
       <div className="space-y-4">
-        <div className="flex items-start gap-2.5 rounded-[14px] bg-[#17714A]/[0.08] px-4 py-3.5">
+        <div className="flex items-start gap-2.5 rounded-[14px] bg-accent/[0.08] px-4 py-3.5">
           <Info size={16} className={`mt-[1px] shrink-0 ${BRAND_TEXT}`} />
           <div>
             <p className="text-subhead font-semibold text-label">Demo mode</p>
@@ -113,7 +114,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             </p>
           </div>
         </div>
-        <Button fullWidth size="lg" className={BRAND} onClick={() => router.push("/home")}>
+        <Button fullWidth size="lg" onClick={() => router.push("/home")}>
           Continue to app
           <ArrowRight size={17} />
         </Button>
@@ -298,7 +299,6 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         <Button
           fullWidth
           size="lg"
-          className={BRAND}
           onClick={() => {
             setMode("signin");
             setStatus("idle");
@@ -378,7 +378,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-[18px] w-[18px] shrink-0 cursor-pointer rounded-[5px] border-separator accent-[#17714A]"
+            className="h-[18px] w-[18px] shrink-0 cursor-pointer rounded-[5px] border-separator accent-accent"
           />
           Remember me
         </label>
@@ -409,7 +409,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         )}
       </AnimatePresence>
 
-      <Button type="submit" fullWidth size="lg" className={BRAND} disabled={working}>
+      <Button type="submit" fullWidth size="lg" disabled={working}>
         {working ? "Working…" : mode === "signup" ? "Create account" : "Log In"}
       </Button>
 

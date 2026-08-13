@@ -104,7 +104,7 @@ export default async function LoginPage({
               {DISCLAIMER_SHORT}{" "}
               <Link
                 href="/disclaimer"
-                className="font-semibold text-[#17714A] underline-offset-2 hover:underline dark:text-[#3ECF7E]"
+                className="font-semibold text-accent underline-offset-2 hover:underline"
               >
                 Full disclaimer
               </Link>
