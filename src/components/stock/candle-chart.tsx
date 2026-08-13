@@ -56,10 +56,12 @@ export function CandleChart({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const priceLinesRef = useRef<any[]>([]);
   const { resolved } = useTheme();
   const [ready, setReady] = useState(false);
 
+  // 1. Initialize the chart layout and series (runs on mount, theme change, or height change)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -88,7 +90,6 @@ export function CandleChart({
         borderVisible: false,
         timeVisible: false,
         rightOffset: 4,
-        // Enough room that the price lines' labels don't overlap the last bar.
         barSpacing: 6,
       },
       crosshair: {
@@ -110,17 +111,6 @@ export function CandleChart({
       priceFormat: { type: "price", precision: 2, minMove: 0.05 },
     });
 
-    candleSeries.setData(
-      candles.map((c) => ({
-        time: c.time as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      })),
-    );
-
-    // Volume in its own scale pinned to the bottom quarter.
     const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
@@ -128,30 +118,10 @@ export function CandleChart({
     chart.priceScale("volume").applyOptions({
       scaleMargins: { top: 0.82, bottom: 0 },
     });
-    volumeSeries.setData(
-      candles.map((c) => ({
-        time: c.time as UTCTimestamp,
-        value: c.volume,
-        color: c.close >= c.open ? colours.volumeUp : colours.volumeDown,
-      })),
-    );
-
-    for (const line of priceLines) {
-      candleSeries.createPriceLine({
-        price: line.price,
-        color:
-          line.colour === "green" ? colours.green : line.colour === "red" ? colours.red : colours.blue,
-        lineWidth: 1,
-        lineStyle: line.dashed ? 2 : 0,
-        axisLabelVisible: true,
-        title: line.label,
-      });
-    }
-
-    chart.timeScale().fitContent();
 
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
+    volumeSeriesRef.current = volumeSeries;
     setReady(true);
 
     const resize = () => chart.applyOptions({ width: container.clientWidth });
@@ -164,10 +134,71 @@ export function CandleChart({
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+      priceLinesRef.current = [];
     };
-    // Rebuilt on theme change: lightweight-charts has no single call to restyle
-    // every series, and a full rebuild is cheap at this data size.
-  }, [candles, priceLines, height, resolved]);
+  }, [height, resolved]);
+
+  // 2. Set or update candle and volume data
+  useEffect(() => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current) return;
+
+    const isDark = resolved === "dark";
+    const colours = readThemeColours(isDark);
+
+    candleSeriesRef.current.setData(
+      candles.map((c) => ({
+        time: c.time as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      })),
+    );
+
+    volumeSeriesRef.current.setData(
+      candles.map((c) => ({
+        time: c.time as UTCTimestamp,
+        value: c.volume,
+        color: c.close >= c.open ? colours.volumeUp : colours.volumeDown,
+      })),
+    );
+
+    chartRef.current.timeScale().fitContent();
+  }, [candles, resolved, ready]);
+
+  // 3. Sync dynamic price lines (runs when tabs are clicked)
+  useEffect(() => {
+    const candleSeries = candleSeriesRef.current;
+    if (!candleSeries) return;
+
+    const isDark = resolved === "dark";
+    const colours = readThemeColours(isDark);
+
+    // Remove existing price lines
+    priceLinesRef.current.forEach((line) => {
+      try {
+        candleSeries.removePriceLine(line);
+      } catch (e) {
+        // Line might already be destroyed if the chart was rebuilt
+      }
+    });
+    priceLinesRef.current = [];
+
+    // Add new price lines
+    for (const line of priceLines) {
+      const pLine = candleSeries.createPriceLine({
+        price: line.price,
+        color:
+          line.colour === "green" ? colours.green : line.colour === "red" ? colours.red : colours.blue,
+        lineWidth: 1,
+        lineStyle: line.dashed ? 2 : 0,
+        axisLabelVisible: true,
+        title: line.label,
+      });
+      priceLinesRef.current.push(pLine);
+    }
+  }, [priceLines, resolved, ready]);
 
   return (
     <div className={cn("relative w-full", className)}>
