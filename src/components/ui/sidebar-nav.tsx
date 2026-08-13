@@ -33,9 +33,9 @@ export function SidebarNav() {
   const username = email.split("@")[0] || "Profile";
 
   const header = (
-    <div className="flex items-center gap-2.5 px-4 pb-3 pt-5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent text-accent-fg">
-        <BrandMark className="h-5 w-5" />
+    <div className="flex items-center gap-2.5 px-4 pb-3 pt-5 shrink-0">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-accent text-accent-fg">
+        <BrandMark className="h-5 w-5 shrink-0" />
       </span>
       <span className="text-headline font-bold tracking-tight text-label">WealthSensei</span>
     </div>

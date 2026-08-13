@@ -7,10 +7,12 @@
  * being scaled from a 96px mobile band to a half-screen desktop panel.
  */
 
+import { cn } from "@/lib/utils";
+
 /** The chart-and-arrow mark used across the app, sized for the auth panel. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} fill="none" aria-hidden="true">
+    <svg viewBox="0 0 32 32" className={cn("h-5 w-5 shrink-0", className)} fill="none" aria-hidden="true">
       <path
         d="M5 22.5 12 14l5 5 9.5-11"
         stroke="currentColor"
