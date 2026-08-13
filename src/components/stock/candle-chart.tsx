@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ColorType,
   CrosshairMode,
@@ -43,7 +43,7 @@ function readThemeColours(isDark: boolean) {
   };
 }
 
-export function CandleChart({
+export const CandleChart = React.memo(function CandleChart({
   candles,
   priceLines = [],
   height = 320,
@@ -210,4 +210,4 @@ export function CandleChart({
       )}
     </div>
   );
-}
+});
