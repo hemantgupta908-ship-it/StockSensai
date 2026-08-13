@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { createStore, useStore } from "zustand";
+import { createStore, useStore, type StoreApi } from "zustand";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/auth/session-provider";
@@ -192,7 +192,7 @@ interface BudgetStore extends BudgetDatabase {
   exportDatabase: () => BudgetDatabase;
 }
 
-const BudgetStoreContext = createContext<ReturnType<typeof createStore<BudgetStore>> | null>(null);
+const BudgetStoreContext = createContext<StoreApi<BudgetStore> | null>(null);
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const { user, authEnabled } = useSession();
@@ -845,7 +845,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  const storeRef = useRef<ReturnType<typeof createStore<BudgetStore>>>(undefined);
+  const storeRef = useRef<StoreApi<BudgetStore> | undefined>(undefined);
   if (!storeRef.current) {
     storeRef.current = createStore<BudgetStore>(() => value);
   }
