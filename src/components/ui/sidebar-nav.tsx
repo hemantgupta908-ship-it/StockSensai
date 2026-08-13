@@ -33,32 +33,12 @@ export function SidebarNav() {
   const username = email.split("@")[0] || "Profile";
 
   const header = (
-    <>
-      {/* Wordmark, where the environment switcher used to be. There is only one
-          environment now, so there is nothing to switch between. */}
-      <div className="flex items-center gap-2.5 px-4 pb-3 pt-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent text-accent-fg">
-          <BrandMark className="h-5 w-5" />
-        </span>
-        <span className="text-headline font-bold tracking-tight text-label">WealthSensei</span>
-      </div>
-
-      {/* Quick search — the most-used action, so it stays near the top. */}
-      <div className="px-3 pb-3">
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="flex w-full items-center justify-between gap-2 rounded-[11px] border border-separator/40 bg-bg-elevated/80 px-3 py-2 text-footnote text-label-secondary shadow-subtle transition-all hover:border-accent/40 hover:text-label dark:border-white/[0.08]"
-        >
-          <span className="flex items-center gap-2">
-            <MagnifyingGlass size={15} className="text-accent" />
-            <span>Evaluate Stock...</span>
-          </span>
-          <kbd className="rounded bg-fill/[0.12] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-label-secondary opacity-70">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
-    </>
+    <div className="flex items-center gap-2.5 px-4 pb-3 pt-5">
+      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent text-accent-fg">
+        <BrandMark className="h-5 w-5" />
+      </span>
+      <span className="text-headline font-bold tracking-tight text-label">WealthSensei</span>
+    </div>
   );
 
   const footer = (
