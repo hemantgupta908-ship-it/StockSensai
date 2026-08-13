@@ -22,8 +22,8 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-dvh flex-col justify-center bg-bg px-6 py-12">
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-7 text-center">
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-accent shadow-pill">
-            <BrandMark className="h-7 w-7 text-accent-fg" />
+          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-brand shadow-pill">
+            <BrandMark className="h-7 w-7 text-brand-fg" />
           </span>
           <h1 className="text-title1 font-bold tracking-tight text-label">Set a new password</h1>
           <p className="mt-1.5 text-subhead text-label-secondary/65">

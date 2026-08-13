@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isSupabaseConfigured } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthArtwork, BrandMark } from "@/components/auth/auth-artwork";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DISCLAIMER_SHORT } from "@/components/disclaimer";
 
 export const metadata: Metadata = {
@@ -44,7 +45,7 @@ export default async function LoginPage({
         <aside
           className="
             relative flex flex-col justify-between overflow-hidden
-            rounded-b-[28px] bg-[#17714A] bg-gradient-to-br from-[#1B7B50] to-[#105239]
+            rounded-b-[28px] bg-brand bg-gradient-to-br from-[#1B7B50] to-[#105239]
             px-6 pb-7 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white
             lg:rounded-none lg:px-12 lg:pb-12 lg:pt-12
           "
@@ -89,7 +90,15 @@ export default async function LoginPage({
         </aside>
 
         {/* Form side */}
-        <div className="flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-14 lg:py-14">
+        <div className="relative flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-14 lg:py-14">
+          {/*
+            Absolutely placed rather than sitting in the flow: this column is
+            already tight enough on a short handset that the artwork and the
+            brand paragraph had to go, and a row of its own would push "Log In"
+            back below the fold.
+          */}
+          <ThemeToggle className="absolute right-5 top-5 z-10 lg:right-6 lg:top-6" />
+
           <div className="mx-auto w-full max-w-sm">
             <h1 className="text-largetitle font-bold tracking-tight text-label/90">Welcome back!</h1>
             <p className="mt-1.5 text-subhead text-label-secondary/80">
@@ -104,7 +113,7 @@ export default async function LoginPage({
               {DISCLAIMER_SHORT}{" "}
               <Link
                 href="/disclaimer"
-                className="font-semibold text-accent underline-offset-2 hover:underline"
+                className="font-semibold text-brand underline-offset-2 hover:underline"
               >
                 Full disclaimer
               </Link>

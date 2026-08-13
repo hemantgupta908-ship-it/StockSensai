@@ -40,6 +40,21 @@
     /* Readable label on the accent; recomputed per accent by ThemeProvider. */
     --accent-fg: 255 255 255;
 
+    /*
+     * Sign-in brand green. Fixed rather than accent-driven: the auth screens are
+     * the app's front door and keep one identity whichever accent is chosen.
+     * White label measures 6.0:1 here, so --brand-fg is safe to pin — unlike
+     * --accent-fg, which has to be computed because the accent is user-picked.
+     *
+     * Deliberately *not* overridden per theme. A slightly lighter dark-mode
+     * shade was tried and reverted: toggling light→dark left the button on the
+     * old colour until a reload, because Chrome updated the element's inherited
+     * --brand-rgb without re-resolving the background-color that consumed it.
+     * One value sidesteps the invalidation quirk, and 6.0:1 holds in both themes.
+     */
+    --brand-rgb: 23 113 74; /* #17714A */
+    --brand-fg: 255 255 255;
+
     color-scheme: light;
   }
 

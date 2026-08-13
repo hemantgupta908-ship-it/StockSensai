@@ -44,6 +44,8 @@ const config: Config = {
         pink: "rgb(var(--sys-pink) / <alpha-value>)",
         accent: "rgb(var(--accent-rgb) / <alpha-value>)",
         "accent-fg": "rgb(var(--accent-fg) / <alpha-value>)",
+        brand: "rgb(var(--brand-rgb) / <alpha-value>)",
+        "brand-fg": "rgb(var(--brand-fg) / <alpha-value>)",
       },
       fontFamily: {
         sans: [
