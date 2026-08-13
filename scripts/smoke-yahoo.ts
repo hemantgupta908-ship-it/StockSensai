@@ -29,9 +29,11 @@ async function main() {
   const problems: string[] = [];
 
   for (const instrument of instruments) {
-    const [quote, daily, intraday, fundamentals] = await Promise.all([
+    const [quote, daily, weekly, monthly, intraday, fundamentals] = await Promise.all([
       provider.getQuote(instrument.ticker),
       provider.getCandles({ ticker: instrument.ticker, interval: "1d", limit: 300 }),
+      provider.getCandles({ ticker: instrument.ticker, interval: "1wk", limit: 150 }),
+      provider.getCandles({ ticker: instrument.ticker, interval: "1mo", limit: 60 }),
       provider.getCandles({ ticker: instrument.ticker, interval: "5m", limit: 225 }),
       provider.getFundamentals(instrument.ticker),
     ]);
@@ -51,7 +53,7 @@ async function main() {
         ` div=${fundamentals ? fundamentals.dividendHistory.length : 0}y`,
     );
 
-    bundles.push({ instrument, quote, daily, intraday, fundamentals, benchmarkDaily: benchmark });
+    bundles.push({ instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily: benchmark });
   }
 
   if (problems.length) {

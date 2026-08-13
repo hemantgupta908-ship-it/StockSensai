@@ -98,7 +98,7 @@ function resample(bars: Candle[], factor: number): Candle[] {
   return out;
 }
 
-const INTERVAL_FACTOR: Record<Exclude<CandleInterval, "1d">, number> = {
+const INTERVAL_FACTOR: Record<Exclude<CandleInterval, "1d" | "1wk" | "1mo">, number> = {
   "1m": 1, // the generator's finest granularity is 5m; 1m returns the same bars
   "5m": 1,
   "15m": 3,
@@ -176,8 +176,14 @@ export class MockMarketDataProvider implements MarketDataProvider {
     if (req.interval === "1d") {
       return series.daily.slice(-req.limit);
     }
+    if (req.interval === "1wk") {
+      return resample(series.daily, 5).slice(-req.limit);
+    }
+    if (req.interval === "1mo") {
+      return resample(series.daily, 21).slice(-req.limit);
+    }
 
-    const factor = INTERVAL_FACTOR[req.interval] ?? 1;
+    const factor = INTERVAL_FACTOR[req.interval as Exclude<CandleInterval, "1d" | "1wk" | "1mo">] ?? 1;
     const resampled = resample(series.intraday, factor);
     return resampled.slice(-req.limit);
   }

@@ -48,6 +48,8 @@ const bundles: StockDataBundle[] = SEED_INSTRUMENTS.map((seed) => {
       updatedAt: new Date(lastBar.time * 1000).toISOString(),
     },
     daily,
+    weekly: daily.filter((_, i) => i % 5 === 0),
+    monthly: daily.filter((_, i) => i % 21 === 0),
     intraday,
     fundamentals: generateFundamentals(seed, lastBar.close),
     benchmarkDaily: benchmark,

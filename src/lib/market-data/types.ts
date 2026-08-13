@@ -102,7 +102,7 @@ export interface Fundamentals {
   bookValuePerShare: number;
 }
 
-export type CandleInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "1d";
+export type CandleInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1wk" | "1mo";
 
 export interface CandleRequest {
   ticker: string;
@@ -145,6 +145,8 @@ export interface StockDataBundle {
   instrument: Instrument;
   quote: Quote;
   daily: Candle[];
+  weekly: Candle[];
+  monthly: Candle[];
   intraday: Candle[];
   /**
    * Null when the active provider has no fundamentals feed (brokerage APIs

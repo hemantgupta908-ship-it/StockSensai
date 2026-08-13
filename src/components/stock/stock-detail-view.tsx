@@ -34,6 +34,8 @@ interface Props {
   instrument: Instrument;
   quote: Quote;
   candles: Candle[];
+  weeklyCandles: Candle[];
+  monthlyCandles: Candle[];
   fundamentals: Fundamentals | null;
   bullishSignals: StrategySignal[];
   bearishSignals: StrategySignal[];
@@ -44,6 +46,8 @@ export function StockDetailView({
   instrument,
   quote,
   candles,
+  weeklyCandles,
+  monthlyCandles,
   fundamentals,
   bullishSignals,
   bearishSignals,
@@ -51,6 +55,8 @@ export function StockDetailView({
 }: Props) {
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [timeframe, setTimeframe] = useState<"1d" | "1wk" | "1mo">("1d");
+  const [layout, setLayout] = useState<"single" | "side-by-side">("single");
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -197,16 +203,74 @@ export function StockDetailView({
       {/* Chart */}
       <section className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary pb-2 pt-3 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
         <div className="flex items-center justify-between px-4 pb-2">
-          <h2 className="text-footnote font-semibold uppercase tracking-wide text-label-secondary/55">
-            Daily chart
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-footnote font-semibold uppercase tracking-wide text-label-secondary/55">
+              Chart
+            </h2>
+            <div className="flex rounded-md border border-separator/40 overflow-hidden">
+              <button
+                onClick={() => setTimeframe("1d")}
+                className={cn("px-2 py-0.5 text-xs font-medium transition-colors", timeframe === "1d" ? "bg-fill/10 text-label" : "text-label-secondary/60 hover:bg-fill/5")}
+              >
+                1D
+              </button>
+              <button
+                onClick={() => setTimeframe("1wk")}
+                className={cn("px-2 py-0.5 text-xs font-medium border-l border-separator/40 transition-colors", timeframe === "1wk" ? "bg-fill/10 text-label" : "text-label-secondary/60 hover:bg-fill/5")}
+              >
+                1W
+              </button>
+              <button
+                onClick={() => setTimeframe("1mo")}
+                className={cn("px-2 py-0.5 text-xs font-medium border-l border-separator/40 transition-colors", timeframe === "1mo" ? "bg-fill/10 text-label" : "text-label-secondary/60 hover:bg-fill/5")}
+              >
+                1M
+              </button>
+            </div>
+            <div className="flex rounded-md border border-separator/40 overflow-hidden">
+              <button
+                onClick={() => setLayout("single")}
+                className={cn("px-2 py-0.5 text-xs font-medium transition-colors", layout === "single" ? "bg-fill/10 text-label" : "text-label-secondary/60 hover:bg-fill/5")}
+              >
+                Single
+              </button>
+              <button
+                onClick={() => setLayout("side-by-side")}
+                className={cn("px-2 py-0.5 text-xs font-medium border-l border-separator/40 transition-colors", layout === "side-by-side" ? "bg-fill/10 text-label" : "text-label-secondary/60 hover:bg-fill/5")}
+              >
+                Side-by-side
+              </button>
+            </div>
+          </div>
           {selected && (
-            <span className="text-caption2 text-label-secondary/45">
+            <span className="text-caption2 text-label-secondary/45 hidden sm:inline-block">
               Levels shown for {selected.strategyId.startsWith("lt-") ? "accumulation" : "the selected setup"}
             </span>
           )}
         </div>
-        <CandleChart candles={candles} priceLines={priceLines} height={300} />
+        
+        {layout === "single" ? (
+          <CandleChart 
+            candles={timeframe === "1d" ? candles : timeframe === "1wk" ? weeklyCandles : monthlyCandles} 
+            priceLines={priceLines} 
+            height={300} 
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+            <div>
+              <div className="px-4 py-1 text-xs font-medium text-label-secondary/60">Daily</div>
+              <CandleChart candles={candles} priceLines={priceLines} height={200} />
+            </div>
+            <div>
+              <div className="px-4 py-1 text-xs font-medium text-label-secondary/60">Weekly</div>
+              <CandleChart candles={weeklyCandles} priceLines={priceLines} height={200} />
+            </div>
+            <div>
+              <div className="px-4 py-1 text-xs font-medium text-label-secondary/60">Monthly</div>
+              <CandleChart candles={monthlyCandles} priceLines={priceLines} height={200} />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Signal switcher */}

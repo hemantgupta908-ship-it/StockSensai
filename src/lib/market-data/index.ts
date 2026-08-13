@@ -99,6 +99,10 @@ function isSupportedInstrument(instrument: Instrument): boolean {
 
 /** Bars of daily history the strategy engine needs (52-week high/low + indicators). */
 export const DAILY_LOOKBACK = 300;
+/** Weekly bars (approx 3 years). */
+export const WEEKLY_LOOKBACK = 150;
+/** Monthly bars (approx 5 years). */
+export const MONTHLY_LOOKBACK = 60;
 /** Five-minute bars covering the last three sessions. */
 export const INTRADAY_LOOKBACK = 225;
 
@@ -110,10 +114,12 @@ export async function getStockBundle(ticker: string): Promise<StockDataBundle | 
   const provider = getMarketDataProvider();
   const symbol = ticker.toUpperCase();
 
-  const [instrument, quote, daily, intraday, fundamentals, benchmarkDaily] = await Promise.all([
+  const [instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily] = await Promise.all([
     provider.getInstrument(symbol),
     provider.getQuote(symbol),
     provider.getCandles({ ticker: symbol, interval: "1d", limit: DAILY_LOOKBACK }),
+    provider.getCandles({ ticker: symbol, interval: "1wk", limit: WEEKLY_LOOKBACK }),
+    provider.getCandles({ ticker: symbol, interval: "1mo", limit: MONTHLY_LOOKBACK }),
     provider.getCandles({ ticker: symbol, interval: "5m", limit: INTRADAY_LOOKBACK }),
     provider.getFundamentals(symbol),
     provider.getBenchmarkCandles(DAILY_LOOKBACK),
@@ -123,7 +129,7 @@ export async function getStockBundle(ticker: string): Promise<StockDataBundle | 
   // the long-term strategies handle that. Price history is non-negotiable.
   if (!instrument || !quote || daily.length < 60) return null;
 
-  return { instrument, quote, daily, intraday, fundamentals, benchmarkDaily };
+  return { instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily };
 }
 
 /**
@@ -166,12 +172,26 @@ export async function getUniverseBundles(): Promise<StockDataBundle[]> {
       if (!quote) return null;
 
       try {
-        const [daily, intraday, fundamentals] = await Promise.all([
+        const [daily, weekly, monthly, intraday, fundamentals] = await Promise.all([
           limit(() =>
             provider.getCandles({
               ticker: instrument.ticker,
               interval: "1d",
               limit: DAILY_LOOKBACK,
+            }),
+          ),
+          limit(() =>
+            provider.getCandles({
+              ticker: instrument.ticker,
+              interval: "1wk",
+              limit: WEEKLY_LOOKBACK,
+            }),
+          ),
+          limit(() =>
+            provider.getCandles({
+              ticker: instrument.ticker,
+              interval: "1mo",
+              limit: MONTHLY_LOOKBACK,
             }),
           ),
           limit(() =>
@@ -185,7 +205,7 @@ export async function getUniverseBundles(): Promise<StockDataBundle[]> {
         ]);
 
         if (daily.length < 60) return null;
-        return { instrument, quote, daily, intraday, fundamentals, benchmarkDaily };
+        return { instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily };
       } catch (error) {
         // One bad symbol must not sink the whole screen.
         console.error(`[market-data] dropping ${instrument.ticker}:`, error);

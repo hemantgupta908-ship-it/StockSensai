@@ -24,14 +24,16 @@ async function main() {
 
   const bundles: StockDataBundle[] = [];
   for (const instrument of instruments) {
-    const [quote, daily, intraday, fundamentals] = await Promise.all([
+    const [quote, daily, weekly, monthly, intraday, fundamentals] = await Promise.all([
       provider.getQuote(instrument.ticker),
       provider.getCandles({ ticker: instrument.ticker, interval: "1d", limit: 300 }),
+      provider.getCandles({ ticker: instrument.ticker, interval: "1wk", limit: 150 }),
+      provider.getCandles({ ticker: instrument.ticker, interval: "1mo", limit: 60 }),
       provider.getCandles({ ticker: instrument.ticker, interval: "5m", limit: 225 }),
       provider.getFundamentals(instrument.ticker),
     ]);
     if (!quote || daily.length < 60) continue;
-    bundles.push({ instrument, quote, daily, intraday, fundamentals, benchmarkDaily });
+    bundles.push({ instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily });
   }
   console.log(`Bundles built: ${bundles.length}\n`);
 

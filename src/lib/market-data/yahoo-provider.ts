@@ -75,6 +75,8 @@ const RANGE_FOR_INTERVAL: Record<CandleInterval, string> = {
   "30m": "1mo",
   "1h": "3mo",
   "1d": "2y",
+  "1wk": "5y",
+  "1mo": "10y",
 };
 
 const YAHOO_INTERVAL: Record<CandleInterval, string> = {
@@ -84,6 +86,8 @@ const YAHOO_INTERVAL: Record<CandleInterval, string> = {
   "30m": "30m",
   "1h": "1h",
   "1d": "1d",
+  "1wk": "1wk",
+  "1mo": "1mo",
 };
 
 // --------------------------------------------------------------- response types
@@ -376,7 +380,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
         continue;
       }
       candles.push({
-        time: interval === "1d" ? toSessionDate(stamps[i]) : stamps[i],
+        time: ["1d", "1wk", "1mo"].includes(interval) ? toSessionDate(stamps[i]) : stamps[i],
         open: Number(open.toFixed(2)),
         high: Number(high.toFixed(2)),
         low: Number(low.toFixed(2)),

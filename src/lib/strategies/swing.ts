@@ -80,6 +80,7 @@ const maCrossover: Strategy = {
       "Price trading above the 20 EMA (no immediate rejection)",
       "50 EMA itself sloping upward over the last 10 sessions",
       "RSI(14) between 45 and 75 — trending but not yet exhausted",
+      "Weekly trend is aligned (Weekly 20 EMA > Weekly 50 EMA)",
     ],
     entryLogic:
       "Entry band sits just under the current price, around the crossover zone. Crossovers frequently see a shallow pullback toward the 20 EMA within a few sessions, which is a better fill than chasing the breakout candle.",
@@ -108,6 +109,11 @@ const maCrossover: Strategy = {
     const rsi14 = rsi(price, 14);
     const atr14 = atr(daily, 14);
     const avgVolume = averageVolume(daily, 20);
+
+    const weeklyPrice = closes(bundle.weekly);
+    const weeklyEma20 = ema(weeklyPrice, 20);
+    const weeklyEma50 = ema(weeklyPrice, 50);
+    const weeklyTrendUp = bundle.weekly.length >= 50 ? last(weeklyEma20) > last(weeklyEma50) : true; // Allow new stocks to pass
 
     const crossBarsAgo = crossedAbove(ema20, ema50, 5);
     if (crossBarsAgo < 0) return null;
@@ -153,6 +159,12 @@ const maCrossover: Strategy = {
         "RSI in the trending band (45–75)",
         rsiNow >= 45 && rsiNow <= 75,
         `RSI(14) at ${ratio(rsiNow, 1)}`,
+        1.5,
+      ),
+      condition(
+        "Weekly trend alignment",
+        weeklyTrendUp,
+        bundle.weekly.length >= 50 ? "Weekly 20 EMA > 50 EMA" : "Stock too new for weekly trend",
         1.5,
       ),
     ];
@@ -416,6 +428,7 @@ const consolidationBreakout: Strategy = {
       "Breakout volume at or above the configured multiple of the 20-day average",
       "Price above the 50 EMA — breaking out within an uptrend, not a downtrend",
       "Breakout occurred within the last 4 sessions, so the entry is still fresh",
+      "Weekly trend is aligned (Weekly 20 EMA > Weekly 50 EMA)",
     ],
     entryLogic:
       "Entry band is set at the retest zone just above the old range high. Broken resistance frequently becomes support, and waiting for that retest gives a tighter stop than buying the breakout candle's close.",
@@ -443,6 +456,11 @@ const consolidationBreakout: Strategy = {
     const atr14 = atr(daily, 14);
     const avgVolume = averageVolume(daily, 20);
     const currentPrice = quote.price;
+
+    const weeklyPrice = closes(bundle.weekly);
+    const weeklyEma20 = ema(weeklyPrice, 20);
+    const weeklyEma50 = ema(weeklyPrice, 50);
+    const weeklyTrendUp = bundle.weekly.length >= 50 ? last(weeklyEma20) > last(weeklyEma50) : true;
 
     // Look for the break within the last 4 sessions; measure the base behind it.
     let breakoutBarsAgo = -1;
@@ -509,6 +527,12 @@ const consolidationBreakout: Strategy = {
         "Still near the breakout level",
         currentPrice <= rangeHigh * 1.06,
         `${(((currentPrice - rangeHigh) / rangeHigh) * 100).toFixed(1)}% above the breakout point`,
+        1.5,
+      ),
+      condition(
+        "Weekly trend alignment",
+        weeklyTrendUp,
+        bundle.weekly.length >= 50 ? "Weekly 20 EMA > 50 EMA" : "Stock too new for weekly trend",
         1.5,
       ),
     ];

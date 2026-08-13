@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/components/auth/session-provider";
 import { useBudget } from "@/components/budget/budget-provider";
 import { UserAvatar } from "@/components/budget/user-avatar";
+import { BrandMark } from "@/components/auth/auth-artwork";
 import { NAV_SECTIONS } from "./nav-items";
 import { isActivePath } from "./nav";
 
@@ -82,23 +83,8 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                 onClick={onClose}
                 className="flex items-center gap-2.5"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-accent shadow-pill">
-                  <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden>
-                    <path
-                      d="M5 22.5 12 14l5 5 9.5-11"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M20.5 8h6v6"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-accent shadow-pill shrink-0">
+                  <BrandMark className="h-5 w-5 text-white shrink-0" />
                 </span>
                 <div>
                   <span className="block text-headline font-bold tracking-tight text-label">
@@ -113,10 +99,10 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center text-label-secondary transition-colors hover:text-label focus:outline-none"
+                className="flex h-9 w-9 items-center justify-center text-label-secondary transition-colors hover:text-label focus:outline-none shrink-0"
                 aria-label="Close menu"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                <svg viewBox="0 0 24 24" width="20" height="20" className="h-5 w-5 shrink-0" fill="none" aria-hidden>
                   <path
                     d="M18 6L6 18M6 6l12 12"
                     stroke="currentColor"

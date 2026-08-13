@@ -41,6 +41,8 @@ export default async function StockPage({ params, searchParams }: PageProps) {
         instrument={bundle.instrument}
         quote={bundle.quote}
         candles={bundle.daily.slice(-CHART_BARS)}
+        weeklyCandles={bundle.weekly.slice(-CHART_BARS)}
+        monthlyCandles={bundle.monthly.slice(-CHART_BARS)}
         fundamentals={bundle.fundamentals}
         bullishSignals={bullishSignals}
         bearishSignals={bearishSignals}

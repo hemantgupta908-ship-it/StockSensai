@@ -41,6 +41,8 @@ const INTERVAL_MAP: Record<CandleInterval, string> = {
   "30m": "THIRTY_MINUTE",
   "1h": "ONE_HOUR",
   "1d": "ONE_DAY",
+  "1wk": "ONE_DAY", // We fetch 1d and resample for 1wk
+  "1mo": "ONE_DAY", // We fetch 1d and resample for 1mo
 };
 
 /** Approximate bars per calendar day, used to size the history window. */
@@ -51,7 +53,27 @@ const BARS_PER_DAY: Record<CandleInterval, number> = {
   "30m": 13,
   "1h": 7,
   "1d": 1,
+  "1wk": 0.2,
+  "1mo": 0.047,
 };
+
+function resample(bars: Candle[], factor: number): Candle[] {
+  if (factor <= 1) return bars;
+  const out: Candle[] = [];
+  for (let i = 0; i < bars.length; i += factor) {
+    const chunk = bars.slice(i, i + factor);
+    if (chunk.length === 0) continue;
+    out.push({
+      time: chunk[0].time,
+      open: chunk[0].open,
+      high: Math.max(...chunk.map((c) => c.high)),
+      low: Math.min(...chunk.map((c) => c.low)),
+      close: chunk[chunk.length - 1].close,
+      volume: chunk.reduce((sum, c) => sum + c.volume, 0),
+    });
+  }
+  return out;
+}
 
 interface AngelSession {
   jwtToken: string;
@@ -343,6 +365,10 @@ export class AngelOneMarketDataProvider implements MarketDataProvider {
     const resolved = await this.tokenFor(request.ticker);
     if (!resolved) return [];
 
+    const isWeekly = request.interval === "1wk";
+    const isMonthly = request.interval === "1mo";
+    const nativeInterval: CandleInterval = (isWeekly || isMonthly) ? "1d" : request.interval;
+
     const to = new Date();
     // Pad generously for weekends and trading holidays.
     const calendarDays = Math.ceil((request.limit / BARS_PER_DAY[request.interval]) * 1.6) + 5;
@@ -353,7 +379,7 @@ export class AngelOneMarketDataProvider implements MarketDataProvider {
       {
         exchange: resolved.exchange,
         symboltoken: resolved.token,
-        interval: INTERVAL_MAP[request.interval],
+        interval: INTERVAL_MAP[nativeInterval],
         fromdate: formatIstDateTime(from, "09:15"),
         todate: formatIstDateTime(to, "15:30"),
       },
@@ -361,7 +387,7 @@ export class AngelOneMarketDataProvider implements MarketDataProvider {
     );
 
     const rows = Array.isArray(data) ? data : (data?.data ?? []);
-    return rows
+    let bars = rows
       .map((row) => ({
         time: Math.floor(new Date(row[0]).getTime() / 1000),
         open: Number(row[1]),
@@ -369,8 +395,12 @@ export class AngelOneMarketDataProvider implements MarketDataProvider {
         low: Number(row[3]),
         close: Number(row[4]),
         volume: Number(row[5]),
-      }))
-      .slice(-request.limit);
+      }));
+
+    if (isWeekly) bars = resample(bars, 5);
+    if (isMonthly) bars = resample(bars, 21);
+
+    return bars.slice(-request.limit);
   }
 
   async getBenchmarkCandles(limit: number): Promise<Candle[]> {
