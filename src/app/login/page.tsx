@@ -31,7 +31,7 @@ export default async function LoginPage({
         className="
           w-full overflow-hidden bg-bg
           lg:grid lg:max-w-[1060px] lg:grid-cols-2 lg:rounded-[32px]
-          lg:bg-bg-secondary lg:shadow-[0_24px_80px_-24px_rgb(0_0_0/0.35)]
+          lg:bg-bg-secondary lg:shadow-[0_24px_80px_-32px_rgb(0_0_0/0.18)]
         "
       >
         {/*
@@ -44,7 +44,7 @@ export default async function LoginPage({
         <aside
           className="
             relative flex flex-col justify-between overflow-hidden
-            rounded-b-[28px] bg-[#0E7A43] bg-gradient-to-br from-[#12894C] to-[#075530]
+            rounded-b-[28px] bg-[#17714A] bg-gradient-to-br from-[#1B7B50] to-[#105239]
             px-6 pb-7 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white
             lg:rounded-none lg:px-12 lg:pb-12 lg:pt-12
           "
@@ -70,14 +70,14 @@ export default async function LoginPage({
               667px-tall handset this paragraph alone was enough to put it below
               the fold. The subtitle beside the form says the same thing anyway.
             */}
-            <p className="mt-4 hidden max-w-sm text-subhead leading-relaxed text-white/70 lg:block">
+            <p className="mt-4 hidden max-w-sm text-subhead leading-relaxed text-white/80 lg:block">
               Twenty-five rule-based screens across five trading styles, on NSE and BSE listings.
             </p>
           </div>
 
           <AuthArtwork className="mx-auto mt-10 hidden h-auto w-full max-w-[360px] text-white/90 lg:block" />
 
-          <p className="hidden text-caption text-white/45 lg:block">
+          <p className="hidden text-caption text-white/75 lg:block">
             Educational screening only · never investment advice
           </p>
 
@@ -91,8 +91,8 @@ export default async function LoginPage({
         {/* Form side */}
         <div className="flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-14 lg:py-14">
           <div className="mx-auto w-full max-w-sm">
-            <h1 className="text-largetitle font-bold tracking-tight text-label">Welcome back!</h1>
-            <p className="mt-1.5 text-subhead text-label-secondary/65">
+            <h1 className="text-largetitle font-bold tracking-tight text-label/90">Welcome back!</h1>
+            <p className="mt-1.5 text-subhead text-label-secondary/80">
               Sign in to sync your watchlist, journal and budget across devices.
             </p>
 
@@ -100,11 +100,11 @@ export default async function LoginPage({
               <LoginForm configured={isSupabaseConfigured} next={destination} />
             </div>
 
-            <p className="mt-8 text-center text-caption leading-relaxed text-label-secondary/50">
+            <p className="mt-8 text-center text-caption leading-relaxed text-label-secondary/75">
               {DISCLAIMER_SHORT}{" "}
               <Link
                 href="/disclaimer"
-                className="font-semibold text-[#0E7A43] underline-offset-2 hover:underline dark:text-[#3ECF7E]"
+                className="font-semibold text-[#17714A] underline-offset-2 hover:underline dark:text-[#3ECF7E]"
               >
                 Full disclaimer
               </Link>

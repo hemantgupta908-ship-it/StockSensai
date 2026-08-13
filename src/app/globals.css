@@ -132,6 +132,26 @@
     background: rgb(var(--fill) / 0.5);
   }
 
+  /*
+   * Chrome paints autofilled fields its own pale blue (#E8F0FE), which ignores
+   * the theme entirely and looks broken next to untouched inputs — and unreadable
+   * in dark mode, where it keeps the light background but not the light text.
+   * The background cannot be set directly on an autofilled field, so it is faked
+   * with an inset shadow large enough to flood the box.
+   */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: rgb(var(--label));
+    -webkit-box-shadow: 0 0 0 1000px rgb(var(--bg)) inset;
+    box-shadow: 0 0 0 1000px rgb(var(--bg)) inset;
+    caret-color: rgb(var(--label));
+    /* Chrome otherwise fades its own colour back in over ~0.2s */
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
   /* Focus rings that match the iOS accent rather than the browser default */
   :focus-visible {
     outline: 2px solid rgb(var(--sys-blue));

@@ -15,12 +15,15 @@ type Status = "idle" | "working" | "check-email" | "reset-sent";
 /**
  * Panel green, reused for the CTA and links so the two halves agree.
  *
- * The dark-mode value is deliberately only a shade lighter than the light one:
- * a brighter green (#12904D was the first pick) drops white text to 4.15:1,
- * under the 4.5:1 AA floor that 17px semibold has to clear.
+ * Pulled back from the old #0E7A43 to a slightly less saturated shade: beside
+ * the white form half, the higher-chroma green read as a harsh slab. White text
+ * sits at 6.0:1 here, comfortably over the 4.5:1 AA floor 17px semibold needs.
+ *
+ * The dark-mode value stays only a shade lighter than the light one: a brighter
+ * green (#12904D was the first pick) drops white text to 4.15:1, under AA.
  */
-const BRAND = "bg-[#0E7A43] active:bg-[#0B6437] dark:bg-[#0F8449] dark:active:bg-[#0C6B3A]";
-const BRAND_TEXT = "text-[#0E7A43] dark:text-[#3ECF7E]";
+const BRAND = "bg-[#17714A] active:bg-[#125C3C] dark:bg-[#17784E] dark:active:bg-[#12603E]";
+const BRAND_TEXT = "text-[#17714A] dark:text-[#3ECF7E]";
 
 /**
  * Accounts created from a bare username get a synthetic address on this domain.
@@ -45,8 +48,8 @@ const GOOGLE_ENABLED = process.env.NEXT_PUBLIC_OAUTH_GOOGLE === "1";
 
 const FIELD =
   "w-full rounded-[12px] border border-separator/50 bg-bg px-4 py-3 text-body text-label " +
-  "placeholder:text-label-quaternary/40 transition-colors " +
-  "focus:border-[#0E7A43] focus:outline-none focus:ring-2 focus:ring-[#0E7A43]/20 " +
+  "placeholder:text-label-quaternary/55 transition-colors " +
+  "focus:border-[#17714A] focus:outline-none focus:ring-2 focus:ring-[#17714A]/20 " +
   "dark:border-white/[0.10] dark:bg-white/[0.04] dark:focus:border-[#3ECF7E] dark:focus:ring-[#3ECF7E]/20";
 
 const LABEL = "mb-1.5 block text-footnote font-semibold text-label";
@@ -93,16 +96,16 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
   if (!configured) {
     return (
       <div className="space-y-4">
-        <div className="flex items-start gap-2.5 rounded-[14px] bg-[#0E7A43]/[0.08] px-4 py-3.5">
+        <div className="flex items-start gap-2.5 rounded-[14px] bg-[#17714A]/[0.08] px-4 py-3.5">
           <Info size={16} className={`mt-[1px] shrink-0 ${BRAND_TEXT}`} />
           <div>
             <p className="text-subhead font-semibold text-label">Demo mode</p>
-            <p className="mt-1 text-footnote leading-relaxed text-label-secondary/65">
+            <p className="mt-1 text-footnote leading-relaxed text-label-secondary/80">
               No Supabase project is configured, so accounts are disabled. Everything else works:
               screens, charts, strategy explainers, watchlist and journal all run against seeded
               data, saved in this browser.
             </p>
-            <p className="mt-2 text-caption leading-relaxed text-label-secondary/55">
+            <p className="mt-2 text-caption leading-relaxed text-label-secondary/75">
               To enable accounts, add <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
               and <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to{" "}
               <code className="font-mono">.env.local</code>, then run{" "}
@@ -275,7 +278,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
           <h2 className="text-headline font-semibold text-label">
             {isReset ? "Reset link sent" : "Account registered"}
           </h2>
-          <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/65">
+          <p className="mt-1.5 text-footnote leading-relaxed text-label-secondary/80">
             {isReset ? (
               <>
                 If an account exists for{" "}
@@ -313,7 +316,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label htmlFor={emailId} className={LABEL}>
-          Email or username <span className="text-red">*</span>
+          Email or username <span className="text-red/75">*</span>
         </label>
         <input
           id={emailId}
@@ -333,7 +336,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
 
       <div>
         <label htmlFor={passwordId} className={LABEL}>
-          Password <span className="text-red">*</span>
+          Password <span className="text-red/75">*</span>
         </label>
         <div className="relative">
           <input
@@ -353,7 +356,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}
-            className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-label-secondary/60 active:bg-fill/10"
+            className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-label-secondary/75 active:bg-fill/10"
           >
             {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
           </button>
@@ -375,7 +378,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-[18px] w-[18px] shrink-0 cursor-pointer rounded-[5px] border-separator accent-[#0E7A43]"
+            className="h-[18px] w-[18px] shrink-0 cursor-pointer rounded-[5px] border-separator accent-[#17714A]"
           />
           Remember me
         </label>
@@ -414,7 +417,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         <>
           <div className="flex items-center gap-3 py-1">
             <span className="h-px flex-1 bg-separator/50" />
-            <span className="text-caption text-label-secondary/50">Or continue with</span>
+            <span className="text-caption text-label-secondary/70">Or continue with</span>
             <span className="h-px flex-1 bg-separator/50" />
           </div>
 
@@ -435,7 +438,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
         </>
       )}
 
-      <p className="pt-1 text-center text-footnote text-label-secondary/65">
+      <p className="pt-1 text-center text-footnote text-label-secondary/80">
         {mode === "signin" ? "Don’t have an account?" : "Already have an account?"}{" "}
         <button
           type="button"
