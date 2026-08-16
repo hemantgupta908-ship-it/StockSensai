@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,28 +8,82 @@ import {
   TRADING_STYLE_CAPTIONS,
   TRADING_STYLE_LABELS,
 } from "@/lib/strategies/types";
-import { formatINR } from "@/lib/utils";
+import { formatINR, todayISO } from "@/lib/utils";
 import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
 import { usePortfolio } from "./portfolio-provider";
 
 interface AddPositionSheetProps {
   open: boolean;
   onClose: () => void;
+  initialTicker?: string;
 }
 
-export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
+export function AddPositionSheet({ open, onClose, initialTicker }: AddPositionSheetProps) {
   const { add } = usePortfolio();
-  const [ticker, setTicker] = useState("");
+  const [ticker, setTicker] = useState(initialTicker || "");
   const [name, setName] = useState("");
   const [exchange, setExchange] = useState("NSE");
   const [quantity, setQuantity] = useState("");
   const [entryPrice, setEntryPrice] = useState("");
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [entryDate, setEntryDate] = useState(() => todayISO());
   const [tradingStyle, setTradingStyle] = useState<string>("swing");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
+  const [pricePending, setPricePending] = useState(false);
+
+  /**
+   * Fill the price box from the live quote endpoint.
+   *
+   * Deliberately not `sim.basePrice` off the seed instrument, which is the
+   * starting point of the *simulation* and has no relationship to the market
+   * whenever a real provider is connected. Prefilling it and captioning it
+   * "market price" writes a fabricated fill into a journal whose entire purpose
+   * is comparing planned trades against what actually happened. If the quote
+   * cannot be fetched the box is left empty for the user to type — an empty
+   * field asks a question, a wrong number answers one.
+   */
+  async function fillLivePrice(symbol: string) {
+    setPricePending(true);
+    try {
+      const res = await fetch(`/api/quotes?tickers=${encodeURIComponent(symbol)}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { quotes?: { ticker: string; price: number }[] };
+      const quote = data.quotes?.find((q) => q.ticker === symbol);
+      if (quote && Number.isFinite(quote.price)) {
+        setEntryPrice(quote.price.toFixed(2));
+        setAutoFilled(true);
+      }
+    } catch {
+      // Leave the field blank — the user types the fill they actually got.
+    } finally {
+      setPricePending(false);
+    }
+  }
+
+  useEffect(() => {
+    if (open && initialTicker) {
+      setTicker(initialTicker);
+      const match = SEED_INSTRUMENTS.find(
+        (inst) => inst.ticker.toLowerCase() === initialTicker.toLowerCase()
+      );
+      if (match) {
+        setName(match.name);
+        setExchange(match.exchange);
+        void fillLivePrice(match.ticker);
+      }
+    } else if (!open) {
+      setTicker("");
+      setName("");
+      setQuantity("");
+      setEntryPrice("");
+      setNote("");
+      setAutoFilled(false);
+    }
+  }, [open, initialTicker]);
 
   const cleanTicker = ticker.trim().toUpperCase();
   const quantityValue = Number(quantity);
@@ -49,9 +103,8 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
     setTicker(item.ticker);
     setName(item.name);
     setExchange(item.exchange);
-    setEntryPrice(item.sim.basePrice.toFixed(2));
     setShowSuggestions(false);
-    setAutoFilled(true);
+    void fillLivePrice(item.ticker);
   }
 
   async function submit() {
@@ -137,8 +190,11 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
                       </div>
                       <p className="truncate text-caption2 text-label-secondary/70">{item.name}</p>
                     </div>
-                    <span className="numeric text-caption font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatINR(item.sim.basePrice)}
+                    {/* No price here: the only figure available at this point is
+                        the simulation's base price, and showing it in a picker
+                        reads as a live quote. The real one is fetched on select. */}
+                    <span className="text-caption2 text-label-secondary/45">
+                      {item.sector}
                     </span>
                   </button>
                 ))}
@@ -152,16 +208,21 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
                 onChange={(e) => setExchange(e.target.value)}
                 className={inputClass}
               >
-                <option value="NSE">NSE</option>
-                <option value="BSE">BSE</option>
+                <option value="NSE" className="bg-bg text-label dark:bg-[#1C1C1E]">NSE</option>
+                <option value="BSE" className="bg-bg text-label dark:bg-[#1C1C1E]">BSE</option>
               </select>
             </Field>
           </div>
         </div>
 
-        {autoFilled && (
+        {pricePending && (
+          <p className="text-[11px] font-semibold text-label-secondary/60">
+            Fetching latest price…
+          </p>
+        )}
+        {!pricePending && autoFilled && (
           <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-            <span>✨ Auto-filled company details & market price</span>
+            <span>✨ Auto-filled company details &amp; latest quoted price</span>
           </p>
         )}
 
@@ -207,7 +268,7 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
             <input
               type="date"
               value={entryDate}
-              max={new Date().toISOString().slice(0, 10)}
+              max={todayISO()}
               onChange={(e) => setEntryDate(e.target.value)}
               className={inputClass}
             />
@@ -220,7 +281,7 @@ export function AddPositionSheet({ open, onClose }: AddPositionSheetProps) {
               className={inputClass}
             >
               {TRADING_STYLES.map((style) => (
-                <option key={style} value={style}>
+                <option key={style} value={style} className="bg-bg text-label dark:bg-[#1C1C1E]">
                   {TRADING_STYLE_LABELS[style]} ({TRADING_STYLE_CAPTIONS[style]})
                 </option>
               ))}

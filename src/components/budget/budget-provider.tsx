@@ -57,10 +57,36 @@ import { autoPayDueTransactions } from "@/lib/budget/recurring";
 import { getPolicySavingsTotal } from "@/lib/budget/credit";
 import { repairDanglingCategoryRefs } from "@/lib/budget/repair";
 import { mergePolicies } from "@/lib/budget/policy-merge";
+import { mergeDatabases } from "@/lib/budget/sync";
 import { newId } from "@/lib/budget/factory";
+import { backendFor } from "@/lib/store/backend";
+import { readBudget, writeBudget, UNREACHABLE } from "@/lib/store/budget-remote";
 
 const DATA_KEY = "cashew.data";
 const SETTINGS_KEY = "cashew.settings";
+
+/** How long edits are batched before the document is pushed to Supabase. */
+const REMOTE_WRITE_DEBOUNCE_MS = 800;
+
+/**
+ * How many times a write will re-read, merge and retry before giving up.
+ *
+ * Each round trip narrows the window, so losing three in a row means something
+ * is wrong rather than busy. The local copy is authoritative either way, so
+ * stopping costs a delayed sync, not data.
+ */
+const MAX_SYNC_ATTEMPTS = 3;
+
+/** Mirror the document into this browser. Synchronous, and never throws. */
+function writeLocal(data: BudgetDatabase, settings: BudgetSettings): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn("[budget] local persist failed:", e);
+  }
+}
 
 function emptyDatabase(): BudgetDatabase {
   return {
@@ -201,7 +227,126 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const hydrated = useRef(false);
 
-  const isLocal = !authEnabled || !user;
+  /**
+   * Where this account's budget lives: its own Drive, this project's database,
+   * or nowhere but the browser. See `@/lib/store/backend`.
+   */
+  const backend = backendFor(user, authEnabled);
+  const isLocal = backend === "local";
+
+  // ---- remote write ------------------------------------------------------
+  /**
+   * The `revision` this device believes the server row is at, or `null` when it
+   * has not seen a row for this user. Every write is conditional on it, so a
+   * device that has fallen behind fails to match instead of overwriting.
+   */
+  const revisionRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ data: BudgetDatabase; settings: BudgetSettings } | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushRemote = useCallback(
+    async (initialData: BudgetDatabase, nextSettings: BudgetSettings): Promise<void> => {
+      // `local` covers both the signed-out case and a Google account whose Drive
+      // is unavailable. Neither has anywhere to push to, and for the second that
+      // is the intended outcome rather than a degradation to paper over: this
+      // deployment's database is not a fallback for those users.
+      if (backend === "local") return;
+
+      const supabase = getSupabaseBrowserClient();
+
+      // Iterative rather than self-recursive. A `useCallback` that calls its own
+      // binding reads that binding from the render it was created in, which ties
+      // the retry chain to a closure that may already be stale — and reads as a
+      // hazard even where it happens to work. A loop has neither problem.
+      let nextData = initialData;
+
+      for (let attempt = 0; attempt <= MAX_SYNC_ATTEMPTS; attempt++) {
+        const result = await writeBudget(
+          backend,
+          user,
+          supabase,
+          nextData,
+          nextSettings,
+          revisionRef.current,
+        );
+
+        if (result === null) return;
+        if (result !== "conflict") {
+          revisionRef.current = result.revision;
+          return;
+        }
+
+        // Someone else wrote since this device last read. Merge their copy in
+        // and try again rather than choosing a winner.
+        const remote = await readBudget(backend, user, supabase);
+        if (remote === UNREACHABLE) return;
+
+        // Remote payloads need the same schema repair as local ones — without
+        // this, migrations only ever reached signed-out users.
+        const remoteData = migrate({ ...emptyDatabase(), ...(remote.payload ?? {}) });
+        nextData = mergeDatabases(nextData, remoteData);
+
+        revisionRef.current = remote.revision;
+        // The merge is now what this device holds, so state and localStorage
+        // move with it — otherwise the next edit would be computed against a
+        // document the server has already superseded, reopening this conflict.
+        setData(nextData);
+        writeLocal(nextData, nextSettings);
+      }
+
+      console.warn("[budget] gave up reconciling after", MAX_SYNC_ATTEMPTS, "attempts");
+    },
+    [user, backend],
+  );
+
+  /**
+   * Coalesce remote writes.
+   *
+   * Every keystroke in an amount field is a `mutate`, and each one would
+   * otherwise be a round trip carrying the entire document. localStorage still
+   * takes the write synchronously, so nothing is at risk in the gap.
+   */
+  const queueRemoteWrite = useCallback(
+    (nextData: BudgetDatabase, nextSettings: BudgetSettings) => {
+      pendingRef.current = { data: nextData, settings: nextSettings };
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null;
+        const pending = pendingRef.current;
+        pendingRef.current = null;
+        if (pending) void pushRemote(pending.data, pending.settings);
+      }, REMOTE_WRITE_DEBOUNCE_MS);
+    },
+    [pushRemote],
+  );
+
+  // A tab closed or backgrounded mid-debounce would drop the last edit from the
+  // server copy — it would survive locally and resurface as a conflict later.
+  // `pagehide` rather than `unload`, which is unreliable on mobile Safari.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function flush() {
+      if (!flushTimerRef.current) return;
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+      const pending = pendingRef.current;
+      pendingRef.current = null;
+      if (pending) void pushRemote(pending.data, pending.settings);
+    }
+
+    function onHidden() {
+      if (document.visibilityState === "hidden") flush();
+    }
+
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHidden);
+      flush();
+    };
+  }, [pushRemote]);
 
   // ---- hydrate -----------------------------------------------------------
   useEffect(() => {
@@ -212,8 +357,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const localData = readLocalData();
       const localSettings = readLocalSettings();
 
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase || !user) {
+      if (backend === "local") {
         if (!cancelled) {
           setData(localData);
           setSettings(localSettings);
@@ -223,27 +367,46 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const { data: remote, error } = await supabase
-        .from("budget_store")
-        .select("payload, settings")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const remote = await readBudget(backend, user, getSupabaseBrowserClient());
 
       if (cancelled) return;
 
-      if (error || !remote) {
-        // No remote row yet (or the table is absent): keep working locally.
-        if (error) console.warn("[budget] remote load failed, using local:", error.message);
+      if (remote === UNREACHABLE || !remote.payload) {
+        // Either nothing stored yet, or the remote could not be reached: keep
+        // working locally. `revision` stays null, which tells the writer to
+        // create rather than update, and to treat "it already exists" as a lost
+        // race rather than something to overwrite.
+        revisionRef.current = null;
         setData(localData);
         setSettings(localSettings);
       } else {
         // Remote payloads need the same schema repair as local ones — without
         // this, migrations only ever reached signed-out users.
-        setData(migrate({ ...emptyDatabase(), ...((remote.payload as BudgetDatabase) ?? {}) }));
-        setSettings({
-          ...DEFAULT_BUDGET_SETTINGS,
-          ...((remote.settings as Partial<BudgetSettings>) ?? {}),
+        const remoteData = migrate({
+          ...emptyDatabase(),
+          ...remote.payload,
         });
+
+        // Merge rather than adopt. Anything written on this device while it was
+        // offline — or before the last sign-in — exists only in localStorage,
+        // and taking the server copy wholesale is precisely how that work
+        // disappears. Tombstones in both copies still retire what was deleted,
+        // so this recovers unsynced edits without resurrecting deletions.
+        const merged = mergeDatabases(localData, remoteData);
+
+        revisionRef.current = remote.revision;
+        setData(merged);
+        // Settings carry no per-field timestamps, so there is nothing to merge
+        // on: this device's copy wins. They are small, self-describing
+        // preferences, and the cost of picking wrong is a toggle to flip back.
+        setSettings(localSettings);
+
+        // Anything the merge recovered exists only in this tab until it is
+        // pushed. Skipped when the merge changed nothing, which is the common
+        // case of opening the app on the device that wrote it last.
+        if (JSON.stringify(merged) !== JSON.stringify(remoteData)) {
+          queueRemoteWrite(merged, localSettings);
+        }
       }
       setLoading(false);
       hydrated.current = true;
@@ -253,6 +416,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+    // `queueRemoteWrite` is a stable ref-backed callback; re-running hydration
+    // on its identity would re-fetch the document on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // ---- cross-tab sync ----------------------------------------------------
@@ -275,40 +441,21 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ---- persist -----------------------------------------------------------
-  // Writes go to localStorage synchronously and to Supabase best-effort. The
+  // Writes go to localStorage synchronously and to Supabase on a debounce. The
   // `hydrated` guard stops the initial empty state from clobbering stored data.
+  //
+  // Theme and accent are no longer budget settings — `ThemeProvider` owns them
+  // for the whole app and persists them itself.
   const persist = useCallback(
     (nextData: BudgetDatabase, nextSettings: BudgetSettings) => {
       if (typeof window === "undefined") return;
       if (!hydrated.current) return;
-      try {
-        localStorage.setItem(DATA_KEY, JSON.stringify(nextData));
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(nextSettings));
-        // Theme and accent are no longer budget settings — `ThemeProvider` owns
-        // them for the whole app and persists them itself.
-      } catch (e) {
-        console.warn("[budget] local persist failed:", e);
-      }
 
-      const supabase = getSupabaseBrowserClient();
-      if (supabase && user) {
-        void supabase
-          .from("budget_store")
-          .upsert(
-            {
-              user_id: user.id,
-              payload: nextData,
-              settings: nextSettings,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          )
-          .then(({ error }) => {
-            if (error) console.warn("[budget] remote persist failed:", error.message);
-          });
-      }
+      writeLocal(nextData, nextSettings);
+
+      if (backend !== "local") queueRemoteWrite(nextData, nextSettings);
     },
-    [user],
+    [backend, queueRemoteWrite],
   );
 
   /** Apply a change to the database and persist the result. */
@@ -845,16 +992,17 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  const storeRef = useRef<StoreApi<BudgetStore> | undefined>(undefined);
-  if (!storeRef.current) {
-    storeRef.current = createStore<BudgetStore>(() => value);
-  }
+  // A `useState` initialiser rather than the lazy-ref idiom this replaced.
+  // Both create the store exactly once, but the ref version had to be *read*
+  // during render to pass the store down, which is the access React warns
+  // about. This is stable by construction and needs no suppression.
+  const [store] = useState(() => createStore<BudgetStore>(() => value));
 
   useLayoutEffect(() => {
-    storeRef.current?.setState(value);
-  }, [value]);
+    store.setState(value);
+  }, [store, value]);
 
-  return <BudgetStoreContext.Provider value={storeRef.current}>{children}</BudgetStoreContext.Provider>;
+  return <BudgetStoreContext.Provider value={store}>{children}</BudgetStoreContext.Provider>;
 }
 
 export function useBudget<T = BudgetStore>(selector?: (state: BudgetStore) => T): T {

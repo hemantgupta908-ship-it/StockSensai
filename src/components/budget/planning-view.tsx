@@ -1,8 +1,8 @@
 "use client";
 import { useShallow } from "zustand/react/shallow";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Flag, CreditCard, ShieldCheck, Repeat } from "@phosphor-icons/react";
 
 import { ObjectivesView } from "@/components/budget/objectives-view";
@@ -20,6 +20,9 @@ import { getTotalAnnualPremiums } from "@/lib/budget/credit";
 
 export type PlanningTab = "loans" | "policies" | "subscriptions" | "goals";
 
+/** Derived from the type so a new tab cannot be added and left unrecognised. */
+const PLANNING_TABS: PlanningTab[] = ["loans", "policies", "subscriptions", "goals"];
+
 export function PlanningView({ defaultTab }: { defaultTab?: PlanningTab }) {
   return (
     <Suspense fallback={<PlanningViewContent defaultTab={defaultTab} />}>
@@ -31,24 +34,33 @@ export function PlanningView({ defaultTab }: { defaultTab?: PlanningTab }) {
 function PlanningViewContent({ defaultTab }: { defaultTab?: PlanningTab }) {
   const { objectives, policies, transactions, allWallets  } = useBudget(useShallow((s) => ({ objectives: s.objectives, policies: s.policies, transactions: s.transactions, allWallets: s.allWallets })));
   const searchParams = useSearchParams();
-  const router = useRouter();
   const paramTab = searchParams ? (searchParams.get("tab") as PlanningTab | null) : null;
 
-  const initialTab =
-    paramTab && ["loans", "policies", "subscriptions", "goals"].includes(paramTab)
-      ? paramTab
-      : defaultTab ?? "loans";
+  const urlTab = paramTab && PLANNING_TABS.includes(paramTab) ? paramTab : null;
+  const fallbackTab = defaultTab ?? "loans";
 
-  const [activeTab, setActiveTab] = useState<PlanningTab>(initialTab);
+  /** The tab the user picked by hand, if any, outranking the URL. */
+  const [picked, setPicked] = useState<PlanningTab | null>(null);
+  const [seenUrlTab, setSeenUrlTab] = useState<PlanningTab | null>(urlTab);
 
-  useEffect(() => {
-    if (paramTab && ["loans", "policies", "subscriptions", "goals"].includes(paramTab)) {
-      setActiveTab(paramTab);
-    }
-  }, [paramTab]);
+  // Adjusting state during render, which React documents as the right way to
+  // reset state when a prop changes — and which the previous `useEffect` did a
+  // render too late, showing the old tab for one frame before correcting.
+  //
+  // A new `?tab=` means the URL is making a fresh request, so any earlier
+  // hand-pick is stale and must not keep winning.
+  if (urlTab !== seenUrlTab) {
+    setSeenUrlTab(urlTab);
+    setPicked(null);
+  }
+
+  const activeTab = picked ?? urlTab ?? fallbackTab;
 
   const handleTabChange = (nextTab: PlanningTab) => {
-    setActiveTab(nextTab);
+    // Held locally rather than read back out of the URL: the write below uses
+    // `history.replaceState`, which `useSearchParams` does not observe, so the
+    // URL alone would not re-render this component.
+    setPicked(nextTab);
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("tab", nextTab);

@@ -88,12 +88,19 @@ export function TransactionListView() {
 
   const displayed = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
 
+  // `scrollMargin` reads a ref during render, which `react-hooks/refs` flags.
+  // It is @tanstack/react-virtual's own documented usage for a window
+  // virtualiser: the list's offset within the page is a layout measurement, the
+  // virtualiser re-measures after mount, and the first render correctly sees 0
+  // because no layout exists yet.
+  /* eslint-disable react-hooks/refs */
   const virtualizer = useWindowVirtualizer({
     count: displayed.length,
     estimateSize: () => 64, // Approximate row height
     overscan: 5,
     scrollMargin: parentRef.current?.offsetTop ?? 0,
   });
+  /* eslint-enable react-hooks/refs */
 
   const summary = useMemo(
     () => getSpendingSummary(allWallets, displayed, objectives),

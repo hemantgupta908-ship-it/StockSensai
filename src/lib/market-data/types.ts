@@ -124,6 +124,17 @@ export interface MarketDataProvider {
   readonly isLive: boolean;
 
   listInstruments(): Promise<Instrument[]>;
+  /**
+   * Optional warm-up run once before a full-universe screen.
+   *
+   * For work that is only worth doing when every instrument is about to be
+   * fetched anyway — computing real sector medians, for instance. Anything
+   * expensive enough to belong here must *not* be triggered lazily by a
+   * single-stock request: providers share one rate limiter, so a universe-sized
+   * warm-up fired from a detail page puts hundreds of requests ahead of the one
+   * the user is waiting on.
+   */
+  prepareUniverse?(): Promise<void>;
   getInstrument(ticker: string): Promise<Instrument | null>;
 
   getQuote(ticker: string): Promise<Quote | null>;

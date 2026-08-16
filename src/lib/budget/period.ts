@@ -309,3 +309,20 @@ export function reoccurrenceLabel(
 
   return n === 1 ? label.singular : `Every ${n} ${label.unit}s`;
 }
+
+export function toDateTimeInputValue(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+export function fromDateTimeInputValue(value: string): Date {
+  if (!value) return new Date();
+  const [datePart, timePart] = value.split("T");
+  const [y, m, d] = (datePart || "").split("-").map(Number);
+  if (timePart) {
+    const [hr, min] = timePart.split(":").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1, hr ?? 12, min ?? 0, 0, 0);
+  }
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0);
+}

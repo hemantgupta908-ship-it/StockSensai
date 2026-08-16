@@ -913,9 +913,9 @@ export function PoliciesWidget({ limit = 3 }: { limit?: number }) {
   const annualPremium = useMemo(() => getTotalAnnualPremiums(allWallets, policies), [allWallets, policies]);
 
   return (
-    <Link href="/budget/policies" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
-      <Card className="hover:bg-fill/5 transition-colors">
-        <div className="grid grid-cols-2 gap-3 text-center">
+    <Link href="/budget/policies" className="block h-full transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
+      <Card className="h-full flex items-center justify-center hover:bg-fill/5 transition-colors">
+        <div className="grid grid-cols-2 gap-3 text-center w-full">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Collected</p>
             <Amount value={totalCollections} className="text-subhead font-semibold text-label" animated />

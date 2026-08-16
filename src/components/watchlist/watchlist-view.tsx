@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { CaretRight, Star, Trash } from "@phosphor-icons/react";
+import { CaretRight, Star, Trash, Bell, BellRinging, Check } from "@phosphor-icons/react";
 
-import { formatINR } from "@/lib/utils";
+import { cn, formatINR } from "@/lib/utils";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useSession } from "@/components/auth/session-provider";
 import { ChangePill, ExchangeBadge } from "@/components/ui/badge";
@@ -16,9 +17,13 @@ import { RefreshButton } from "@/components/ui/refresh-button";
 import { useWatchlist } from "./watchlist-provider";
 
 export function WatchlistView() {
-  const { items, loading, remove, isLocal } = useWatchlist();
-  const { authEnabled } = useSession();
+  const { items, loading, remove, isLocal, updateAlerts } = useWatchlist();
+  const { authEnabled, user } = useSession();
   const { quotes, refetch, refreshing } = useQuotes(items.map((i) => i.ticker));
+
+  const [editingAlert, setEditingAlert] = useState<string | null>(null);
+  const [alertAbove, setAlertAbove] = useState<string>("");
+  const [alertBelow, setAlertBelow] = useState<string>("");
 
   const navBarProps = {
     title: "Watchlist",
@@ -70,7 +75,9 @@ export function WatchlistView() {
     <>
       <NavBar {...navBarProps} />
       <PageContainer width="wide" className="space-y-3">
-        {isLocal && authEnabled && <LocalStorageNotice what="watchlist" />}
+        {isLocal && authEnabled && (
+          <LocalStorageNotice what="watchlist" reason={user ? "google-local" : "signed-out"} />
+        )}
 
         <div className="flex items-center justify-between px-1">
           <p className="text-caption text-label-secondary/60">
@@ -137,15 +144,92 @@ export function WatchlistView() {
                       )}
                     </div>
 
-                    <motion.button
-                      whileTap={{ scale: 0.86 }}
-                      onClick={() => void remove(item.ticker)}
-                      aria-label={`Remove ${item.ticker} from watchlist`}
-                      className="shrink-0 rounded-full p-2 text-label-quaternary/35 active:bg-red/[0.10] active:text-red"
-                    >
-                      <Trash size={16} />
-                    </motion.button>
+                    <div className="shrink-0 flex items-center gap-1">
+                      <motion.button
+                        whileTap={{ scale: 0.86 }}
+                        onClick={() => {
+                          if (editingAlert === item.ticker) {
+                            setEditingAlert(null);
+                          } else {
+                            setEditingAlert(item.ticker);
+                            setAlertAbove(item.alertAbove ? String(item.alertAbove) : "");
+                            setAlertBelow(item.alertBelow ? String(item.alertBelow) : "");
+                          }
+                        }}
+                        aria-label={`Set alert for ${item.ticker}`}
+                        className={cn(
+                          "rounded-full p-2 transition-colors",
+                          item.alertAbove || item.alertBelow 
+                            ? "text-blue bg-blue/10" 
+                            : "text-label-quaternary/35 hover:text-label-secondary"
+                        )}
+                      >
+                        {(item.alertAbove || item.alertBelow) ? <BellRinging size={16} /> : <Bell size={16} />}
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.86 }}
+                        onClick={() => void remove(item.ticker)}
+                        aria-label={`Remove ${item.ticker} from watchlist`}
+                        className="rounded-full p-2 text-label-quaternary/35 hover:text-red active:bg-red/[0.10]"
+                      >
+                        <Trash size={16} />
+                      </motion.button>
+                    </div>
                   </div>
+
+                  <AnimatePresence>
+                    {editingAlert === item.ticker && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="px-4 pb-3 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2 p-3 bg-fill/[0.04] dark:bg-white/[0.02] rounded-lg">
+                          <div className="flex-1 space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-label-secondary/60 tracking-wider">Alert Above</label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-label-secondary/60 text-sm">₹</span>
+                              <input 
+                                type="number" 
+                                value={alertAbove}
+                                onChange={(e) => setAlertAbove(e.target.value)}
+                                placeholder="e.g. 250"
+                                className="w-full bg-bg border border-separator/40 dark:border-white/[0.06] rounded-md pl-6 pr-2 py-1.5 text-sm outline-none focus:border-blue"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-label-secondary/60 tracking-wider">Alert Below</label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-label-secondary/60 text-sm">₹</span>
+                              <input 
+                                type="number" 
+                                value={alertBelow}
+                                onChange={(e) => setAlertBelow(e.target.value)}
+                                placeholder="e.g. 190"
+                                className="w-full bg-bg border border-separator/40 dark:border-white/[0.06] rounded-md pl-6 pr-2 py-1.5 text-sm outline-none focus:border-blue"
+                              />
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-end pb-0.5">
+                            <button
+                              onClick={() => {
+                                updateAlerts(item.ticker, { 
+                                  alertAbove: alertAbove ? Number(alertAbove) : null,
+                                  alertBelow: alertBelow ? Number(alertBelow) : null
+                                });
+                                setEditingAlert(null);
+                              }}
+                              className="h-8 w-8 flex items-center justify-center bg-blue text-white rounded-md active:scale-95 transition-transform"
+                            >
+                              <Check size={16} weight="bold" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })}

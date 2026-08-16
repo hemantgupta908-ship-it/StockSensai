@@ -1,57 +1,180 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /**
  * Appearance for the whole app — both environments.
  *
- * There used to be two writers of these classes: this provider and the budget
- * environment's own `BudgetThemeScope`, both targeting `<html>`. They clobbered
- * each other, so crossing between environments left whichever ran last in
- * charge. This is now the single owner of theme *and* accent; the budget
- * settings screen drives it through `useTheme()` like any other caller.
- *
- * The accent lives here rather than in the budget store because it is app-wide,
- * and the budget store is not mounted in the stock environment.
+ * Single owner of theme and adaptive paired accent. The budget settings
+ * and stock settings screens drive it through `useTheme()`.
  */
 
-export type ThemePreference = "light" | "dark" | "system" | "oled" | "sepia";
+export type ThemePreference =
+  | "light"
+  | "dark"
+  | "system"
+  | "oled"
+  | "sepia"
+  | "midnight"
+  | "forest"
+  | "mocha"
+  | "velvet"
+  | "cream"
+  | "nordic"
+  | "blush"
+  | "sage"
+  | "dune";
 
 /** Themes that render dark chrome. `system` resolves at runtime. */
-const DARK_THEMES: ThemePreference[] = ["dark", "oled"];
+const DARK_THEMES: ThemePreference[] = [
+  "dark",
+  "oled",
+  "midnight",
+  "forest",
+  "mocha",
+  "velvet",
+];
 
 export const THEME_STORAGE_KEY = "stockpilot.theme";
 export const ACCENT_STORAGE_KEY = "stockpilot.accent";
 
-/**
- * Default accent.
- *
- * Deliberately `#0071E3` rather than the iOS `#007AFF` this started as: white
- * on #007AFF is 4.02:1, and button text here is 17px semibold, which is not
- * "large" under WCAG — so 4.5:1 is the bar and it misses. The alternative was
- * letting `readableForeground` flip the default primary button to a black
- * label, which looks wrong on a blue button.
- *
- * A shade darker clears AA with white (4.70:1) and still reads as the same
- * blue. Every other swatch keeps its automatic foreground.
- */
-export const DEFAULT_ACCENT = "#0071E3";
-
-/** `DEFAULT_ACCENT` as a space-separated RGB triplet. */
-const DEFAULT_ACCENT_RGB = "0 113 227";
+export interface AccentPair {
+  id: string;
+  name: string;
+  light: string;
+  dark: string;
+  legacyHexes?: string[];
+}
 
 /**
- * The accent is published twice, and both are load-bearing.
+ * Curated FinTech & iOS-inspired Adaptive Paired Accents.
  *
- * `--accent` holds the hex, for inline SVG `stroke`/`fill` and anywhere CSS
- * consumes the colour directly. `--accent-rgb` holds a space-separated triplet,
- * which is what Tailwind needs to satisfy `rgb(... / <alpha-value>)`.
- *
- * Without the triplet, every opacity modifier on the accent silently produces
- * *no rule at all* — `bg-accent/40`, `ring-accent/20` and friends simply do not
- * exist in the output. That was the state of 27 utilities across the budget UI,
- * including the FAB's glow and every input focus ring.
+ * Light mode tones are rich, deep, and clear WCAG AA contrast (>= 4.5:1)
+ * against white/light gray backgrounds.
+ * Dark mode tones are luminous and vibrant against deep black/dark gray backgrounds.
  */
+export const ACCENT_PALETTES: AccentPair[] = [
+  {
+    id: "blue",
+    name: "iOS Blue",
+    light: "#0071E3",
+    dark: "#0A84FF",
+    legacyHexes: ["#0071E3", "#007AFF", "0 113 227", "0 122 255"],
+  },
+  {
+    id: "teal",
+    name: "Teal Surge",
+    light: "#008780",
+    dark: "#30D1C7",
+    legacyHexes: ["#00A896", "#30B0C7", "#80CBC4"],
+  },
+  {
+    id: "emerald",
+    name: "Emerald Green",
+    light: "#1B8755",
+    dark: "#30D158",
+    legacyHexes: ["#34C759", "#8BC34A"],
+  },
+  {
+    id: "violet",
+    name: "Electric Violet",
+    light: "#6D28D9",
+    dark: "#BF5AF2",
+    legacyHexes: ["#5856D6", "#AF52DE"],
+  },
+  {
+    id: "indigo",
+    name: "Deep Indigo",
+    light: "#4338CA",
+    dark: "#5E5CE6",
+    legacyHexes: ["#3F51B5"],
+  },
+  {
+    id: "rose",
+    name: "Rose Magenta",
+    light: "#E11D48",
+    dark: "#FF375F",
+    legacyHexes: ["#FF2D55"],
+  },
+  {
+    id: "amber",
+    name: "Sunset Amber",
+    light: "#D95D00",
+    dark: "#FF9F0A",
+    legacyHexes: ["#FF9500", "#FF6B6B", "#FFAB91"],
+  },
+  {
+    id: "gold",
+    name: "Solar Gold",
+    light: "#B8860B",
+    dark: "#FFD60A",
+    legacyHexes: ["#FFCC00"],
+  },
+  {
+    id: "crimson",
+    name: "Crimson Red",
+    light: "#DC2626",
+    dark: "#FF453A",
+    legacyHexes: ["#FF3B30"],
+  },
+  {
+    id: "cyan",
+    name: "Neon Cyan",
+    light: "#0284C7",
+    dark: "#64D2FF",
+    legacyHexes: [],
+  },
+  {
+    id: "mint",
+    name: "Soft Mint",
+    light: "#0D9488",
+    dark: "#40C8B5",
+    legacyHexes: [],
+  },
+  {
+    id: "slate",
+    name: "Titanium Slate",
+    light: "#334155",
+    dark: "#94A3B8",
+    legacyHexes: ["#607D8B", "#424242", "#8D6E63"],
+  },
+];
+
+export const DEFAULT_ACCENT = "blue";
+export const DEFAULT_ACCENT_LIGHT_HEX = "#0071E3";
+export const DEFAULT_ACCENT_DARK_HEX = "#0A84FF";
+
+export function getAccentPair(accentValue: string): AccentPair {
+  const normalized = (accentValue || "").trim().toLowerCase();
+  const found = ACCENT_PALETTES.find(
+    (p) =>
+      p.id.toLowerCase() === normalized ||
+      p.light.toLowerCase() === normalized ||
+      p.dark.toLowerCase() === normalized ||
+      p.legacyHexes?.some((h) => h.toLowerCase() === normalized),
+  );
+  return found ?? ACCENT_PALETTES[0];
+}
+
+export function resolveAccentHex(accentValue: string, isDark: boolean): string {
+  if (!accentValue) return isDark ? DEFAULT_ACCENT_DARK_HEX : DEFAULT_ACCENT_LIGHT_HEX;
+  const normalized = accentValue.trim();
+  const found = ACCENT_PALETTES.find(
+    (p) =>
+      p.id.toLowerCase() === normalized.toLowerCase() ||
+      p.light.toLowerCase() === normalized.toLowerCase() ||
+      p.dark.toLowerCase() === normalized.toLowerCase() ||
+      p.legacyHexes?.some((h) => h.toLowerCase() === normalized.toLowerCase()),
+  );
+  if (found) {
+    return isDark ? found.dark : found.light;
+  }
+  if (/^#?[0-9a-fA-F]{3,6}$/.test(normalized)) {
+    return normalized.startsWith("#") ? normalized : `#${normalized}`;
+  }
+  return isDark ? DEFAULT_ACCENT_DARK_HEX : DEFAULT_ACCENT_LIGHT_HEX;
+}
+
 function hexToRgbTriplet(hex: string): string {
   const value = hex.trim().replace(/^#/, "");
   const full =
@@ -61,23 +184,11 @@ function hexToRgbTriplet(hex: string): string {
           .map((c) => c + c)
           .join("")
       : value;
-  if (!/^[0-9a-fA-F]{6}$/.test(full)) return DEFAULT_ACCENT_RGB;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return "0 113 227";
   const int = parseInt(full, 16);
   return `${(int >> 16) & 255} ${(int >> 8) & 255} ${int & 255}`;
 }
 
-/**
- * A foreground that stays readable on top of the accent.
- *
- * Hardcoding `text-white` stopped being safe the moment the accent became
- * user-configurable: of the eighteen swatches offered, fourteen fail WCAG AA
- * against white, and Golden Yellow (#FFCC00) lands at 1.51:1 — a button whose
- * label you cannot read. Picking whichever of white/black scores higher clears
- * 4.5:1 for every swatch in the palette.
- *
- * Pale swatches therefore get a black label — Golden Yellow reads 13.89:1 that
- * way. `DEFAULT_ACCENT` is chosen so the out-of-the-box case still gets white.
- */
 function readableForeground(accentRgb: string): string {
   const [r, g, b] = accentRgb.split(" ").map(Number);
   const channel = (c: number) => {
@@ -90,38 +201,37 @@ function readableForeground(accentRgb: string): string {
   return againstWhite >= againstBlack ? "255 255 255" : "0 0 0";
 }
 
-function applyAccent(accent: string) {
+function applyAccent(accentValue: string, isDark: boolean) {
+  if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const rgb = hexToRgbTriplet(accent);
-  root.style.setProperty("--accent", accent);
+  const hex = resolveAccentHex(accentValue, isDark);
+  const rgb = hexToRgbTriplet(hex);
+  root.style.setProperty("--accent", hex);
   root.style.setProperty("--accent-rgb", rgb);
   root.style.setProperty("--accent-fg", readableForeground(rgb));
 }
 
-/** Where theme and accent used to live, read once so nobody loses their setting. */
 const LEGACY_SETTINGS_KEY = "cashew.settings";
 
 interface ThemeContextValue {
-  /** What the user chose. */
+  /** What the user chose (e.g. 'system', 'light', 'dark', 'oled', 'sepia', 'midnight', 'forest', 'mocha', 'velvet', 'cream', 'nordic', 'blush', 'sage', 'dune'). */
   preference: ThemePreference;
-  /** What is actually rendered right now. */
+  /** What is actually rendered right now ('light' | 'dark'). */
   resolved: "light" | "dark";
   setPreference: (preference: ThemePreference) => void;
-  /** App-wide accent colour, as a CSS colour string. */
+  /** App-wide accent key or hex value. */
   accent: string;
+  /** The rendered hex code matching current theme mode. */
+  resolvedAccent: string;
+  /** The active AccentPair definition. */
+  activePair: AccentPair;
   setAccent: (accent: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Inlined into <head> so the correct theme is on <html> before first paint.
- * Without this the app flashes light before hydration swaps it to dark, which is
- * the single most obvious way a web app gives away that it isn't native.
- *
- * This must stay in lockstep with `readStoredTheme` / `applyTheme` below — if
- * the two disagree the page will paint one theme and then visibly correct
- * itself, which is worse than no script at all.
+ * Inlined into <head> so the correct theme and adaptive accent are on <html> before first paint.
  */
 export const themeInitScript = `
 (function() {
@@ -132,26 +242,57 @@ export const themeInitScript = `
     try { legacy = JSON.parse(localStorage.getItem('${LEGACY_SETTINGS_KEY}') || 'null'); } catch (e) {}
 
     var pref = localStorage.getItem(THEME_KEY) || (legacy && legacy.theme) || 'system';
-    var accent = localStorage.getItem(ACCENT_KEY) || (legacy && legacy.accentColour) || '${DEFAULT_ACCENT}';
+    var rawAccent = localStorage.getItem(ACCENT_KEY) || (legacy && legacy.accentColour) || 'blue';
 
     var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var dark = pref === 'dark' || pref === 'oled' || (pref === 'system' && systemDark);
+    var darkList = ['dark', 'oled', 'midnight', 'forest', 'mocha', 'velvet'];
+    var isDark = darkList.indexOf(pref) !== -1 || (pref === 'system' && systemDark);
 
     var root = document.documentElement;
-    root.classList.toggle('dark', dark);
-    root.classList.toggle('theme-oled', pref === 'oled');
-    root.classList.toggle('theme-sepia', pref === 'sepia');
-    root.style.colorScheme = dark ? 'dark' : 'light';
-
-    // Mirrors hexToRgbTriplet below — see the note there on why both forms ship.
-    var hex = String(accent).trim().replace(/^#/, '');
-    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-    var triplet = '${DEFAULT_ACCENT_RGB}';
-    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
-      var n = parseInt(hex, 16);
-      triplet = ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255);
+    root.classList.toggle('dark', isDark);
+    
+    var themeClasses = ['theme-oled', 'theme-sepia', 'theme-midnight', 'theme-forest', 'theme-mocha', 'theme-velvet', 'theme-cream', 'theme-nordic', 'theme-blush', 'theme-sage', 'theme-dune'];
+    themeClasses.forEach(function(cls) { root.classList.remove(cls); });
+    if (pref !== 'system' && pref !== 'light' && pref !== 'dark') {
+      root.classList.add('theme-' + pref);
     }
-    // Mirrors readableForeground below.
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+
+    var palettes = {
+      blue: { light: '#0071E3', dark: '#0A84FF' },
+      teal: { light: '#008780', dark: '#30D1C7' },
+      green: { light: '#1B8755', dark: '#30D158' },
+      violet: { light: '#6D28D9', dark: '#BF5AF2' },
+      indigo: { light: '#4338CA', dark: '#5E5CE6' },
+      rose: { light: '#E11D48', dark: '#FF375F' },
+      amber: { light: '#D95D00', dark: '#FF9F0A' },
+      gold: { light: '#B8860B', dark: '#FFD60A' },
+      crimson: { light: '#DC2626', dark: '#FF453A' },
+      cyan: { light: '#0284C7', dark: '#64D2FF' },
+      mint: { light: '#0D9488', dark: '#40C8B5' },
+      slate: { light: '#334155', dark: '#94A3B8' }
+    };
+    var legacyMap = {
+      '#0071e3': 'blue', '#007aff': 'blue', '0 113 227': 'blue',
+      '#34c759': 'green', '#8bc34a': 'green',
+      '#00a896': 'teal', '#30b0c7': 'teal', '#80cbc4': 'teal',
+      '#3f51b5': 'indigo', '#5856d6': 'violet', '#af52de': 'violet',
+      '#ff2d55': 'rose', '#ff3b30': 'crimson', '#ff6b6b': 'amber',
+      '#ff9500': 'amber', '#ffcc00': 'gold', '#607d8b': 'slate',
+      '#424242': 'slate', '#ffab91': 'amber', '#8d6e63': 'slate'
+    };
+
+    var key = String(rawAccent).trim().toLowerCase();
+    var pairKey = palettes[key] ? key : (legacyMap[key] || (legacyMap['#' + key.replace(/^#/, '')] || null));
+    var hex = pairKey ? (isDark ? palettes[pairKey].dark : palettes[pairKey].light) : (key.startsWith('#') ? key : ('#' + key));
+    if (!/^[0-9a-fA-F]{6}$/.test(hex.replace(/^#/, ''))) {
+      hex = isDark ? '#0A84FF' : '#0071E3';
+    }
+
+    var cleanHex = hex.replace(/^#/, '');
+    var n = parseInt(cleanHex, 16);
+    var triplet = ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255);
+
     var p = triplet.split(' ').map(Number).map(function (c) {
       var s = c / 255;
       return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -159,7 +300,7 @@ export const themeInitScript = `
     var lum = 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
     var fg = 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.05 ? '255 255 255' : '0 0 0';
 
-    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent', hex);
     root.style.setProperty('--accent-rgb', triplet);
     root.style.setProperty('--accent-fg', fg);
   } catch (e) {}
@@ -182,11 +323,19 @@ function isThemePreference(value: unknown): value is ThemePreference {
     value === "dark" ||
     value === "system" ||
     value === "oled" ||
-    value === "sepia"
+    value === "sepia" ||
+    value === "midnight" ||
+    value === "forest" ||
+    value === "mocha" ||
+    value === "velvet" ||
+    value === "cream" ||
+    value === "nordic" ||
+    value === "blush" ||
+    value === "sage" ||
+    value === "dune"
   );
 }
 
-/** Legacy budget settings blob, read only to migrate off it. */
 function readLegacy(): { theme?: unknown; accentColour?: unknown } | null {
   try {
     return JSON.parse(localStorage.getItem(LEGACY_SETTINGS_KEY) ?? "null");
@@ -209,13 +358,21 @@ function readStoredAccent(): string {
   return typeof legacy === "string" && legacy ? legacy : DEFAULT_ACCENT;
 }
 
-/** The one place `<html>` gets its appearance classes. */
 function applyTheme(preference: ThemePreference) {
   const root = document.documentElement;
   const isDark = resolve(preference) === "dark";
   root.classList.toggle("dark", isDark);
   root.classList.toggle("theme-oled", preference === "oled");
   root.classList.toggle("theme-sepia", preference === "sepia");
+  root.classList.toggle("theme-midnight", preference === "midnight");
+  root.classList.toggle("theme-forest", preference === "forest");
+  root.classList.toggle("theme-mocha", preference === "mocha");
+  root.classList.toggle("theme-velvet", preference === "velvet");
+  root.classList.toggle("theme-cream", preference === "cream");
+  root.classList.toggle("theme-nordic", preference === "nordic");
+  root.classList.toggle("theme-blush", preference === "blush");
+  root.classList.toggle("theme-sage", preference === "sage");
+  root.classList.toggle("theme-dune", preference === "dune");
   root.style.colorScheme = isDark ? "dark" : "light";
   return isDark;
 }
@@ -225,57 +382,90 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolved, setResolved] = useState<"light" | "dark">("light");
   const [accent, setAccentState] = useState<string>(DEFAULT_ACCENT);
 
-  // Hydrate from storage. The init script has already painted the right theme;
-  // this only brings React's state into agreement with it.
   useEffect(() => {
-    const initial = readStoredTheme();
+    const initialTheme = readStoredTheme();
     const initialAccent = readStoredAccent();
-    setPreferenceState(initial);
-    setResolved(resolve(initial));
+    const isDark = resolve(initialTheme) === "dark";
+    setPreferenceState(initialTheme);
+    setResolved(isDark ? "dark" : "light");
     setAccentState(initialAccent);
-    applyAccent(initialAccent);
+    applyTheme(initialTheme);
+    applyAccent(initialAccent, isDark);
   }, []);
 
-  const setPreference = useCallback((next: ThemePreference) => {
-    setPreferenceState(next);
-    localStorage.setItem(THEME_STORAGE_KEY, next);
-    setResolved(applyTheme(next) ? "dark" : "light");
-  }, []);
+  const setPreference = useCallback(
+    (next: ThemePreference) => {
+      setPreferenceState(next);
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+      const isDark = applyTheme(next);
+      setResolved(isDark ? "dark" : "light");
+      applyAccent(accent, isDark);
+    },
+    [accent],
+  );
 
-  const setAccent = useCallback((next: string) => {
-    setAccentState(next);
-    localStorage.setItem(ACCENT_STORAGE_KEY, next);
-    applyAccent(next);
-  }, []);
+  const setAccent = useCallback(
+    (next: string) => {
+      setAccentState(next);
+      localStorage.setItem(ACCENT_STORAGE_KEY, next);
+      applyAccent(next, resolved === "dark");
+    },
+    [resolved],
+  );
+
+  // Update accent if theme resolved changes (e.g. OS theme flips while on "system")
+  useEffect(() => {
+    applyAccent(accent, resolved === "dark");
+  }, [resolved, accent]);
 
   // Follow the OS while the user is on "system".
   useEffect(() => {
     if (preference !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => setResolved(applyTheme("system") ? "dark" : "light");
+    const onChange = () => {
+      const isDark = applyTheme("system");
+      setResolved(isDark ? "dark" : "light");
+      applyAccent(accent, isDark);
+    };
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
-  }, [preference]);
+  }, [preference, accent]);
 
-  // Keep tabs in step — appearance is the setting users are most likely to
-  // change with the app open twice.
   useEffect(() => {
     function onStorage(event: StorageEvent) {
       if (event.key === THEME_STORAGE_KEY && isThemePreference(event.newValue)) {
         setPreferenceState(event.newValue);
-        setResolved(applyTheme(event.newValue) ? "dark" : "light");
+        const isDark = applyTheme(event.newValue);
+        setResolved(isDark ? "dark" : "light");
+        applyAccent(accent, isDark);
       }
       if (event.key === ACCENT_STORAGE_KEY && event.newValue) {
         setAccentState(event.newValue);
-        applyAccent(event.newValue);
+        applyAccent(event.newValue, resolved === "dark");
       }
     }
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [accent, resolved]);
+
+  const activePair = useMemo(() => getAccentPair(accent), [accent]);
+  const resolvedAccent = useMemo(
+    () => resolveAccentHex(accent, resolved === "dark"),
+    [accent, resolved],
+  );
 
   return (
-    <ThemeContext.Provider value={{ preference, resolved, setPreference, accent, setAccent }}>
+    <ThemeContext.Provider
+      value={{
+        preference,
+        resolved,
+        setPreference,
+        accent,
+        resolvedAccent,
+        activePair,
+        setAccent,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

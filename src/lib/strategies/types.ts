@@ -1,8 +1,8 @@
 import type { StockDataBundle } from "@/lib/market-data/types";
+import { extractFeatures } from "@/lib/engine/features";
+import { defaultModel } from "@/lib/engine/ml-model";
 
 export type TradingStyle =
-  | "intraday"
-  | "short-term"
   | "swing"
   | "positional"
   | "long-term";
@@ -14,16 +14,12 @@ export type TradingStyle =
  * query values and the engine's styles from ever drifting apart.
  */
 export const TRADING_STYLES = [
-  "intraday",
-  "short-term",
   "swing",
   "positional",
   "long-term",
 ] as const satisfies readonly TradingStyle[];
 
 export const TRADING_STYLE_LABELS: Record<TradingStyle, string> = {
-  intraday: "Intraday",
-  "short-term": "Short-Term",
   swing: "Swing",
   positional: "Positional",
   "long-term": "Long-Term",
@@ -31,17 +27,13 @@ export const TRADING_STYLE_LABELS: Record<TradingStyle, string> = {
 
 /** Short hold-period caption shown under each label in the style switcher. */
 export const TRADING_STYLE_CAPTIONS: Record<TradingStyle, string> = {
-  intraday: "Same day",
-  "short-term": "1–3 days",
-  swing: "Days–weeks",
+  swing: ">15 days",
   positional: "1–6 months",
   "long-term": "1–5 years",
 };
 
 export const TRADING_STYLE_DESCRIPTIONS: Record<TradingStyle, string> = {
-  intraday: "Open and close inside a single session, squared off before the bell.",
-  "short-term": "Intraday to a couple of sessions, driven by momentum and volume.",
-  swing: "Hold a few days to a few weeks, riding one leg of a trend.",
+  swing: "Hold at least 15 days, riding one leg of a trend.",
   positional: "Several months, holding the primary trend through its pullbacks.",
   "long-term": "One to five years, driven by business quality and valuation.",
 };
@@ -108,6 +100,22 @@ export interface Thresholds {
   stopAtrMultiple: number;
   /** Minimum reward-to-risk the setup must offer to be shown. */
   minRewardRisk: number;
+  /**
+   * Multiplier on how far back a strategy will look for its triggering event.
+   *
+   * Event-driven screens — a moving-average cross, a MACD cross, a breakout —
+   * only fire when the trigger happened within some window of sessions. Those
+   * windows were hard-coded, which made them the one gate the risk tolerance
+   * could not reach: swing returned an identical count at all three settings,
+   * and the empty state's advice to "loosen the thresholds in Settings" was
+   * simply untrue for those screens.
+   *
+   * A tighter window is the conservative choice. It admits only setups caught
+   * near their trigger, where the planned entry band still sits close to where
+   * the signal actually fired; a wider one accepts older crosses, which yields
+   * more candidates but enters further into a move that has already begun.
+   */
+  eventWindowMultiple: number;
   /** Relative-strength margin vs NIFTY over 5 sessions, in percentage points. */
   relativeStrengthMargin: number;
   /** Long-term quality gates. */
@@ -125,6 +133,7 @@ export const THRESHOLD_PRESETS: Record<RiskTolerance, Thresholds> = {
     rsiOverbought: 72,
     stopAtrMultiple: 1.6,
     minRewardRisk: 2.0,
+    eventWindowMultiple: 0.6,
     relativeStrengthMargin: 4,
     minRoe: 18,
     maxDebtToEquity: 0.4,
@@ -138,6 +147,7 @@ export const THRESHOLD_PRESETS: Record<RiskTolerance, Thresholds> = {
     rsiOverbought: 70,
     stopAtrMultiple: 2.0,
     minRewardRisk: 1.6,
+    eventWindowMultiple: 1,
     relativeStrengthMargin: 3,
     minRoe: 15,
     maxDebtToEquity: 0.5,
@@ -151,6 +161,7 @@ export const THRESHOLD_PRESETS: Record<RiskTolerance, Thresholds> = {
     rsiOverbought: 65,
     stopAtrMultiple: 2.6,
     minRewardRisk: 1.3,
+    eventWindowMultiple: 1.8,
     relativeStrengthMargin: 2,
     minRoe: 12,
     maxDebtToEquity: 0.8,
@@ -191,24 +202,12 @@ export interface Strategy {
 }
 
 export type StrategyId =
-  // Intraday
-  | "id-vwap-reversion"
-  | "id-momentum-burst"
-  | "id-range-fade"
-  | "id-previous-day-break"
-  | "id-closing-hour-trend"
   // Swing
   | "swing-ma-crossover"
   | "swing-rsi-reversal"
   | "swing-consolidation-breakout"
   | "swing-support-resistance-bounce"
   | "swing-macd-crossover"
-  // Short-term
-  | "st-gap-continuation"
-  | "st-vwap-momentum"
-  | "st-bollinger-squeeze"
-  | "st-relative-strength"
-  | "st-opening-range-breakout"
   // Positional
   | "pos-stage-two-trend"
   | "pos-52w-high-breakout"
@@ -231,11 +230,65 @@ export type StrategyId =
  * already cleared its required conditions, so a raw score of 20% would be
  * misleadingly bleak, and nothing in markets deserves a 100.
  */
+/**
+ * Setup quality from the strategy's own weighted conditions.
+ *
+ * This is what makes one strategy's verdict different from another's on the
+ * same stock, so it stays the primary term in the confidence score.
+ */
 export function scoreConditions(conditions: StrategyCondition[]): number {
   const total = conditions.reduce((sum, c) => sum + c.weight, 0);
   if (total === 0) return 0;
   const met = conditions.reduce((sum, c) => sum + (c.met ? c.weight : 0), 0);
   const ratio = met / total;
+  return Math.round(35 + ratio * 63);
+}
+
+/**
+ * How far the market-context model may move a condition score, either way.
+ *
+ * The model reads the stock, not the setup: it sees trend, extension, relative
+ * strength and volume, and knows nothing about which strategy is asking. Left
+ * as the sole input it collapses all fifteen strategies onto one number per
+ * stock, which makes both the feed ranking and the `minConfidence` gate blind
+ * to setup quality. As a bounded tilt on the condition score it does the job it
+ * is actually good at — telling a clean setup in a strong tape from the same
+ * setup in a weak one — without overwriting the strategy's own reading.
+ */
+const MODEL_TILT = 0.15;
+
+/**
+ * Confidence for a firing signal: the strategy's weighted conditions, tilted by
+ * the market-context model.
+ *
+ * When the stock has too little history for the model, the condition score
+ * stands alone. That is the honest fallback — the conditions have already
+ * recorded what they could and could not verify — and it keeps a data-poor
+ * stock from inheriting the model's bias term as if it were a verdict.
+ */
+export function scoreSignal(
+  conditions: StrategyCondition[],
+  bundle: StockDataBundle,
+): number {
+  const total = conditions.reduce((sum, c) => sum + c.weight, 0);
+  if (total === 0) return 0;
+  const met = conditions.reduce((sum, c) => sum + (c.met ? c.weight : 0), 0);
+
+  let ratio = met / total;
+
+  // The tilt is applied to the ratio, before it is mapped into the 35–98 band,
+  // rather than to the banded score afterwards. Tilting the banded score lets a
+  // setup that already met every condition clamp at the ceiling, which silently
+  // discards the whole upside half of the model's opinion; tilting the ratio
+  // keeps both directions live and leaves 98 meaning what it always meant —
+  // every condition met, in a tape the model likes.
+  const features = extractFeatures(bundle);
+  if (features) {
+    const probability = defaultModel.predict(features); // 0.0 to 1.0
+    const tilt = (probability - 0.5) * 2; // -1 .. +1
+    ratio = Math.max(0, Math.min(1, ratio * (1 + tilt * MODEL_TILT)));
+  }
+
   return Math.round(35 + ratio * 63);
 }
 
@@ -259,8 +312,6 @@ export function requiredConditionsMet(conditions: StrategyCondition[]): boolean 
  * realistically offer.
  */
 const REWARD_RISK_FACTORS: Record<TradingStyle, number> = {
-  intraday: 0.7,
-  "short-term": 0.8,
   swing: 1,
   positional: 1.1,
   "long-term": 1.15,
@@ -268,6 +319,18 @@ const REWARD_RISK_FACTORS: Record<TradingStyle, number> = {
 
 export function minRewardRiskFor(thresholds: Thresholds, style: TradingStyle): number {
   return thresholds.minRewardRisk * REWARD_RISK_FACTORS[style];
+}
+
+/**
+ * A strategy's event lookback, scaled by risk tolerance.
+ *
+ * `baseBars` stays the strategy's own tuning — a MACD line crosses its signal
+ * far more often than a 20 EMA crosses a 50 EMA, so they should not share one
+ * window — and the tolerance scales it from there. Never returns less than 1
+ * bar: a window of zero would mean no strategy could ever fire.
+ */
+export function eventWindow(thresholds: Thresholds, baseBars: number): number {
+  return Math.max(1, Math.round(baseBars * thresholds.eventWindowMultiple));
 }
 
 /** Reward-to-risk from the midpoints of the entry and target bands. */

@@ -572,7 +572,11 @@ export function generateFundamentals(seed: SeedInstrument, currentPrice: number)
         : uniform(rng, -0.2, 0.9);
   const operatingMarginTrend = [0, 1, 2].map((i) => Number((marginBase + marginStep * i).toFixed(1)));
 
-  const currentProfit = seed.marketCapCr / Math.max(pe, 1);
+  // Generated entries have no researched market cap (`marketCapCr: 0`) and
+  // carry a simulation-only stand-in instead, so the demo still produces
+  // believable profit figures without publishing an invented capitalisation.
+  const simMarketCapCr = seed.sim.marketCapCr ?? seed.marketCapCr;
+  const currentProfit = simMarketCapCr / Math.max(pe, 1);
   const profitHistory = [4, 3, 2, 1, 0].map((yearsAgo) => {
     const base = currentProfit / Math.pow(1 + earningsCagr3y / 100, yearsAgo);
     const noise = archetype === "cyclical" ? uniform(rng, 0.72, 1.3) : uniform(rng, 0.94, 1.06);

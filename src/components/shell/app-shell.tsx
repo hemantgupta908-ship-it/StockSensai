@@ -7,6 +7,7 @@ import { BudgetProvider } from "@/components/budget/budget-provider";
 import { DisclaimerFooter } from "@/components/disclaimer";
 import { SidebarNav } from "@/components/ui/sidebar-nav";
 import { TabBar, TabBarSpacer } from "@/components/ui/tab-bar";
+import { PriceAlertsMonitor } from "@/hooks/use-price-alerts";
 
 /**
  * The application shell — one for the whole product.
@@ -38,6 +39,7 @@ export function AppShell({
       <WatchlistProvider>
         <PortfolioProvider>
           <BudgetProvider>
+            <PriceAlertsMonitor />
             {/* Sidebar from `lg` up, bottom tab bar below it. */}
             <SidebarNav />
             <div className="min-h-dvh lg:pl-[248px]">

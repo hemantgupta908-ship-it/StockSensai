@@ -27,7 +27,7 @@ import {
 import { createTransaction, matchAssociatedTitle, newId } from "@/lib/budget/factory";
 import { createTransferPair } from "@/lib/budget/recurring";
 import { getWalletBalance } from "@/lib/budget/calculations";
-import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
+import { atMidday, fromDateInputValue, toDateInputValue, fromDateTimeInputValue, toDateTimeInputValue } from "@/lib/budget/period";
 import { formatCurrencyAmount, getCurrencyInfo } from "@/lib/budget/currency";
 import { amountValue, evaluateExpression, isExpression } from "@/lib/budget/expression";
 import { useBudget, useCategoryLookup } from "./budget-provider";
@@ -100,7 +100,7 @@ export function TransactionModal({
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
   const [subCategoryFk, setSubCategoryFk] = useState("");
   const [walletFk, setWalletFk] = useState(settings.primaryWalletPk);
-  const [date, setDate] = useState(() => toDateInputValue(new Date()));
+  const [date, setDate] = useState(() => toDateTimeInputValue(new Date()));
   const [specialType, setSpecialType] = useState("none");
   const [reoccurrence, setReoccurrence] = useState(String(BudgetReoccurence.monthly));
   const [periodLength, setPeriodLength] = useState("1");
@@ -154,7 +154,7 @@ export function TransactionModal({
       setNote(editing.note);
       setCategoryFk(editing.categoryFk);
       setSubCategoryFk(editing.subCategoryFk ?? "");
-      setDate(toDateInputValue(new Date(editing.dateCreated)));
+      setDate(toDateTimeInputValue(new Date(editing.dateCreated)));
       setSpecialType(editing.type === null ? "none" : String(editing.type));
       setReoccurrence(String(editing.reoccurrence ?? BudgetReoccurence.monthly));
       setPeriodLength(String(editing.periodLength ?? 1));
@@ -171,7 +171,7 @@ export function TransactionModal({
       setCategoryFk(defaults?.categoryFk ?? "");
       setSubCategoryFk("");
       setWalletFk(defaults?.walletFk ?? settings.primaryWalletPk);
-      setDate(toDateInputValue(defaults?.dateCreated ? new Date(defaults.dateCreated) : new Date()));
+      setDate(toDateTimeInputValue(defaults?.dateCreated ? new Date(defaults.dateCreated) : new Date()));
       setSpecialType(defaults?.type !== undefined && defaults.type !== null ? String(defaults.type) : "none");
       setReoccurrence(String(BudgetReoccurence.monthly));
       setPeriodLength("1");
@@ -261,7 +261,7 @@ export function TransactionModal({
         toWalletPk: toWalletFk,
         amount: numericAmount,
         fee: amountValue(transferFee) || 0,
-        date: atMidday(fromDateInputValue(date)),
+        date: fromDateTimeInputValue(date),
         note,
         title: name.trim() || undefined,
         newPk: newId,
@@ -288,7 +288,7 @@ export function TransactionModal({
     // Cashew stores expenses negative and income positive.
     // By respecting the sign of numericAmount, users can enter negative expenses (refunds)
     const signed = isIncome ? numericAmount : -numericAmount;
-    const dueDate = atMidday(fromDateInputValue(date));
+    const dueDate = fromDateTimeInputValue(date);
 
     const base = editing ?? createTransaction();
     const next: Transaction = {
@@ -505,7 +505,7 @@ export function TransactionModal({
           
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date" className="mb-0">
-              <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <TextInput type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             <Field label="Transfer fee" hint="Charged to source." className="mb-0">
               <TextInput
@@ -535,7 +535,7 @@ export function TransactionModal({
         <>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date" className="mb-0">
-              <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <TextInput type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             <Field label="Title" className="mb-0">
               <TextInput

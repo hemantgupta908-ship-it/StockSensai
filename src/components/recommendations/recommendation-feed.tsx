@@ -42,10 +42,48 @@ const STYLE_OPTIONS: { value: TradingStyle; label: string }[] =
     label: TRADING_STYLE_LABELS[value],
   }));
 
+/**
+ * Bumped whenever the engine changes what a feed means.
+ *
+ * The cache key is versioned because a stored payload outlives the code that
+ * produced it: a feed cached while the engine was emitting nothing would be
+ * replayed from localStorage indefinitely, and the empty state reads as a
+ * considered screening result rather than a stale artefact. Changing this
+ * discards every previously stored feed.
+ */
+const FEED_CACHE_VERSION = "v2";
+const FEED_CACHE_KEY = `stocksensei.feed_cache.${FEED_CACHE_VERSION}`;
+
+/**
+ * Cached feeds older than this are discarded rather than shown.
+ *
+ * A stale feed is still worth displaying while a fresh one loads — the levels
+ * move slowly and a populated screen beats a spinner — but past a point the
+ * prices on the cards no longer resemble the market and showing them is worse
+ * than showing nothing.
+ */
+const CLIENT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Gap between polls while the server screens the universe.
+ *
+ * A full live screen of the Nifty 200 runs to several minutes, so polling
+ * faster only adds requests that get the same "still warming" answer back.
+ */
+const WARMING_POLL_MS = 20_000;
+
+function isFresh(feed: FeedPayload | undefined): feed is FeedPayload {
+  if (!feed?.generatedAt) return false;
+  const age = Date.now() - new Date(feed.generatedAt).getTime();
+  return Number.isFinite(age) && age < CLIENT_CACHE_MAX_AGE_MS;
+}
+
 function getInitialClientCache(): Record<string, FeedPayload> {
   if (typeof window === "undefined") return {};
   try {
-    const stored = localStorage.getItem("stocksensei.feed_cache");
+    // Clear the unversioned key left by earlier builds so it cannot linger.
+    localStorage.removeItem("stocksensei.feed_cache");
+    const stored = localStorage.getItem(FEED_CACHE_KEY);
     return stored ? (JSON.parse(stored) as Record<string, FeedPayload>) : {};
   } catch {
     return {};
@@ -58,24 +96,41 @@ export function RecommendationFeed() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** A screen is running server-side; poll until it lands. */
+  const [warming, setWarming] = useState(false);
 
   // Guards against a slow earlier request overwriting a newer one when the user
   // flicks between styles quickly.
   const requestId = useRef(0);
   const clientFeedCache = useRef<Record<string, FeedPayload>>(getInitialClientCache());
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    },
+    [],
+  );
 
   const load = useCallback(
     async (style: TradingStyle, tolerance: string, force = false) => {
       const id = ++requestId.current;
       const cacheKey = `${style}:${tolerance}`;
 
-      // Instant optimistic display from client memory/storage cache if available
-      if (!force && clientFeedCache.current[cacheKey]) {
-        setFeed(clientFeedCache.current[cacheKey]);
-        setLoading(false);
+      // Optimistic display from the client cache, but only while it is recent
+      // enough to be worth looking at, and never as a *finished* state: the
+      // network request behind it can take a minute or more on a cold screen,
+      // and clearing `loading` here would present a stale feed as the current
+      // one with nothing on screen to say otherwise.
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+
+      const cached = clientFeedCache.current[cacheKey];
+      if (!force && isFresh(cached)) {
+        setFeed(cached);
       } else {
-        setLoading(true);
+        setFeed(null);
       }
+      setLoading(true);
       setError(null);
 
       try {
@@ -98,9 +153,23 @@ export function RecommendationFeed() {
               : "Invalid data received from recommendation engine",
           );
         }
+        // A warming feed is a promise, not a result: the screen is still running
+        // server-side. Never cache it — it would replace a real feed with an
+        // empty one — and keep whatever is already on screen while polling.
+        if (data.warming) {
+          if (id === requestId.current) {
+            setWarming(true);
+            retryTimer.current = setTimeout(() => {
+              if (id === requestId.current) void load(style, tolerance);
+            }, WARMING_POLL_MS);
+          }
+          return;
+        }
+
+        setWarming(false);
         clientFeedCache.current[cacheKey] = data;
         try {
-          localStorage.setItem("stocksensei.feed_cache", JSON.stringify(clientFeedCache.current));
+          localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(clientFeedCache.current));
         } catch {
           // ignore storage quota errors
         }
@@ -138,7 +207,10 @@ export function RecommendationFeed() {
     );
   }, [feed, query])();
 
-  const showSkeletons = loading && !feed;
+  // A warming response carries no recommendations because none have been
+  // computed yet — rendering the "no setups" empty state for it would report a
+  // screening verdict that has not been reached.
+  const showSkeletons = (loading || warming) && !feed;
 
   return (
     <div>
@@ -169,7 +241,14 @@ export function RecommendationFeed() {
         </div>
       </PageContainer>
 
-      {feed && <FeedMeta feed={feed} feedView={feedView} onToggleView={setFeedView} />}
+      {feed && (
+        <FeedMeta
+          feed={feed}
+          feedView={feedView}
+          onToggleView={setFeedView}
+          refreshing={loading}
+        />
+      )}
 
       <PullToRefresh onRefresh={refresh}>
         <PageContainer className="space-y-3 pt-3">
@@ -179,10 +258,18 @@ export function RecommendationFeed() {
                 <CircleNotch size={20} className="animate-spin text-blue shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-footnote font-semibold text-label">
-                    Screening NSE & BSE stock universe...
+                    {warming
+                      ? "First screen of the day — this takes a few minutes"
+                      : "Screening NSE & BSE stock universe..."}
                   </p>
+                  {/* No instrument count here: this only renders before the
+                      first feed arrives, so the real universe size is not known
+                      yet and a hardcoded one goes stale the moment the seed list
+                      changes. `FeedMeta` shows the true count once loaded. */}
                   <p className="truncate text-caption2 text-label-secondary/65">
-                    Evaluating {STYLE_OPTIONS.find((s) => s.value === tradingStyle)?.label} strategies across 37 instruments
+                    {warming
+                      ? "Fetching a year of price history for every stock. Results appear here automatically."
+                      : `Evaluating ${STYLE_OPTIONS.find((s) => s.value === tradingStyle)?.label} strategies across the NSE & BSE universe`}
                   </p>
                 </div>
               </div>
@@ -260,10 +347,12 @@ function FeedMeta({
   feed,
   feedView,
   onToggleView,
+  refreshing,
 }: {
   feed: FeedPayload;
   feedView: "card" | "list";
   onToggleView: (view: "card" | "list") => void;
+  refreshing: boolean;
 }) {
   return (
     <PageContainer className="mt-2.5 flex items-center justify-between gap-2">
@@ -283,10 +372,20 @@ function FeedMeta({
           )}
           {feed.isLiveData ? "Live data" : "Demo data"}
         </span>
-        <span className="text-caption2 text-label-secondary/50">
-          {feed.recommendations.length} of {feed.universeSize} screened · updated{" "}
-          {timeAgo(feed.generatedAt)}
-        </span>
+        {/* While a refresh is in flight the counts below belong to the previous
+            screen, so say so — an unqualified "updated 10 hrs ago" next to an
+            empty feed reads as a current verdict rather than an old one. */}
+        {refreshing ? (
+          <span className="flex items-center gap-1.5 text-caption2 text-label-secondary/60">
+            <CircleNotch size={11} className="animate-spin text-blue" />
+            Refreshing · showing screen from {timeAgo(feed.generatedAt)}
+          </span>
+        ) : (
+          <span className="text-caption2 text-label-secondary/50">
+            {feed.recommendations.length} of {feed.universeSize} screened · updated{" "}
+            {timeAgo(feed.generatedAt)}
+          </span>
+        )}
       </div>
 
       {/* Card vs List View Toggle Pill */}
@@ -339,14 +438,12 @@ function EmptyState({ style }: { style: TradingStyle }) {
     >
       <p className="text-subhead font-semibold text-label">No setups right now</p>
       <p className="mx-auto mt-2 max-w-sm text-footnote leading-relaxed text-label-secondary/60">
-        None of the five {TRADING_STYLE_LABELS[style].toLowerCase()} strategies found a stock
+        None of the {TRADING_STYLE_LABELS[style].toLowerCase()} strategies found a stock
         meeting their conditions at your current risk tolerance. That is a normal outcome — a
         screen that always returns something isn&apos;t screening.
       </p>
       <p className="mt-3 text-caption text-label-secondary/50">
-        {style === "intraday"
-          ? "Intraday screens need five-minute bars from a live session — outside market hours they will usually be quiet. Try another style, or loosen the thresholds in Settings."
-          : "Try a different trading style, or loosen the thresholds in Settings."}
+        Try a different trading style, or loosen the thresholds in Settings.
       </p>
     </motion.div>
   );

@@ -8,6 +8,7 @@ import { ArrowRight, CaretRight, CheckCircle, CircleNotch, Command, MagnifyingGl
 import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import type { Recommendation } from "@/lib/engine/types";
 
 const QUICK_STOCKS = [
   { symbol: "BSE", label: "BSE Ltd" },
@@ -54,6 +55,7 @@ export function StockSearchModal({
   const [selectedSector, setSelectedSector] = useState("All");
   const [evaluating, setEvaluating] = useState<string | null>(null);
   const [preview, setPreview] = useState<ScorecardPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Clear query on open
   useEffect(() => {
@@ -97,23 +99,53 @@ export function StockSearchModal({
     router.push(`/stock/${ticker.toUpperCase()}`);
   };
 
+  /**
+   * Summarise the screened feed for one ticker.
+   *
+   * This previously fetched the feed, discarded it, and rendered
+   * `Math.random()` counts against a hardcoded strategy name and a confidence
+   * of 82 — fabricated analysis, in the one screen whose entire purpose is to
+   * report what the strategies actually found. The fetch was already here; only
+   * the reading of it was missing.
+   */
   const handleQuickEvaluate = async (ticker: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setEvaluating(ticker);
     setPreview(null);
+    setPreviewError(null);
     try {
-      // Fetch analysis preview for this stock
       const res = await fetch(`/api/recommendations?style=swing&tolerance=moderate`);
-      // Simulating quick preview response
+      if (!res.ok) throw new Error(`Feed responded ${res.status}`);
+
+      const feed = (await res.json()) as { recommendations?: Recommendation[] };
+      const forTicker = (feed.recommendations ?? []).filter(
+        (r) => r.ticker.toUpperCase() === ticker.toUpperCase(),
+      );
+
+      if (forTicker.length === 0) {
+        // A stock the swing screen did not surface is the common case, and
+        // saying so is a real answer. Inventing setups for it is not.
+        setPreview({ ticker, bullishCount: 0, bearishCount: 0 });
+        return;
+      }
+
+      // The strongest signal is what the card headlines, so confidence and
+      // strategy name have to come from the same recommendation rather than
+      // being assembled from different ones.
+      const strongest = forTicker.reduce((best, r) =>
+        r.confidenceScore > best.confidenceScore ? r : best,
+      );
+
       setPreview({
         ticker,
-        bullishCount: Math.floor(Math.random() * 3) + 1,
-        bearishCount: Math.random() > 0.6 ? 1 : 0,
-        topStrategy: "MA Golden Cross",
-        confidence: 82,
+        bullishCount: forTicker.filter((r) => r.direction === "bullish").length,
+        bearishCount: forTicker.filter((r) => r.direction === "bearish").length,
+        topStrategy: strongest.strategyName,
+        confidence: Math.round(strongest.confidenceScore),
       });
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error("[search] quick evaluate failed:", error);
+      setPreviewError("Couldn't load the screen for this stock.");
     } finally {
       setEvaluating(null);
     }
@@ -272,6 +304,23 @@ export function StockSearchModal({
 
         {/* Quick Evaluation Scorecard Drawer */}
         <AnimatePresence>
+          {previewError && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="flex items-center justify-between gap-3 border-t border-separator/40 bg-amber/[0.06] px-4 py-3"
+            >
+              <span className="text-caption text-label-secondary">{previewError}</span>
+              <button
+                onClick={() => setPreviewError(null)}
+                className="text-label-secondary/60 hover:text-label"
+                aria-label="Dismiss"
+              >
+                <X size={15} />
+              </button>
+            </motion.div>
+          )}
           {preview && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
@@ -284,9 +333,14 @@ export function StockSearchModal({
                   <span className="text-subhead font-bold tracking-wide text-label">
                     {preview.ticker} Strategy Scorecard
                   </span>
-                  <span className="rounded-full bg-green/15 px-2 py-0.5 text-caption2 font-semibold text-green">
-                    {preview.confidence}% Confidence
-                  </span>
+                  {/* Only when a real setup backs it — a confidence figure with
+                      nothing behind it is the thing this screen exists not to
+                      show. */}
+                  {preview.confidence !== undefined && (
+                    <span className="rounded-full bg-green/15 px-2 py-0.5 text-caption2 font-semibold text-green">
+                      {preview.confidence}% Confidence
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => setPreview(null)}
@@ -296,31 +350,38 @@ export function StockSearchModal({
                 </button>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2.5 rounded-lg border border-green/20 bg-green/[0.08] p-2.5">
-                  <CheckCircle size={20} className="text-green shrink-0" />
-                  <div>
-                    <p className="text-subhead font-bold text-label">
-                      {preview.bullishCount} Bullish Setups
-                    </p>
-                    <p className="text-caption2 text-label-secondary/70">
-                      {preview.topStrategy} active
-                    </p>
+              {preview.bullishCount === 0 && preview.bearishCount === 0 ? (
+                <p className="mt-3 text-caption text-label-secondary/80">
+                  No swing setups currently qualify for this stock. That is a result,
+                  not an error — most stocks fail most screens on any given day.
+                </p>
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2.5 rounded-lg border border-green/20 bg-green/[0.08] p-2.5">
+                    <CheckCircle size={20} className="text-green shrink-0" />
+                    <div>
+                      <p className="text-subhead font-bold text-label">
+                        {preview.bullishCount} Bullish Setups
+                      </p>
+                      <p className="text-caption2 text-label-secondary/70">
+                        {preview.topStrategy ? `${preview.topStrategy} active` : "—"}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2.5 rounded-lg border border-amber/20 bg-amber/[0.08] p-2.5">
-                  <ShieldWarning size={20} className="text-amber shrink-0" />
-                  <div>
-                    <p className="text-subhead font-bold text-label">
-                      {preview.bearishCount} Caution Flags
-                    </p>
-                    <p className="text-caption2 text-label-secondary/70">
-                      Bearish setup warnings
-                    </p>
+                  <div className="flex items-center gap-2.5 rounded-lg border border-amber/20 bg-amber/[0.08] p-2.5">
+                    <ShieldWarning size={20} className="text-amber shrink-0" />
+                    <div>
+                      <p className="text-subhead font-bold text-label">
+                        {preview.bearishCount} Caution Flags
+                      </p>
+                      <p className="text-caption2 text-label-secondary/70">
+                        Bearish setup warnings
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <Button
                 size="sm"

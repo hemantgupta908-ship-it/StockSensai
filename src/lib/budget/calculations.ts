@@ -31,6 +31,13 @@ import {
   amountRatioToPrimaryCurrencyGivenPk,
   type AllWallets,
 } from "./currency";
+// `credit.ts` imports `getWalletBalance` from this module, so the two form a
+// cycle. That is safe here and does not need a lazy `require()`: both sides
+// export hoisted function declarations and call each other at runtime rather
+// than during module evaluation, so ES module live bindings resolve it. The
+// `require()` this replaced only worked because webpack rewrote it — under
+// plain ESM it throws, which is what made `getNetWorth` untestable.
+import { getCreditCardStatus } from "./credit";
 
 // ---------------------------------------------------------------------------
 // Transaction predicates
@@ -426,7 +433,6 @@ export function getNetWorth(
     
     // For credit cards, only deduct the billed statement balance.
     if (wallet.accountType === 2) { // 2 is AccountType.creditCard
-      const { getCreditCardStatus } = require("./credit");
       const card = getCreditCardStatus(wallet, transactions);
       balance = -card.remainingStatementBalance;
     }
@@ -677,5 +683,145 @@ export function getBudgetSnapshot(
     daysRemaining,
     /** What's left per remaining day — Cashew's "you can spend" figure. */
     perDayRemaining: daysRemaining > 0 ? remaining / daysRemaining : remaining,
+  };
+}
+
+export interface NetWorthAssetBreakdown {
+  cashAndBanks: number;
+  investmentsAndPolicies: number;
+  liabilitiesAndCredit: number;
+  totalNetWorth: number;
+}
+
+export function getNetWorthAssetBreakdown(
+  allWallets: AllWallets,
+  transactions: Transaction[],
+  extraAssets = 0,
+): NetWorthAssetBreakdown {
+  let cashAndBanks = 0;
+  const investmentsAndPolicies = extraAssets;
+  let liabilitiesAndCredit = 0;
+
+  for (const wallet of allWallets.list) {
+    if (wallet.excludeFromNetWorth) continue;
+    const ratio = amountRatioToPrimaryCurrency(allWallets, wallet.currency);
+    
+    if (wallet.accountType === 2) {
+      const card = getCreditCardStatus(wallet, transactions);
+      const debt = card.remainingStatementBalance * ratio;
+      liabilitiesAndCredit += debt;
+    } else {
+      const balance = getWalletBalance(transactions, wallet.walletPk) * ratio;
+      if (balance >= 0) {
+        cashAndBanks += balance;
+      } else {
+        liabilitiesAndCredit += Math.abs(balance);
+      }
+    }
+  }
+
+  const totalNetWorth = cashAndBanks + investmentsAndPolicies - liabilitiesAndCredit;
+
+  return {
+    cashAndBanks,
+    investmentsAndPolicies,
+    liabilitiesAndCredit,
+    totalNetWorth,
+  };
+}
+
+export interface MonthlySpendingPace {
+  daysInMonth: number;
+  daysElapsed: number;
+  daysRemaining: number;
+  percentMonthElapsed: number;
+  totalSpentThisMonth: number;
+  totalIncomeThisMonth: number;
+  avgDailySpend: number;
+  safeDailySpend: number;
+  targetBudget: number;
+  remainingBudget: number;
+  percentBudgetSpent: number;
+  status: "on_track" | "warning" | "over_budget";
+  statusText: string;
+}
+
+export function getMonthlySpendingPace(
+  allWallets: AllWallets,
+  transactions: Transaction[],
+  budgets: Budget[] = [],
+  categories: TransactionCategory[] = [],
+  objectives: Objective[] = [],
+  now = new Date(),
+): MonthlySpendingPace {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const startOfMonth = new Date(year, month, 1, 0, 0, 0);
+  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+
+  const daysInMonth = endOfMonth.getDate();
+  const currentDay = now.getDate();
+  const daysElapsed = Math.max(1, currentDay);
+  const daysRemaining = Math.max(1, daysInMonth - currentDay);
+  const percentMonthElapsed = Math.min(100, Math.round((daysElapsed / daysInMonth) * 100));
+
+  let totalSpentThisMonth = 0;
+  let totalIncomeThisMonth = 0;
+
+  for (const t of transactions) {
+    if (!countsTowardsTotal(t)) continue;
+    if (isExcludedFromTotals(t, objectives)) continue;
+    const d = new Date(t.dateCreated);
+    if (d >= startOfMonth && d <= endOfMonth) {
+      const ratio = amountRatioToPrimaryCurrencyGivenPk(allWallets, t.walletFk);
+      const val = Math.abs(t.amount) * ratio;
+      if (t.income) totalIncomeThisMonth += val;
+      else totalSpentThisMonth += val;
+    }
+  }
+
+  let targetBudget = 0;
+  for (const b of budgets) {
+    if (b.archived) continue;
+    targetBudget += b.amount;
+  }
+  if (targetBudget === 0) {
+    targetBudget = Math.max(totalIncomeThisMonth, totalSpentThisMonth * 1.15, 35000);
+  }
+
+  const remainingBudget = Math.max(0, targetBudget - totalSpentThisMonth);
+  const percentBudgetSpent = targetBudget > 0 ? Math.round((totalSpentThisMonth / targetBudget) * 100) : 0;
+
+  const avgDailySpend = totalSpentThisMonth / daysElapsed;
+  const safeDailySpend = remainingBudget / daysRemaining;
+
+  let status: "on_track" | "warning" | "over_budget" = "on_track";
+  let statusText = "On Track";
+
+  if (totalSpentThisMonth > targetBudget) {
+    status = "over_budget";
+    statusText = "Over Budget";
+  } else if (avgDailySpend > safeDailySpend * 1.15) {
+    status = "warning";
+    statusText = "Pacing High";
+  } else {
+    status = "on_track";
+    statusText = "On Track";
+  }
+
+  return {
+    daysInMonth,
+    daysElapsed,
+    daysRemaining,
+    percentMonthElapsed,
+    totalSpentThisMonth,
+    totalIncomeThisMonth,
+    avgDailySpend,
+    safeDailySpend,
+    targetBudget,
+    remainingBudget,
+    percentBudgetSpent,
+    status,
+    statusText,
   };
 }

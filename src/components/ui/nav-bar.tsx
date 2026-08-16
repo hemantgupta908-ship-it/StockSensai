@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { CaretLeft, List, MagnifyingGlass } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 
@@ -10,6 +10,8 @@ import { ThemeToggle } from "./theme-toggle";
 import { CONTAINER_WIDTHS, type ContainerWidth } from "./page-container";
 import { StockSearchModal } from "@/components/stock/stock-search-modal";
 import { MobileSidebar } from "./mobile-sidebar";
+
+const ROOT_PATHS = ["/", "/home", "/watchlist", "/portfolio", "/budget", "/budget/transactions", "/settings"];
 
 interface NavBarProps {
   /**
@@ -42,9 +44,13 @@ export function NavBar({
   width = "wide",
 }: NavBarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isRoot = ROOT_PATHS.includes(pathname);
+  const shouldShowBack = showBack !== undefined ? showBack : !isRoot;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > (largeTitle ? 44 : 8));
@@ -77,31 +83,33 @@ export function NavBar({
         )}
       >
         <div className={cn("mx-auto flex h-[44px] items-center gap-1.5", containerWidth)}>
-          {showBack ? (
+          {/* Mobile sidebar hamburger menu button */}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none shrink-0"
+            aria-label="Open menu"
+            title="Open Navigation List"
+          >
+            <div className="flex w-[18px] flex-col gap-[4px]">
+              <span className="h-[2px] w-full rounded-full bg-current" />
+              <span className="h-[2px] w-full rounded-full bg-current" />
+              <span className="h-[2px] w-full rounded-full bg-current" />
+            </div>
+          </button>
+
+          {/* Back button (rendered automatically on all sub-pages or when showBack is specified) */}
+          {shouldShowBack ? (
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.92 }}
               onClick={() => router.back()}
-              className="-ml-1 flex items-center gap-0.5 rounded-lg px-1 py-1 text-accent"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/10 hover:text-label active:bg-fill/20 shrink-0"
               aria-label="Go back"
+              title="Go back"
             >
-              <CaretLeft size={26} />
-              <span className="text-body -ml-1">Back</span>
+              <CaretLeft size={22} weight="bold" />
             </motion.button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
-              aria-label="Open menu"
-              title="Open Navigation List"
-            >
-              <div className="flex w-[18px] flex-col gap-[4px]">
-                <span className="h-[2px] w-full rounded-full bg-current" />
-                <span className="h-[2px] w-full rounded-full bg-current" />
-                <span className="h-[2px] w-full rounded-full bg-current" />
-              </div>
-            </button>
-          )}
+          ) : null}
 
           <div className="flex flex-1 items-center justify-start overflow-hidden px-1 sm:px-2">
             {title ? (

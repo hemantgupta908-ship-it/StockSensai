@@ -7,7 +7,7 @@ import { NotePencil } from "@phosphor-icons/react";
 import type { StrategySignal } from "@/lib/strategies/types";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { formatINR } from "@/lib/utils";
+import { formatINR, todayISO } from "@/lib/utils";
 import { usePortfolio } from "./portfolio-provider";
 
 /**
@@ -31,7 +31,7 @@ export function LogTradeButton({
   const [open, setOpen] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [entryPrice, setEntryPrice] = useState(String(price));
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [entryDate, setEntryDate] = useState(() => todayISO());
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -116,7 +116,7 @@ export function LogTradeButton({
             <input
               type="date"
               value={entryDate}
-              max={new Date().toISOString().slice(0, 10)}
+              max={todayISO()}
               onChange={(e) => setEntryDate(e.target.value)}
               className={inputClass}
             />

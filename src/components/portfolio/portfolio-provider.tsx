@@ -1,9 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/auth/session-provider";
+import { backendFor } from "@/lib/store/backend";
+import { readCollection, writeCollection } from "@/lib/store/collection-remote";
+import { DOCS } from "@/lib/drive/app-data";
 
 export interface PortfolioEntry {
   id: string;
@@ -91,7 +94,33 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const [entries, setEntries] = useState<PortfolioEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isLocal = !authEnabled || !user;
+  const backend = backendFor(user, authEnabled);
+  const isLocal = backend === "local";
+
+  /**
+   * The current entries, readable from a callback without being a dependency.
+   *
+   * The Drive paths below need the whole collection to rewrite the document,
+   * and reading it from the closure would capture a stale array whenever two
+   * edits land in the same tick. The Supabase paths do not have this problem —
+   * they send a single row — which is why they keep their existing shape.
+   */
+  const entriesRef = useRef<PortfolioEntry[]>([]);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  /** Write the whole journal to Drive, rolling the UI back if it does not land. */
+  const persistDrive = useCallback(async (next: PortfolioEntry[]): Promise<void> => {
+    const previous = entriesRef.current;
+    setEntries(next);
+    writeLocal(next);
+    if (!(await writeCollection(DOCS.portfolio, next))) {
+      console.error("[portfolio] write failed to reach Drive");
+      setEntries(previous);
+      writeLocal(previous);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +128,35 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       setLoading(true);
       const supabase = getSupabaseBrowserClient();
+
+      if (backend === "local") {
+        if (!cancelled) {
+          setEntries(readLocal());
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (backend === "drive") {
+        const remote = await readCollection<PortfolioEntry>(DOCS.portfolio);
+        if (cancelled) return;
+
+        if (remote === null) {
+          // Drive unreachable: the cached copy is better than an empty journal.
+          setEntries(readLocal());
+        } else if (remote === "empty") {
+          // First sync for this account — whatever is in this browser becomes
+          // the journal's starting contents rather than being dropped.
+          const local = readLocal();
+          setEntries(local);
+          if (local.length > 0) await writeCollection(DOCS.portfolio, local);
+        } else {
+          setEntries(remote);
+          writeLocal(remote);
+        }
+        setLoading(false);
+        return;
+      }
 
       if (!supabase || !user) {
         if (!cancelled) {
@@ -127,13 +185,19 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, backend]);
 
   const add = useCallback(
     async (entry: NewPortfolioEntry) => {
+      if (backend === "drive") {
+        const created: PortfolioEntry = { ...entry, id: crypto.randomUUID() };
+        await persistDrive([created, ...entriesRef.current]);
+        return;
+      }
+
       const supabase = getSupabaseBrowserClient();
 
-      if (supabase && user) {
+      if (backend === "supabase" && supabase && user) {
         const { data, error } = await supabase
           .from("portfolio_entries")
           .insert({
@@ -173,11 +237,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [user],
+    [user, backend, persistDrive],
   );
 
   const update = useCallback(
     async (id: string, updates: Partial<PortfolioEntry>) => {
+      if (backend === "drive") {
+        await persistDrive(
+          entriesRef.current.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+        );
+        return;
+      }
+
       setEntries((current) => {
         const next = current.map((e) => (e.id === id ? { ...e, ...updates } : e));
         const supabase = getSupabaseBrowserClient();
@@ -204,11 +275,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         if (error) console.error("[portfolio] update failed:", error.message);
       }
     },
-    [user],
+    [user, backend, persistDrive],
   );
 
   const close = useCallback(
     async (id: string, exitPrice: number, exitDate: string) => {
+      if (backend === "drive") {
+        await persistDrive(
+          entriesRef.current.map((e) => (e.id === id ? { ...e, exitPrice, exitDate } : e)),
+        );
+        return;
+      }
+
       setEntries((current) => {
         const next = current.map((e) => (e.id === id ? { ...e, exitPrice, exitDate } : e));
         const supabase = getSupabaseBrowserClient();
@@ -225,11 +303,16 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         if (error) console.error("[portfolio] close failed:", error.message);
       }
     },
-    [user],
+    [user, backend, persistDrive],
   );
 
   const remove = useCallback(
     async (id: string) => {
+      if (backend === "drive") {
+        await persistDrive(entriesRef.current.filter((e) => e.id !== id));
+        return;
+      }
+
       setEntries((current) => {
         const next = current.filter((e) => e.id !== id);
         const supabase = getSupabaseBrowserClient();
@@ -243,7 +326,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         if (error) console.error("[portfolio] remove failed:", error.message);
       }
     },
-    [user],
+    [user, backend, persistDrive],
   );
 
   return (

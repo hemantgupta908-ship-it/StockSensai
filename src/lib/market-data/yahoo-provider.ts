@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import { isNseCashMarketOpen } from "./mock-provider";
 import { createLimiter, createRateLimiter, withRetry } from "./rate-limit";
+import { loadSectorMedians, saveSectorMedians, type SectorMedian } from "./sector-medians";
 import { SECTOR_STATS, SEED_BY_TICKER, SEED_INSTRUMENTS } from "./seed/instruments";
 import { toYahooSymbol } from "./yahoo-symbols";
 
@@ -500,6 +501,20 @@ export class YahooMarketDataProvider implements MarketDataProvider {
    * the entire premise of the value screen, so the medians have to come from
    * the same data as the ratios, not a hardcoded table.
    */
+  /**
+   * Warm-up before a universe screen. See `MarketDataProvider.prepareUniverse`.
+   *
+   * Deliberately the *only* caller of `primeSectorMedians`. It used to be fired
+   * lazily from `getFundamentals`, which was wrong twice over: the priming is
+   * unawaited, so the request that started it read the medians before they
+   * existed and gained nothing — and its 204 summary fetches went into the same
+   * limiter as that request's own eight, so a cold stock page waited behind the
+   * entire universe. Measured at 68 seconds for a single detail page.
+   */
+  async prepareUniverse(): Promise<void> {
+    await this.primeSectorMedians();
+  }
+
   private async primeSectorMedians(): Promise<void> {
     const day = this.today();
     if (this.sectorMedians?.day === day) return;
@@ -524,13 +539,27 @@ export class YahooMarketDataProvider implements MarketDataProvider {
         }
 
         const stats = new Map<string, { pe: number; pb: number }>();
+        const toPersist: Record<string, SectorMedian> = {};
         for (const [sector, bucket] of bySector) {
           // Below three peers a median says nothing; fall back to the table.
-          if (bucket.pe.filter(Number.isFinite).length < 3) continue;
-          stats.set(sector, { pe: median(bucket.pe), pb: median(bucket.pb) });
+          const sampleSize = bucket.pe.filter(Number.isFinite).length;
+          if (sampleSize < 3) continue;
+          const value = { pe: median(bucket.pe), pb: median(bucket.pb) };
+          stats.set(sector, value);
+          toPersist[sector] = { ...value, sampleSize };
         }
 
         this.sectorMedians = { day, stats };
+
+        // Persist so a stock detail page can read real peer medians without
+        // paying for this fan-out itself. Not awaited into the caller's
+        // critical path — a failed write costs accuracy, not the screen.
+        void saveSectorMedians(toPersist).then(
+          (count) => {
+            if (count > 0) console.log(`[yahoo] persisted ${count} sector medians`);
+          },
+          (error) => console.error("[yahoo] sector median persist failed:", error),
+        );
       } finally {
         this.primingPromise = null;
       }
@@ -584,7 +613,9 @@ export class YahooMarketDataProvider implements MarketDataProvider {
     const seed = SEED_BY_TICKER.get(symbol);
     if (!seed) return null;
 
-    void this.primeSectorMedians();
+    // No sector-median priming here — see `prepareUniverse`. A detail page
+    // falls back to the SECTOR_STATS table, which is what the median lookup
+    // below already does whenever priming has not run in this process.
     const summary = await this.fetchSummary(symbol);
     if (!summary) {
       this.fundamentalsCache.set(symbol, { day, value: null });
@@ -656,8 +687,17 @@ export class YahooMarketDataProvider implements MarketDataProvider {
     const payoutRatio = num(summary.summaryDetail?.payoutRatio) * 100;
     const dividendHistory = await this.getDividendHistory(symbol);
 
+    // Peer medians, best source first: computed in this process during a
+    // universe screen, then the copy a previous screen persisted, then the
+    // static table. The middle step is what lets a single detail page compare
+    // against real peers — it reads one small row set instead of re-deriving
+    // the medians from 200-odd summary requests of its own.
+    const persisted = await loadSectorMedians();
     const fallbackSector = SECTOR_STATS[seed.sector] ?? { pe: 25, pb: 4 };
-    const sectorStat = this.sectorMedians?.stats.get(seed.sector) ?? fallbackSector;
+    const sectorStat =
+      this.sectorMedians?.stats.get(seed.sector) ??
+      persisted[seed.sector] ??
+      fallbackSector;
 
     const revenueCagr3y = cagr(revenues);
     const earningsCagr3y = cagr(netIncomes);

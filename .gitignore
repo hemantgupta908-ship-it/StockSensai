@@ -12,3 +12,7 @@ yarn-error.log*
 .vercel
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Backtest history cache — regenerate with scripts/fetch-history.ts
+data/history/
+backtest-full.txt

@@ -3,14 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Funnel, NotePencil, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Funnel, NotePencil, PencilSimple, Plus, Trash, Lightbulb, Lightning } from "@phosphor-icons/react";
 
 import {
   TRADING_STYLES,
   TRADING_STYLE_LABELS,
   type TradingStyle,
 } from "@/lib/strategies/types";
-import { cn, formatDate, formatINR } from "@/lib/utils";
+import { cn, formatDate, formatINR, todayISO } from "@/lib/utils";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useSession } from "@/components/auth/session-provider";
 import { Badge, ExchangeBadge } from "@/components/ui/badge";
@@ -24,15 +24,17 @@ import { RefreshButton } from "@/components/ui/refresh-button";
 import { usePortfolio, type PortfolioEntry } from "./portfolio-provider";
 import { AddPositionSheet } from "./add-position-sheet";
 import { PortfolioAnalytics } from "./portfolio-analytics";
+import { analyzePosition } from "@/lib/portfolio/suggestions";
 
 type StatusFilter = "all" | "open" | "closed";
 type StyleFilter = "all" | TradingStyle;
 
 export function PortfolioView() {
   const { entries, loading, remove, close, update, isLocal } = usePortfolio();
-  const { authEnabled } = useSession();
+  const { authEnabled, user } = useSession();
 
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [addingTicker, setAddingTicker] = useState<string | undefined>(undefined);
   const [closing, setClosing] = useState<PortfolioEntry | null>(null);
   const [editing, setEditing] = useState<PortfolioEntry | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -94,7 +96,7 @@ export function PortfolioView() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `portfolio_journal_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `portfolio_journal_${todayISO()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -172,7 +174,9 @@ export function PortfolioView() {
     <>
       <NavBar {...navBarProps} />
       <PageContainer width="wide" className="space-y-3">
-        {isLocal && authEnabled && <LocalStorageNotice what="journal" />}
+        {isLocal && authEnabled && (
+          <LocalStorageNotice what="journal" reason={user ? "google-local" : "signed-out"} />
+        )}
 
         {/* Top Summary Bar */}
         <div className="grid grid-cols-3 gap-px overflow-hidden rounded-card border border-separator/40 bg-separator/30 shadow-card dark:border-white/[0.06] dark:bg-white/[0.05] dark:shadow-card-dark">
@@ -190,15 +194,15 @@ export function PortfolioView() {
         </div>
 
         {/* Toolbar & Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1 -mx-4 px-4 sm:mx-0 sm:px-0">
           {/* Status Tabs */}
-          <div className="flex rounded-full bg-fill/[0.08] p-0.5 dark:bg-white/[0.06]">
+          <div className="flex shrink-0 rounded-full bg-fill/[0.06] p-0.5 dark:bg-white/[0.06]">
             {(["all", "open", "closed"] as StatusFilter[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-caption font-semibold capitalize transition-all duration-150 active:scale-95",
+                  "rounded-full px-3.5 py-1.5 text-caption font-medium capitalize transition-all duration-150 active:scale-95",
                   statusFilter === tab
                     ? "bg-bg text-label shadow-sm dark:bg-fill/40"
                     : "text-label-secondary/60 hover:text-label",
@@ -209,55 +213,45 @@ export function PortfolioView() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Style Selector */}
-            <div className="flex items-center gap-1 rounded-lg bg-fill/[0.06] px-2 py-1 text-caption text-label-secondary/70 dark:bg-white/[0.05]">
-              <Funnel size={13} />
-              <select
-                value={styleFilter}
-                onChange={(e) => setStyleFilter(e.target.value as StyleFilter)}
-                className="bg-transparent text-caption font-semibold text-label focus:outline-none"
-              >
-                <option value="all">All Styles</option>
-                {TRADING_STYLES.map((style) => (
-                  <option key={style} value={style}>
-                    {TRADING_STYLE_LABELS[style]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Analytics Toggle */}
-            <button
-              onClick={() => setShowAnalytics(!showAnalytics)}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-caption font-semibold transition-colors",
-                showAnalytics
-                  ? "bg-blue text-white"
-                  : "bg-fill/[0.06] text-label-secondary hover:bg-fill/[0.12] dark:bg-white/[0.05]",
-              )}
-              title="Toggle Performance Analytics"
+          {/* Style Selector (Pill) */}
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-fill/[0.06] px-3 py-1.5 text-caption text-label-secondary/70 dark:bg-white/[0.05]">
+            <Funnel size={14} />
+            <select
+              value={styleFilter}
+              onChange={(e) => setStyleFilter(e.target.value as StyleFilter)}
+              className="bg-transparent text-caption font-medium text-label focus:outline-none"
             >
-              <AnalyticsIcon size={14} />
-              <span className="hidden sm:inline">Analytics</span>
-            </button>
-
-            {/* CSV Export */}
-            <button
-              onClick={exportCSV}
-              className="inline-flex items-center gap-1 rounded-lg bg-fill/[0.06] px-2.5 py-1 text-caption font-semibold text-label-secondary hover:bg-fill/[0.12] dark:bg-white/[0.05]"
-              title="Export portfolio CSV"
-            >
-              <DownloadSimple size={14} />
-              <span className="hidden sm:inline">CSV</span>
-            </button>
-
-            {/* Add Position */}
-            <Button size="sm" variant="primary" onClick={() => setAddSheetOpen(true)}>
-              <Plus size={15} />
-              <span>Add Position</span>
-            </Button>
+              <option value="all">All Styles</option>
+              {TRADING_STYLES.map((style) => (
+                <option key={style} value={style}>
+                  {TRADING_STYLE_LABELS[style]}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <div className="hidden sm:block flex-1" />
+
+          {/* Analytics Toggle */}
+          <button
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-caption font-medium transition-colors",
+              showAnalytics
+                ? "bg-blue text-white"
+                : "bg-fill/[0.06] text-label-secondary hover:bg-fill/[0.12] dark:bg-white/[0.05]",
+            )}
+            title="Toggle Performance Analytics"
+          >
+            <AnalyticsIcon size={14} />
+            <span>Analytics</span>
+          </button>
+
+          {/* Add Position (Desktop Only) */}
+          <Button size="sm" variant="primary" onClick={() => setAddSheetOpen(true)} className="hidden sm:flex shrink-0 rounded-full h-8 px-4 py-0">
+            <Plus size={15} />
+            <span>Add Position</span>
+          </Button>
         </div>
 
         {/* Analytics Panel */}
@@ -283,7 +277,8 @@ export function PortfolioView() {
                   entry={entry}
                   currentPrice={quotes[entry.ticker]?.price}
                   onEdit={() => setEditing(entry)}
-                  onClose={() => setClosing(entry)}
+                  onBuy={() => setAddingTicker(entry.ticker)}
+                  onSell={() => setClosing(entry)}
                   onDelete={() => void remove(entry.id)}
                 />
               </motion.div>
@@ -296,7 +291,7 @@ export function PortfolioView() {
         )}
 
         {/* Sheets */}
-        <AddPositionSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} />
+        <AddPositionSheet open={addSheetOpen || addingTicker !== undefined} initialTicker={addingTicker} onClose={() => { setAddSheetOpen(false); setAddingTicker(undefined); }} />
         <CloseSheet entry={closing} onDismiss={() => setClosing(null)} onConfirm={close} />
         <EditSheet entry={editing} onDismiss={() => setEditing(null)} onConfirm={update} />
 
@@ -343,13 +338,15 @@ function JournalCard({
   entry,
   currentPrice,
   onEdit,
-  onClose,
+  onBuy,
+  onSell,
   onDelete,
 }: {
   entry: PortfolioEntry;
   currentPrice?: number;
   onEdit: () => void;
-  onClose: () => void;
+  onBuy: () => void;
+  onSell: () => void;
   onDelete: () => void;
 }) {
   const isClosed = entry.exitPrice !== null;
@@ -367,14 +364,16 @@ function JournalCard({
     entry.recommendedSellLow !== null && markPrice >= entry.recommendedSellLow;
   const hitStop = entry.recommendedStopLoss !== null && markPrice <= entry.recommendedStopLoss;
 
+  const suggestion = !isClosed ? analyzePosition(entry, markPrice) : null;
+
   return (
-    <article className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          <Link href={`/stock/${entry.ticker}`} className="min-w-0 flex-1">
+    <article className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary shadow-card dark:border-white/[0.06] dark:shadow-card-dark transition-colors hover:bg-fill/[0.02]">
+      <div className="flex flex-col sm:flex-row sm:items-center p-3 sm:px-4 sm:py-2.5 gap-3 sm:gap-4">
+        {/* Left / Mobile Header: Ticker & Name & Mobile P&L */}
+        <div className="flex items-start justify-between sm:w-[220px] shrink-0">
+          <Link href={`/stock/${entry.ticker}`} className="flex flex-col min-w-0 pr-2">
             <div className="flex items-center gap-1.5">
-              <h3 className="truncate text-headline font-bold text-label">{entry.ticker}</h3>
-              <ExchangeBadge exchange={entry.exchange} />
+              <h3 className="truncate text-subhead font-bold text-label">{entry.ticker}</h3>
               {isClosed ? (
                 <Badge tone="neutral">Closed</Badge>
               ) : (
@@ -383,9 +382,35 @@ function JournalCard({
                 </Badge>
               )}
             </div>
-            <p className="mt-0.5 truncate text-caption text-label-secondary/55">{entry.name}</p>
+            <p className="mt-0.5 truncate text-caption2 text-label-secondary/55">{entry.name}</p>
           </Link>
-          <div className="shrink-0 text-right">
+          
+          {/* Mobile P&L */}
+          <div className="text-right sm:hidden">
+            <p className={cn("numeric text-footnote font-bold", pnl >= 0 ? "text-green" : "text-red")}>
+              {pnl >= 0 ? "+" : ""}{formatINR(pnl, { decimals: 0 })}
+            </p>
+            <p className={cn("numeric text-[10px] font-semibold", pnl >= 0 ? "text-green" : "text-red")}>
+              {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+            </p>
+          </div>
+        </div>
+
+        {/* Middle: Stats */}
+        <div className="flex-1 grid grid-cols-4 gap-x-1 sm:gap-x-2 gap-y-2 items-center min-w-0">
+          <MiniStat label="Qty" value={String(entry.quantity)} />
+          <MiniStat label="Entry" value={formatINR(entry.entryPrice, { decimals: 0 })} />
+          <MiniStat
+            label={isClosed ? "Exit" : "Now"}
+            value={formatINR(markPrice, { decimals: 0 })}
+          />
+          <MiniStat label="Date" value={formatDate(entry.entryDate)} />
+        </div>
+
+        {/* Right / Mobile Footer: P&L + Actions */}
+        <div className="sm:w-[200px] shrink-0 flex items-center justify-end gap-4 mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-separator/40 sm:border-0 sm:border-t-0 dark:border-white/[0.06]">
+          {/* Desktop P&L */}
+          <div className="text-right min-w-[70px] hidden sm:block">
             <p
               className={cn(
                 "numeric text-subhead font-bold",
@@ -395,88 +420,117 @@ function JournalCard({
               {pnl >= 0 ? "+" : ""}
               {formatINR(pnl, { decimals: 0 })}
             </p>
-            <p className={cn("numeric text-caption font-semibold", pnl >= 0 ? "text-green" : "text-red")}>
+            <p className={cn("numeric text-caption2 font-semibold", pnl >= 0 ? "text-green" : "text-red")}>
               {pnlPct >= 0 ? "+" : ""}
               {pnlPct.toFixed(2)}%
             </p>
           </div>
-        </div>
 
-        <dl className="mt-3 grid grid-cols-4 gap-2">
-          <MiniStat label="Qty" value={String(entry.quantity)} />
-          <MiniStat label="Entry" value={formatINR(entry.entryPrice, { decimals: 0 })} />
-          <MiniStat
-            label={isClosed ? "Exit" : "Now"}
-            value={formatINR(markPrice, { decimals: 0 })}
-          />
-          <MiniStat label="Date" value={formatDate(entry.entryDate)} />
-        </dl>
-
-        {/* Plan versus execution */}
-        {entry.strategyId && (
-          <div className="mt-3 space-y-1.5 rounded-[12px] bg-fill/[0.05] px-3 py-2.5 dark:bg-white/[0.03]">
-            <p className="text-caption font-semibold text-label-secondary/70">
-              Original plan ·{" "}
-              {entry.strategyId.replace(/^(swing|st|lt)-/, "").replace(/-/g, " ")}
-            </p>
-            <p className="numeric text-caption leading-relaxed text-label-secondary/55">
-              Buy {formatINR(entry.recommendedBuyLow ?? 0, { decimals: 0 })}–
-              {formatINR(entry.recommendedBuyHigh ?? 0, { decimals: 0 })} · target{" "}
-              {formatINR(entry.recommendedSellLow ?? 0, { decimals: 0 })}–
-              {formatINR(entry.recommendedSellHigh ?? 0, { decimals: 0 })} · stop{" "}
-              {formatINR(entry.recommendedStopLoss ?? 0, { decimals: 0 })}
-            </p>
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {followedPlan !== null && (
-                <Badge tone={followedPlan ? "green" : "amber"}>
-                  {followedPlan ? "Filled inside buy zone" : "Filled outside buy zone"}
-                </Badge>
-              )}
-              {hitTarget && <Badge tone="green">Target reached</Badge>}
-              {hitStop && <Badge tone="red">Stop breached</Badge>}
-            </div>
+          {/* Actions */}
+          <div className="flex items-center justify-end w-full sm:w-auto gap-1.5 sm:border-l border-separator/40 dark:border-white/[0.06] sm:pl-3 sm:ml-1">
+            {!isClosed && (
+              <>
+                <Button size="sm" variant="secondary" onClick={onBuy} className="h-7 px-2.5 py-0 text-caption2 font-semibold bg-blue/10 text-blue hover:bg-blue/20 dark:bg-blue/20 dark:hover:bg-blue/30 border-transparent transition-colors shadow-none">
+                  Buy
+                </Button>
+                <Button size="sm" variant="secondary" onClick={onSell} className="h-7 px-2.5 py-0 text-caption2 font-semibold bg-red/10 text-red hover:bg-red/20 dark:bg-red/20 dark:hover:bg-red/30 border-transparent transition-colors shadow-none">
+                  Sell
+                </Button>
+                <div className="w-px h-4 bg-separator/40 dark:bg-white/[0.06] mx-1" />
+              </>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onEdit}
+              aria-label={`Edit ${entry.ticker} journal entry`}
+              className="rounded-md p-1.5 text-label-quaternary/50 hover:text-label hover:bg-fill/[0.06] active:bg-fill/[0.10]"
+            >
+              <PencilSimple size={14} />
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onDelete}
+              aria-label={`Delete ${entry.ticker} journal entry`}
+              className="rounded-md p-1.5 text-label-quaternary/50 hover:text-red hover:bg-red/10 active:bg-red/20"
+            >
+              <Trash size={14} />
+            </motion.button>
           </div>
-        )}
-
-        {entry.note && (
-          <p className="mt-3 text-caption leading-relaxed text-label-secondary/60">
-            &ldquo;{entry.note}&rdquo;
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-separator/40 px-4 py-2.5 dark:border-white/[0.06]">
-        {!isClosed && (
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close position
-          </Button>
-        )}
-        {isClosed && entry.exitDate && (
-          <span className="text-caption text-label-secondary/55">
-            Exited {formatDate(entry.exitDate)}
-          </span>
-        )}
-
-        <div className="ml-auto flex items-center gap-1">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={onEdit}
-            aria-label={`Edit ${entry.ticker} journal entry`}
-            className="rounded-full p-2 text-label-quaternary/40 hover:text-label active:bg-fill/[0.10]"
-          >
-            <PencilSimple size={15} />
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={onDelete}
-            aria-label={`Delete ${entry.ticker} journal entry`}
-            className="rounded-full p-2 text-label-quaternary/35 active:bg-red/[0.10] active:text-red"
-          >
-            <Trash size={15} />
-          </motion.button>
         </div>
       </div>
+
+      {/* Plan versus execution */}
+      {(entry.strategyId || entry.note) && (
+        <div className="border-t border-separator/40 dark:border-white/[0.06] px-4 py-2.5 bg-fill/[0.02] dark:bg-white/[0.01]">
+          {entry.strategyId && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption2 text-label-secondary/70">
+              <span className="font-semibold text-label-secondary/90">
+                {entry.strategyId.replace(/^(swing|st|lt)-/, "").replace(/-/g, " ")}:
+              </span>
+              <span className="numeric">
+                Buy {formatINR(entry.recommendedBuyLow ?? 0, { decimals: 0 })}–{formatINR(entry.recommendedBuyHigh ?? 0, { decimals: 0 })}
+              </span>
+              <span className="numeric">
+                Tgt {formatINR(entry.recommendedSellLow ?? 0, { decimals: 0 })}–{formatINR(entry.recommendedSellHigh ?? 0, { decimals: 0 })}
+              </span>
+              <span className="numeric">
+                SL {formatINR(entry.recommendedStopLoss ?? 0, { decimals: 0 })}
+              </span>
+
+              <div className="flex items-center gap-1.5 ml-auto">
+                {followedPlan !== null && (
+                  <Badge tone={followedPlan ? "green" : "amber"}>
+                    {followedPlan ? "Inside buy zone" : "Outside buy zone"}
+                  </Badge>
+                )}
+                {hitTarget && <Badge tone="green">Target hit</Badge>}
+                {hitStop && <Badge tone="red">Stop breached</Badge>}
+              </div>
+            </div>
+          )}
+          {entry.note && (
+            <p className={cn("text-caption2 text-label-secondary/60 italic", entry.strategyId && "mt-1.5")}>
+              &ldquo;{entry.note}&rdquo;
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Suggestion Block */}
+      {suggestion && suggestion.action !== "HOLD" && (
+        <div className="border-t border-separator/40 dark:border-white/[0.06] px-4 py-2.5">
+          <div className="flex items-start sm:items-center gap-2.5 rounded-lg px-3 py-2 text-caption2 bg-fill/[0.04] dark:bg-white/[0.02]">
+            <div className={cn(
+              "shrink-0 mt-0.5 sm:mt-0",
+              suggestion.action === "TAKE_PROFIT" && "text-green",
+              suggestion.action === "CUT_LOSS" && "text-red",
+              suggestion.action === "AVERAGE_DOWN" && "text-blue",
+            )}>
+              {suggestion.action === "TAKE_PROFIT" ? (
+                <Lightning size={16} weight="fill" />
+              ) : suggestion.action === "CUT_LOSS" ? (
+                <Lightbulb size={16} weight="fill" />
+              ) : (
+                <Lightbulb size={16} weight="fill" />
+              )}
+            </div>
+            <p className="text-label-secondary font-medium leading-snug sm:leading-normal">
+              <strong className={cn(
+                "font-bold mr-1",
+                suggestion.action === "TAKE_PROFIT" && "text-green",
+                suggestion.action === "CUT_LOSS" && "text-red",
+                suggestion.action === "AVERAGE_DOWN" && "text-blue",
+              )}>
+                {suggestion.action === "TAKE_PROFIT" && "Take Profit"}
+                {suggestion.action === "CUT_LOSS" && "Cut Loss"}
+                {suggestion.action === "AVERAGE_DOWN" && "Average Down"}
+              </strong>
+              <span className="text-label-quaternary mx-1">&middot;</span>
+              {suggestion.reason}
+            </p>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -500,7 +554,7 @@ function CloseSheet({
   onConfirm: (id: string, exitPrice: number, exitDate: string) => Promise<void>;
 }) {
   const [exitPrice, setExitPrice] = useState("");
-  const [exitDate, setExitDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exitDate, setExitDate] = useState(() => todayISO());
 
   const priceValue = Number(exitPrice);
   const valid = priceValue > 0 && Boolean(exitDate);
@@ -541,7 +595,7 @@ function CloseSheet({
             <input
               type="date"
               value={exitDate}
-              max={new Date().toISOString().slice(0, 10)}
+              max={todayISO()}
               onChange={(e) => setExitDate(e.target.value)}
               className="w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]"
             />

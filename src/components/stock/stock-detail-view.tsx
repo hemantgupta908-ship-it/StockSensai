@@ -7,6 +7,7 @@ import { Warning } from "@phosphor-icons/react";
 import type { Candle, Fundamentals, Instrument, Quote } from "@/lib/market-data/types";
 import type { StrategySignal } from "@/lib/strategies/types";
 import { cn, formatCrore, formatINR, formatVolume } from "@/lib/utils";
+import { hasKnownMarketCap } from "@/lib/market-data/seed/instruments";
 import { ChangePill, ExchangeBadge } from "@/components/ui/badge";
 import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 import { PageContainer } from "@/components/ui/page-container";
@@ -171,7 +172,17 @@ export function StockDetailView({
             value={`${formatINR(quote.low, { decimals: 0 })}–${formatINR(quote.high, { decimals: 0 })}`}
           />
           <MiniStat label="Volume" value={formatVolume(quote.volume)} />
-          <MiniStat label="M-cap" value={formatCrore(instrument.marketCapCr)} />
+          {/* Only shown when a researched figure exists. Names added with the
+              Nifty 200 expansion carry 0, meaning "not known" — a made-up
+              market cap beside a real company reads as fact. */}
+          <MiniStat
+            label="M-cap"
+            value={
+              hasKnownMarketCap(instrument.marketCapCr)
+                ? formatCrore(instrument.marketCapCr)
+                : "—"
+            }
+          />
         </dl>
 
         <div className="mt-3 flex flex-wrap gap-1.5">

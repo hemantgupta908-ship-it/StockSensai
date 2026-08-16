@@ -10,8 +10,9 @@ import { useShallow } from "zustand/react/shallow";
  * shared kit and are re-exported below.
  */
 
-import React, { useMemo, useState } from "react";
-import { Plus } from "@phosphor-icons/react";
+import React, { useMemo, useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { CaretLeft, Plus } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -67,24 +68,40 @@ export function BudgetHeader({
   width?: ContainerWidth;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const isRootBudget = pathname === "/budget" || pathname === "/budget/transactions";
+  const shouldShowBack = Boolean(backHref) || !isRootBudget;
 
   return (
     <>
       <header className="sticky top-0 z-30 material hairline-b safe-top">
       <div className={cn("mx-auto flex items-center gap-2 py-3", CONTAINER_WIDTHS[width])}>
-        {/* Below `lg` render hamburger menu button on all pages */}
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="-ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
-          aria-label="Open menu"
-        >
-          <div className="flex w-[18px] flex-col gap-[4px]">
-            <span className="h-[2px] w-full rounded-full bg-current" />
-            <span className="h-[2px] w-full rounded-full bg-current" />
-            <span className="h-[2px] w-full rounded-full bg-current" />
-          </div>
-        </button>
+        {/* On mobile: Render Back button on sub-pages, hamburger menu on root pages */}
+        {shouldShowBack ? (
+          <button
+            type="button"
+            onClick={() => (backHref ? router.push(backHref) : router.back())}
+            className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-all hover:bg-fill/[0.12] active:scale-95"
+            aria-label="Go back"
+            title="Go back"
+          >
+            <CaretLeft size={22} weight="bold" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
+            aria-label="Open menu"
+          >
+            <div className="flex w-[18px] flex-col gap-[4px]">
+              <span className="h-[2px] w-full rounded-full bg-current" />
+              <span className="h-[2px] w-full rounded-full bg-current" />
+              <span className="h-[2px] w-full rounded-full bg-current" />
+            </div>
+          </button>
+        )}
 
         <div className="min-w-0 flex-1">
           {title ? (
@@ -170,7 +187,7 @@ function OdometerDigit({ digit, delay = 0 }: { digit: number; delay?: number }) 
   );
 }
 
-export function AnimatedNumberTicker({ value, className }: { value: string | number; className?: string }) {
+export function AnimatedNumberTicker({ value, className, baseDelay = 0 }: { value: string | number; className?: string; baseDelay?: number }) {
   const strValue = String(value);
   const characters = strValue.split("");
 
@@ -182,7 +199,7 @@ export function AnimatedNumberTicker({ value, className }: { value: string | num
         const isDigit = char >= "0" && char <= "9";
         if (isDigit) {
           const digit = parseInt(char, 10);
-          const currentDelay = digitCount * 0.08;
+          const currentDelay = baseDelay + digitCount * 0.08;
           digitCount++;
           return <OdometerDigit key={`${index}-${char}`} digit={digit} delay={currentDelay} />;
         }
@@ -194,6 +211,94 @@ export function AnimatedNumberTicker({ value, className }: { value: string | num
       })}
     </span>
   );
+}
+
+export function AnimatedNumberBlur({ value, className, baseDelay = 0 }: { value: string | number; className?: string; baseDelay?: number }) {
+  return (
+    <motion.span
+      initial={{ opacity: 0, filter: "blur(8px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      transition={{ duration: 0.8, delay: baseDelay, ease: "easeOut" }}
+      className={className}
+    >
+      {value}
+    </motion.span>
+  );
+}
+
+export function AnimatedNumberBounce({ value, className, baseDelay = 0 }: { value: string | number; className?: string; baseDelay?: number }) {
+  return (
+    <motion.span
+      initial={{ scale: 0.5, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 200, damping: 15, delay: baseDelay }}
+      className={className}
+    >
+      {value}
+    </motion.span>
+  );
+}
+
+export function AnimatedNumberSlide({ value, className, baseDelay = 0 }: { value: string | number; className?: string; baseDelay?: number }) {
+  return (
+    <motion.span
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, delay: baseDelay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {value}
+    </motion.span>
+  );
+}
+
+export function RandomEntranceAnimator({ children, className }: { children: React.ReactNode; className?: string }) {
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [animType, setAnimType] = useState(0);
+  const [baseDelay, setBaseDelay] = useState(0);
+
+  useEffect(() => {
+    // 50% chance to animate
+    const willAnimate = Math.random() > 0.5;
+    if (willAnimate) {
+      setShouldAnimate(true);
+      setAnimType(Math.floor(Math.random() * 4));
+      setBaseDelay(Math.random() * 0.5);
+    }
+  }, []);
+
+  if (!shouldAnimate) {
+    return <div className={className}>{children}</div>;
+  }
+
+  switch (animType) {
+    case 0:
+      return (
+        <motion.div initial={{ opacity: 0, filter: "blur(10px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.8, delay: baseDelay }} className={className}>
+          {children}
+        </motion.div>
+      );
+    case 1:
+      return (
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: baseDelay, ease: "easeOut" }} className={className}>
+          {children}
+        </motion.div>
+      );
+    case 2:
+      return (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", damping: 15, delay: baseDelay }} className={className}>
+          {children}
+        </motion.div>
+      );
+    case 3:
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: baseDelay }} className={className}>
+          {children}
+        </motion.div>
+      );
+    default:
+      return <div className={className}>{children}</div>;
+  }
 }
 
 /** Floating add button with ambient breathing pulse aura. */
@@ -232,7 +337,7 @@ export function Amount({
   colour = false,
   decimals,
   compact = false,
-  animated = false,
+  animated,
 }: {
   value: number;
   currency?: string | null;
@@ -254,6 +359,43 @@ export function Amount({
     obfuscate: settings.hideAmounts,
   });
 
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [baseDelay, setBaseDelay] = useState(0);
+  const [animType, setAnimType] = useState(0);
+
+  useEffect(() => {
+    if (animated === true) {
+      setShouldAnimate(true);
+      setBaseDelay(0);
+      setAnimType(Math.floor(Math.random() * 4));
+    } else if (animated === undefined) {
+      // 30% chance to animate randomly if not explicitly requested
+      const willAnimate = Math.random() > 0.7;
+      if (willAnimate) {
+        setShouldAnimate(true);
+        // Random delay between 0s and 1.2s to stagger animations
+        setBaseDelay(Math.random() * 1.2);
+        setAnimType(Math.floor(Math.random() * 4));
+      }
+    } else {
+      setShouldAnimate(false);
+    }
+  }, [animated]);
+
+  // Use the random state, but fallback to direct prop if true to avoid delay when requested
+  const showOdometer = animated === true || shouldAnimate;
+  const delayToUse = animated === true ? 0 : baseDelay;
+
+  const renderAnimation = () => {
+    switch (animType) {
+      case 0: return <AnimatedNumberTicker value={text} baseDelay={delayToUse} />;
+      case 1: return <AnimatedNumberBlur value={text} baseDelay={delayToUse} />;
+      case 2: return <AnimatedNumberBounce value={text} baseDelay={delayToUse} />;
+      case 3: return <AnimatedNumberSlide value={text} baseDelay={delayToUse} />;
+      default: return <AnimatedNumberTicker value={text} baseDelay={delayToUse} />;
+    }
+  };
+
   return (
     <span
       className={cn(
@@ -263,7 +405,7 @@ export function Amount({
         className,
       )}
     >
-      {animated ? <AnimatedNumberTicker value={text} /> : text}
+      {showOdometer ? renderAnimation() : text}
     </span>
   );
 }
@@ -402,6 +544,10 @@ export function CategoryDot({
   emoji?: string | null;
   iconName?: string | null;
 }) {
+  // Flagged by `react-hooks/static-components`, and a false positive for the
+  // same reason as in `icon-picker.tsx`: `getIcon` reads a module-level Map, so
+  // the reference is stable per icon name and nothing remounts.
+  // eslint-disable-next-line react-hooks/static-components
   const Icon = getIcon(iconName);
 
   return (
@@ -416,6 +562,7 @@ export function CategoryDot({
       aria-hidden
     >
       {Icon ? (
+        // eslint-disable-next-line react-hooks/static-components
         <Icon size={size * 0.55} weight="fill" />
       ) : (
         emoji || (label ? label.slice(0, 1).toUpperCase() : "")

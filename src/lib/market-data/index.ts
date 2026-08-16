@@ -87,6 +87,7 @@ function withIndianEquityGuard(provider: MarketDataProvider): MarketDataProvider
     getFundamentals: (ticker) => provider.getFundamentals(ticker),
     getBenchmarkCandles: (limit) => provider.getBenchmarkCandles(limit),
     isMarketOpen: () => provider.isMarketOpen(),
+    prepareUniverse: provider.prepareUniverse?.bind(provider),
   };
 }
 
@@ -114,22 +115,34 @@ export async function getStockBundle(ticker: string): Promise<StockDataBundle | 
   const provider = getMarketDataProvider();
   const symbol = ticker.toUpperCase();
 
-  const [instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily] = await Promise.all([
-    provider.getInstrument(symbol),
-    provider.getQuote(symbol),
-    provider.getCandles({ ticker: symbol, interval: "1d", limit: DAILY_LOOKBACK }),
-    provider.getCandles({ ticker: symbol, interval: "1wk", limit: WEEKLY_LOOKBACK }),
-    provider.getCandles({ ticker: symbol, interval: "1mo", limit: MONTHLY_LOOKBACK }),
-    provider.getCandles({ ticker: symbol, interval: "5m", limit: INTRADAY_LOOKBACK }),
-    provider.getFundamentals(symbol),
-    provider.getBenchmarkCandles(DAILY_LOOKBACK),
-  ]);
+  // Intraday bars are not fetched: no strategy reads them and the detail screen
+  // charts daily, weekly and monthly. It was a whole request per page view for
+  // data with no consumer.
+  const [instrument, quote, daily, weekly, monthly, fundamentals, benchmarkDaily] =
+    await Promise.all([
+      provider.getInstrument(symbol),
+      provider.getQuote(symbol),
+      provider.getCandles({ ticker: symbol, interval: "1d", limit: DAILY_LOOKBACK }),
+      provider.getCandles({ ticker: symbol, interval: "1wk", limit: WEEKLY_LOOKBACK }),
+      provider.getCandles({ ticker: symbol, interval: "1mo", limit: MONTHLY_LOOKBACK }),
+      provider.getFundamentals(symbol),
+      provider.getBenchmarkCandles(DAILY_LOOKBACK),
+    ]);
 
   // Fundamentals may legitimately be null (brokerage feeds don't carry them);
   // the long-term strategies handle that. Price history is non-negotiable.
   if (!instrument || !quote || daily.length < 60) return null;
 
-  return { instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily };
+  return {
+    instrument,
+    quote,
+    daily,
+    weekly,
+    monthly,
+    intraday: [],
+    fundamentals,
+    benchmarkDaily,
+  };
 }
 
 /**
@@ -140,7 +153,16 @@ export async function getStockBundle(ticker: string): Promise<StockDataBundle | 
  * (each symbol needs its own request). Keep this low; raising it buys a faster
  * cold screen and risks a throttle that costs far more.
  */
-export const HISTORY_CONCURRENCY = Number(process.env.MARKET_DATA_CONCURRENCY ?? 4);
+/**
+ * Parallel history fetches against a live provider.
+ *
+ * Measured across the 204-name Nifty 200 universe on Yahoo: 4 → ~340s,
+ * 8 → 271s, 12 → 277s. The curve flattens because the provider rate-limits and
+ * the backoff absorbs the excess, so pushing past 8 buys nothing and only
+ * invites harder throttling. Override with `MARKET_DATA_CONCURRENCY` for a
+ * provider with a more generous budget.
+ */
+export const HISTORY_CONCURRENCY = Number(process.env.MARKET_DATA_CONCURRENCY ?? 8);
 
 /**
  * Bundles for the whole universe. Used by the recommendation engine.
@@ -151,10 +173,51 @@ export const HISTORY_CONCURRENCY = Number(process.env.MARKET_DATA_CONCURRENCY ??
  * that's ~148 simultaneous requests where ~80 sequenced ones will do. Against a
  * live feed the naive version is throttled immediately.
  */
+/**
+ * How long a fetched universe is reused.
+ *
+ * Matches the feed cache's TTL, so a card can never be built from price history
+ * older than the feed that carries it claims to be.
+ */
+const UNIVERSE_TTL_MS = 10 * 60 * 1000;
+
+let universeCache: { bundles: StockDataBundle[]; expiresAt: number } | null = null;
+/** Shared by concurrent callers so one screen's fetch is never duplicated. */
+let universeInFlight: Promise<StockDataBundle[]> | null = null;
+
 export async function getUniverseBundles(): Promise<StockDataBundle[]> {
+  if (universeCache && universeCache.expiresAt > Date.now()) return universeCache.bundles;
+  if (universeInFlight) return universeInFlight;
+
+  universeInFlight = fetchUniverseBundles()
+    .then((bundles) => {
+      // An empty result is a failure, not a universe — caching it would starve
+      // every screen for the whole TTL.
+      if (bundles.length > 0) {
+        universeCache = { bundles, expiresAt: Date.now() + UNIVERSE_TTL_MS };
+      }
+      return bundles;
+    })
+    .finally(() => {
+      universeInFlight = null;
+    });
+
+  return universeInFlight;
+}
+
+/** Drop the memoised universe, so the next screen refetches. */
+export function invalidateUniverseCache() {
+  universeCache = null;
+}
+
+async function fetchUniverseBundles(): Promise<StockDataBundle[]> {
   const provider = getMarketDataProvider();
   const instruments = await provider.listInstruments();
   if (instruments.length === 0) return [];
+
+  // Universe-wide warm-up belongs here and nowhere else: this is the one path
+  // that was always going to touch every instrument anyway.
+  await provider.prepareUniverse?.();
 
   // Quotes batch into a single request, and the benchmark is shared by every
   // stock — both belong outside the per-instrument loop.
@@ -172,7 +235,16 @@ export async function getUniverseBundles(): Promise<StockDataBundle[]> {
       if (!quote) return null;
 
       try {
-        const [daily, weekly, monthly, intraday, fundamentals] = await Promise.all([
+        // Intraday bars are deliberately not fetched here.
+        //
+        // No surviving strategy reads them — the intraday and short-term styles
+        // that did were removed — but the request was still going out once per
+        // instrument, a quarter of the screen's entire network cost spent on
+        // data nothing consumes. At 68 names that was merely wasteful; across
+        // the Nifty 200 it is the difference between finishing inside the
+        // cron's five-minute ceiling and not. `getStockBundle` still fetches
+        // them for the single-stock detail screen.
+        const [daily, weekly, monthly, fundamentals] = await Promise.all([
           limit(() =>
             provider.getCandles({
               ticker: instrument.ticker,
@@ -194,18 +266,20 @@ export async function getUniverseBundles(): Promise<StockDataBundle[]> {
               limit: MONTHLY_LOOKBACK,
             }),
           ),
-          limit(() =>
-            provider.getCandles({
-              ticker: instrument.ticker,
-              interval: "5m",
-              limit: INTRADAY_LOOKBACK,
-            }),
-          ),
           provider.getFundamentals(instrument.ticker),
         ]);
 
         if (daily.length < 60) return null;
-        return { instrument, quote, daily, weekly, monthly, intraday, fundamentals, benchmarkDaily };
+        return {
+          instrument,
+          quote,
+          daily,
+          weekly,
+          monthly,
+          intraday: [],
+          fundamentals,
+          benchmarkDaily,
+        };
       } catch (error) {
         // One bad symbol must not sink the whole screen.
         console.error(`[market-data] dropping ${instrument.ticker}:`, error);

@@ -6,10 +6,11 @@ import { useShallow } from "zustand/react/shallow";
  * that every cross-currency total is normalised into.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { CreditCard, Pencil, PiggyBank, Star, Trash, Wallet, CaretLeft, CaretRight, DotsThreeVertical, ArrowRight, Plus } from "@phosphor-icons/react";
+import { CreditCard, PencilSimpleLine, PiggyBank, Star, TrashSimple, Wallet, CaretLeft, CaretRight, DotsThreeVertical, ArrowRight, Plus } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { AccountType, type TransactionWallet } from "@/lib/budget/types";
@@ -227,7 +228,7 @@ export function AccountsView() {
                               onClick={() => setOpenMenuWalletPk(null)}
                             />
 
-                            <div className="absolute right-0 top-9 z-50 min-w-[140px] overflow-hidden rounded-xl border border-separator/30 bg-bg-elevated p-1 shadow-lg ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+                            <div className="absolute right-0 top-9 z-50 min-w-[155px] overflow-hidden rounded-2xl border border-separator/40 dark:border-white/10 bg-bg-secondary/95 backdrop-blur-xl p-1.5 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
                               {!isPrimary ? (
                                 <button
                                   type="button"
@@ -235,9 +236,9 @@ export function AccountsView() {
                                     updateSettings({ primaryWalletPk: wallet.walletPk });
                                     setOpenMenuWalletPk(null);
                                   }}
-                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-label hover:bg-fill/15 transition-colors"
+                                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-caption font-medium text-label hover:bg-fill/10 transition-colors group"
                                 >
-                                  <Star size={14} className="text-amber" />
+                                  <Star size={15} weight="bold" className="text-label-secondary/70 group-hover:text-label transition-colors" />
                                   <span>Set as primary</span>
                                 </button>
                               ) : null}
@@ -249,9 +250,9 @@ export function AccountsView() {
                                   setEditorOpen(true);
                                   setOpenMenuWalletPk(null);
                                 }}
-                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-label hover:bg-fill/15 transition-colors"
+                                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-caption font-medium text-label hover:bg-fill/10 transition-colors group"
                               >
-                                <Pencil size={14} />
+                                <PencilSimpleLine size={15} weight="bold" className="text-label-secondary/70 group-hover:text-label transition-colors" />
                                 <span>Edit account</span>
                               </button>
 
@@ -263,9 +264,9 @@ export function AccountsView() {
                                     setEditorOpen(true);
                                     setOpenMenuWalletPk(null);
                                   }}
-                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-caption font-medium text-red hover:bg-red/10 transition-colors"
+                                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-caption font-medium text-label hover:bg-fill/10 transition-colors group"
                                 >
-                                  <Trash size={14} />
+                                  <TrashSimple size={15} weight="bold" className="text-label-secondary/70 group-hover:text-label transition-colors" />
                                   <span>Delete account</span>
                                 </button>
                               ) : null}
@@ -328,6 +329,7 @@ function AccountEditor({
   const [currency, setCurrency] = useState("inr");
   const [decimals, setDecimals] = useState("2");
   const [newBalance, setNewBalance] = useState("");
+  const [newBalanceDate, setNewBalanceDate] = useState(() => toDateInputValue(new Date()));
   const [openingBalance, setOpeningBalance] = useState("");
   const [openingDate, setOpeningDate] = useState(() => toDateInputValue(new Date()));
   const [moveTo, setMoveTo] = useState("");
@@ -344,10 +346,19 @@ function AccountEditor({
   if (open && loadedFor !== key) {
     setLoadedFor(key);
     if (editing) {
+      const openingTx = transactions.find(t => t.walletFk === editing.walletPk && (t.name === "Opening balance" || t.name === "Opening balance owed") && t.categoryFk === "0");
       setName(editing.name);
       setCurrency(editing.currency ?? "inr");
       setDecimals(String(editing.decimals));
       setNewBalance("");
+      setNewBalanceDate(toDateInputValue(new Date()));
+      if (openingTx) {
+        setOpeningBalance(String(Math.abs(openingTx.amount)));
+        setOpeningDate(toDateInputValue(new Date(openingTx.dateCreated)));
+      } else {
+        setOpeningBalance("");
+        setOpeningDate(toDateInputValue(new Date()));
+      }
       setMoveTo("");
       setAccountType(String(editing.accountType ?? AccountType.bank));
       setCreditLimit(editing.creditLimit === null ? "" : String(editing.creditLimit));
@@ -361,6 +372,7 @@ function AccountEditor({
       setCurrency(settings.primaryWalletPk ? "inr" : "inr");
       setDecimals("2");
       setNewBalance("");
+      setNewBalanceDate(toDateInputValue(new Date()));
       setMoveTo("");
       setOpeningBalance("");
       setOpeningDate(toDateInputValue(new Date()));
@@ -400,22 +412,39 @@ function AccountEditor({
     // A new account's opening balance is written as a correction transaction
     // rather than stored on the account, so the balance stays a pure sum of its
     // transactions — the same invariant every other total relies on.
-    if (!editing && openingBalance !== "" && Number(openingBalance) !== 0) {
-      // On a card the figure entered is what you *owe*, and debt is a negative
-      // balance — entering 5,000 outstanding must not read as 5,000 in assets.
-      const magnitude = Math.abs(Number(openingBalance));
-      upsertTransaction(
-        createBalanceCorrection({
-          walletPk: base.walletPk,
-          currentBalance: 0,
-          newBalance: isCard ? -magnitude : Number(openingBalance),
-          // Midday local, like every other dated row, so a timezone shift
-          // cannot tip it into the neighbouring day or budget period.
-          date: openingDate ? atMidday(fromDateInputValue(openingDate)) : new Date(),
-          newPk: newId,
-          name: isCard ? "Opening balance owed" : "Opening balance",
-        }),
-      );
+    if (openingBalance !== "" && Number(openingBalance) !== 0) {
+      const openingTx = editing ? transactions.find(t => t.walletFk === editing.walletPk && (t.name === "Opening balance" || t.name === "Opening balance owed") && t.categoryFk === "0") : undefined;
+      const numBal = Number(openingBalance);
+      
+      if (openingTx) {
+        if (numBal !== Math.abs(openingTx.amount) || (openingDate && toDateInputValue(new Date(openingTx.dateCreated)) !== openingDate)) {
+           upsertTransaction({
+             ...openingTx,
+             amount: isCard ? -numBal : numBal,
+             dateCreated: openingDate ? atMidday(fromDateInputValue(openingDate)).toISOString() : openingTx.dateCreated,
+             dateTimeModified: new Date().toISOString()
+           });
+        }
+      } else {
+        // On a card the figure entered is what you *owe*, and debt is a negative
+        // balance — entering 5,000 outstanding must not read as 5,000 in assets.
+        const magnitude = Math.abs(numBal);
+        upsertTransaction(
+          createBalanceCorrection({
+            walletPk: base.walletPk,
+            currentBalance: 0,
+            newBalance: isCard ? -magnitude : numBal,
+            // Midday local, like every other dated row, so a timezone shift
+            // cannot tip it into the neighbouring day or budget period.
+            date: openingDate ? atMidday(fromDateInputValue(openingDate)) : new Date(),
+            newPk: newId,
+            name: isCard ? "Opening balance owed" : "Opening balance",
+          }),
+        );
+      }
+    } else if (editing && openingBalance === "" && openingDate) {
+      // If user clears the opening balance on an existing account, we might want to delete it.
+      // Or we just leave it alone. We will leave it alone for now unless they explicitly delete it.
     }
 
     // Setting a balance writes a correction transaction rather than mutating
@@ -426,7 +455,7 @@ function AccountEditor({
           walletPk: editing.walletPk,
           currentBalance,
           newBalance: Number(newBalance),
-          date: new Date(),
+          date: newBalanceDate ? atMidday(fromDateInputValue(newBalanceDate)) : new Date(),
           newPk: newId,
         }),
       );
@@ -558,27 +587,25 @@ function AccountEditor({
         </SelectInput>
       </Field>
 
-      {!editing ? (
-        <Field
-          label={isCard ? "Current outstanding" : "Opening balance"}
-          hint={
-            isCard
-              ? "What you currently owe on this card. Leave blank if it is clear."
-              : "What is in this account right now. Leave blank to start from zero."
-          }
-        >
-          <TextInput
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            value={openingBalance}
-            onChange={(e) => setOpeningBalance(e.target.value)}
-            placeholder="0.00"
-          />
-        </Field>
-      ) : null}
+      <Field
+        label={isCard ? "Current outstanding" : "Opening balance"}
+        hint={
+          isCard
+            ? "What you currently owe on this card. Leave blank if it is clear."
+            : "What is in this account right now. Leave blank to start from zero."
+        }
+      >
+        <TextInput
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          value={openingBalance}
+          onChange={(e) => setOpeningBalance(e.target.value)}
+          placeholder="0.00"
+        />
+      </Field>
 
-      {!editing && openingBalance !== "" && Number(openingBalance) !== 0 ? (
+      {openingBalance !== "" && Number(openingBalance) !== 0 ? (
         <Field
           label="Opening date"
           hint="When this balance was true. Earlier transactions you add later will sit before it."
@@ -606,6 +633,19 @@ function AccountEditor({
               placeholder={String(currentBalance)}
             />
           </Field>
+
+          {newBalance !== "" && Number(newBalance) !== currentBalance ? (
+            <Field
+              label="Balance date"
+              hint="When this balance was true. Earlier transactions you add later will sit before it."
+            >
+              <TextInput
+                type="date"
+                value={newBalanceDate}
+                onChange={(e) => setNewBalanceDate(e.target.value)}
+              />
+            </Field>
+          ) : null}
 
           {canDelete ? (
             <Field
@@ -652,6 +692,8 @@ export function AccountsSummary() {
   const savings = usePolicySavings();
   const router = useRouter();
   const sorted = [...wallets].sort((a, b) => a.order - b.order);
+
+  const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
 
   function moveWallet(wallet: TransactionWallet, dir: number, e: React.MouseEvent) {
     e.preventDefault();

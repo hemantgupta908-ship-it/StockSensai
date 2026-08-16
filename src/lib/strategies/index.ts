@@ -1,19 +1,15 @@
-import { INTRADAY_STRATEGIES } from "./intraday";
 import { LONG_TERM_STRATEGIES } from "./long-term";
 import { POSITIONAL_STRATEGIES } from "./positional";
-import { SHORT_TERM_STRATEGIES } from "./short-term";
 import { SWING_STRATEGIES } from "./swing";
 import type { Strategy, StrategyId, TradingStyle } from "./types";
 
 export * from "./types";
 
 /**
- * All 25 strategies: 5 for each of the five trading styles.
+ * All 15 strategies: 5 for each of the three trading styles.
  * Ordered by holding period, shortest first — the same order the UI uses.
  */
 export const ALL_STRATEGIES: Strategy[] = [
-  ...INTRADAY_STRATEGIES,
-  ...SHORT_TERM_STRATEGIES,
   ...SWING_STRATEGIES,
   ...POSITIONAL_STRATEGIES,
   ...LONG_TERM_STRATEGIES,
@@ -34,8 +30,6 @@ export function strategyName(id: StrategyId): string {
 }
 
 export {
-  INTRADAY_STRATEGIES,
-  SHORT_TERM_STRATEGIES,
   SWING_STRATEGIES,
   POSITIONAL_STRATEGIES,
   LONG_TERM_STRATEGIES,

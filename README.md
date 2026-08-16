@@ -118,6 +118,40 @@ Anything saved to browser storage before signing in is migrated into the account
 
 > The service-role key bypasses RLS entirely. It's only read in `getSupabaseAdminClient()`, in a module marked `server-only` so it cannot be imported into client code.
 
+### Google sign-in
+
+Off by default. The button only renders when `NEXT_PUBLIC_OAUTH_GOOGLE=1`, so a clone without the provider configured shows a sign-in screen that works rather than a prominent button that errors.
+
+1. **Google Cloud Console** → APIs & Services → Credentials → *Create OAuth client ID* → **Web application**.
+   - Authorised JavaScript origins: `http://localhost:3002` and your production origin.
+   - Authorised redirect URI: `https://<project>.supabase.co/auth/v1/callback` — Google redirects to Supabase, not to this app.
+   - Configure the OAuth consent screen first if prompted; while it's in "Testing" only listed test users can sign in.
+   - Enable the **Google Drive API** for the project (APIs & Services → Library), or every sync call 403s.
+2. **Supabase dashboard** → Authentication → Providers → Google: enable it, paste the client ID and secret.
+3. **Supabase dashboard** → Authentication → URL Configuration → Redirect URLs: add `http://localhost:3002/auth/callback` and `https://<your-domain>/auth/callback`. This is the second leg — Supabase bounces back here, and an address that isn't listed is silently rejected.
+4. Set both `NEXT_PUBLIC_OAUTH_GOOGLE=1` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID=<the same client ID>` in `.env.local` (and in the deployment's environment), then restart the dev server — they're build-time public vars, so a running server won't pick them up.
+
+### Where each account's data lives
+
+Storage follows the **sign-up provider**, decided in [`src/lib/store/backend.ts`](src/lib/store/backend.ts):
+
+| Signed up with | Budget, watchlist and journal go to |
+| --- | --- |
+| Google | A hidden per-app folder in **that user's own Google Drive** |
+| Email + password | This project's Supabase tables, under row-level security |
+| No account | Browser storage, as demo mode always has |
+
+A Google account's data never enters this database. The client routes it to Drive, and `schema.sql` installs triggers that *reject* writes for those accounts anyway — the guarantee shouldn't rest on a branch in a React provider surviving future refactors. `handle_new_user` likewise skips seeding a preferences row for them.
+
+Two consequences worth knowing before enabling this:
+
+- **You cannot recover a Google user's data.** No copy exists on your side. If they revoke the app in their Google settings, it's gone, and support can do nothing but say so.
+- **Drive storage failing does not fall back to Supabase.** Those users drop to browser-only storage, and the app tells them so. Losing sync is recoverable; quietly filing their data in your database is not.
+
+The scope requested is `drive.appdata`, which reaches only the app's own hidden folder — never the user's actual files — and is narrow enough that Google doesn't require a security review for it.
+
+Merging is already handled: the budget document reconciles per-row with tombstones ([`src/lib/budget/sync.ts`](src/lib/budget/sync.ts)), so two devices editing offline converge. Watchlist and journal are whole-array rewrites where the last writer wins.
+
 ---
 
 ## Going live: Yahoo Finance (recommended first step)

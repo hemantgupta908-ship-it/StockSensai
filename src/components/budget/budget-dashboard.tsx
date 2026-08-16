@@ -16,15 +16,17 @@ import { useShallow } from "zustand/react/shallow";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CaretRight,
   CaretUp,
   CaretDown,
+  DotsThreeVertical,
   Faders,
   Eye,
   EyeClosed,
   Minus,
+  Palette,
   Plus,
   Equals,
   TrendUp,
@@ -38,6 +40,8 @@ import {
   ChartPie,
   ChartLine,
   SquaresFour,
+  Wallet,
+  Shapes,
 } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
@@ -45,8 +49,10 @@ import { getNetWorth, getCumulativeTotals } from "@/lib/budget/calculations";
 import { useBudget, usePolicySavings } from "./budget-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AddFab, Amount, Card, Section, Sheet, Toggle } from "./budget-ui";
+import { AppearanceSettingsSection } from "./budget-settings-view";
 import { IconBadge } from "./icon-picker";
-import { AccountsSummary } from "./accounts-view";
+import { AccountsSummary, AccountsView } from "./accounts-view";
+import { CategoriesView } from "./categories-view";
 import { PinnedBudgets } from "./budgets-view";
 import { PinnedObjectives } from "./objectives-view";
 import { RecentTransactions } from "./transaction-list-view";
@@ -239,7 +245,8 @@ export function BudgetDashboard() {
                   points={sparklineData.pointsStr}
                   fill="none"
                   stroke="var(--accent, #007AFF)"
-                  strokeWidth="1.75"
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -249,7 +256,7 @@ export function BudgetDashboard() {
 
           <div className="relative z-10">
             <p className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">Net worth</p>
-            <Amount value={netWorth} className="text-largetitle font-bold" colour animated />
+            <Amount value={netWorth} className="text-largetitle font-bold" colour />
           </div>
         </Card>
       </button>
@@ -404,11 +411,13 @@ export function BudgetDashboard() {
                           points={`0,${sparklineData.h} ${sparklineData.pointsStr} ${sparklineData.w},${sparklineData.h}`}
                           fill="url(#netWorthDesktopSparkGrad)"
                         />
+                        {/* Sparkline Curve */}
                         <polyline
                           points={sparklineData.pointsStr}
                           fill="none"
                           stroke="var(--accent, #007AFF)"
-                          strokeWidth="1.75"
+                          strokeWidth="1"
+                          vectorEffect="non-scaling-stroke"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -420,7 +429,7 @@ export function BudgetDashboard() {
                     <p className="text-caption uppercase tracking-wider font-semibold text-label-secondary/60">
                       Net worth
                     </p>
-                    <Amount value={netWorth} className="text-largetitle font-bold" colour animated />
+                    <Amount value={netWorth} className="text-largetitle font-bold" colour />
                   </div>
                 </Card>
               </button>
@@ -434,11 +443,27 @@ export function BudgetDashboard() {
               ) : null}
 
               {/* Stat strip beside the accounts: income/expense/net, lent/borrowed, upcoming/overdue, policies */}
-              <div className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
-                {settings.showAllSpendingSummary ? <SpendingSummaryWidget /> : null}
-                {settings.showCreditDebt ? <CreditDebtWidget /> : null}
-                {settings.showUpcomingTransactions ? <UpcomingWidget /> : null}
-                {settings.showPolicies ? <PoliciesWidget /> : null}
+              <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-0.5">
+                {settings.showAllSpendingSummary ? (
+                  <div className="shrink-0 min-w-[280px]">
+                    <SpendingSummaryWidget />
+                  </div>
+                ) : null}
+                {settings.showCreditDebt ? (
+                  <div className="shrink-0 min-w-[210px]">
+                    <CreditDebtWidget />
+                  </div>
+                ) : null}
+                {settings.showUpcomingTransactions ? (
+                  <div className="shrink-0 min-w-[210px]">
+                    <UpcomingWidget />
+                  </div>
+                ) : null}
+                {settings.showPolicies ? (
+                  <div className="shrink-0 min-w-[210px]">
+                    <PoliciesWidget />
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -524,7 +549,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function DashboardHeaderAction() {
   const { settings, updateSettings, wallets, exportDatabase, replaceDatabase, transactions  } = useBudget(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings, wallets: s.wallets, exportDatabase: s.exportDatabase, replaceDatabase: s.replaceDatabase, transactions: s.transactions })));
+  const [menuOpen, setMenuOpen] = useState(false);
   const [open, setOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [editTab, setEditTab] = useState<"widgets" | "accounts">("widgets");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [draggedAccountIndex, setDraggedAccountIndex] = useState<number | null>(null);
@@ -566,14 +595,6 @@ export function DashboardHeaderAction() {
     [sortedWallets, settings]
   );
 
-  /**
-   * The list split by whether each widget is actually on the home screen.
-   *
-   * Shown and hidden widgets used to sit in one undifferentiated list, so the
-   * sheet gave no answer to the only question it exists to answer — what is on
-   * my home screen. Position is meaningless for a hidden widget, so ordering
-   * applies to the shown list alone and hidden ones trail behind it.
-   */
   const isShown = (id: string) => {
     const meta = WIDGET_META.find((m) => m.id === id);
     return meta ? Boolean(settings[meta.settingKey] ?? true) : false;
@@ -590,7 +611,6 @@ export function DashboardHeaderAction() {
     [effectiveOrder, settings],
   );
 
-  /** Indices below are positions within `shownIds`, not the combined list. */
   function reorderItems(fromIdx: number, toIdx: number) {
     if (
       fromIdx === toIdx ||
@@ -659,26 +679,114 @@ export function DashboardHeaderAction() {
     }
   }
 
-  const HideIcon = settings.hideAmounts ? EyeClosed : Eye;
-
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between py-3 px-3.5 rounded-xl bg-fill/5 hover:bg-fill/10 transition-colors text-subhead font-medium text-label group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-            <Faders size={18} weight="bold" />
-          </div>
-          <div className="text-left">
-            <p className="font-semibold text-label">Customize Home Layout</p>
-            <p className="text-caption text-label-secondary/70">Reorder widgets and hide/show accounts</p>
-          </div>
-        </div>
-        <span className="text-caption font-semibold text-accent group-hover:underline">Edit →</span>
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
+          aria-label="More options"
+          title="More options"
+        >
+          <DotsThreeVertical size={20} weight="bold" />
+        </button>
+
+        {/* Backdrop for click outside */}
+        {menuOpen && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+
+        {/* Floating Glassmorphic Popover Menu */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: -4 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute right-0 top-10 z-50 min-w-[240px] rounded-2xl border border-separator/40 dark:border-white/10 bg-bg-secondary/95 backdrop-blur-xl shadow-2xl p-1.5 space-y-1"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setOpen(true);
+                }}
+                className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-fill/10 text-left transition-colors group"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent shrink-0 group-hover:scale-105 transition-transform">
+                  <Faders size={18} weight="bold" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-subhead font-semibold text-label">Edit Home Screen</p>
+                  <p className="text-[11px] text-label-secondary/70 truncate">Reorder widgets & accounts</p>
+                </div>
+              </button>
+
+              <div className="h-px bg-separator/20 dark:bg-white/5 mx-2" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAppearanceOpen(true);
+                }}
+                className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-fill/10 text-left transition-colors group"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/15 text-purple-500 shrink-0 group-hover:scale-105 transition-transform">
+                  <Palette size={18} weight="bold" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-subhead font-semibold text-label">Edit Appearance</p>
+                  <p className="text-[11px] text-label-secondary/70 truncate">Themes, accents & display</p>
+                </div>
+              </button>
+
+              <div className="h-px bg-separator/20 dark:bg-white/5 mx-2" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAccountsOpen(true);
+                }}
+                className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-fill/10 text-left transition-colors group"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 shrink-0 group-hover:scale-105 transition-transform">
+                  <Wallet size={18} weight="bold" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-subhead font-semibold text-label">Accounts Settings</p>
+                  <p className="text-[11px] text-label-secondary/70 truncate">Wallets, banks & net worth</p>
+                </div>
+              </button>
+
+              <div className="h-px bg-separator/20 dark:bg-white/5 mx-2" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCategoriesOpen(true);
+                }}
+                className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-fill/10 text-left transition-colors group"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500 shrink-0 group-hover:scale-105 transition-transform">
+                  <Shapes size={18} weight="bold" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-subhead font-semibold text-label">Categories Settings</p>
+                  <p className="text-[11px] text-label-secondary/70 truncate">How spending is grouped</p>
+                </div>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Edit Home">
         <div className="flex flex-col gap-2.5 p-4 pb-12">
@@ -721,7 +829,7 @@ export function DashboardHeaderAction() {
               <SectionLabel>On your home screen ({shownIds.length})</SectionLabel>
 
               {shownIds.length === 0 ? (
-                <p className="rounded-[18px] border border-dashed border-border/40 px-3 py-6 text-center text-caption text-label-secondary/60">
+                <p className="rounded-[18px] border border-dashed border-separator/40 dark:border-white/10 px-3 py-6 text-center text-caption text-label-secondary/60">
                   Your home screen is empty. Add a widget from below.
                 </p>
               ) : null}
@@ -745,7 +853,7 @@ export function DashboardHeaderAction() {
                     }}
                     onDragEnd={() => setDraggedIndex(null)}
                     className={cn(
-                      "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-border/20 select-none",
+                      "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-separator/20 dark:border-white/10 select-none",
                       draggedIndex === index && "opacity-40 scale-[0.98] border-accent/50",
                     )}
                   >
@@ -812,7 +920,7 @@ export function DashboardHeaderAction() {
                       // No drag or arrows: position means nothing until it is shown.
                       <div
                         key={id}
-                        className="flex items-center justify-between gap-3 rounded-[18px] border border-border/20 border-dashed bg-fill/[0.02] p-3 select-none"
+                        className="flex items-center justify-between gap-3 rounded-[18px] border border-separator/20 dark:border-white/10 border-dashed bg-fill/[0.02] p-3 select-none"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-3 opacity-45">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label">
@@ -856,7 +964,7 @@ export function DashboardHeaderAction() {
                     }}
                     onDragEnd={() => setDraggedAccountIndex(null)}
                     className={cn(
-                      "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-border/20 select-none",
+                      "flex items-center justify-between gap-3 p-3 rounded-[18px] bg-fill/5 hover:bg-fill/10 transition-all border border-separator/20 dark:border-white/10 select-none",
                       draggedAccountIndex === index && "opacity-40 scale-[0.98] border-accent/50",
                     )}
                   >
@@ -933,7 +1041,7 @@ export function DashboardHeaderAction() {
                     return (
                       <div
                         key={wallet.walletPk}
-                        className="flex items-center justify-between gap-3 rounded-[18px] border border-border/20 border-dashed bg-fill/[0.02] p-3 select-none"
+                        className="flex items-center justify-between gap-3 rounded-[18px] border border-separator/20 dark:border-white/10 border-dashed bg-fill/[0.02] p-3 select-none"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1 opacity-45">
                           <IconBadge
@@ -969,7 +1077,7 @@ export function DashboardHeaderAction() {
               ) : null}
               
               <SectionLabel>Virtual Accounts</SectionLabel>
-              <div className="flex flex-col gap-1 rounded-[16px] bg-fill/5 p-2 border border-border/20">
+              <div className="flex flex-col gap-1 rounded-[16px] bg-fill/5 p-2 border border-separator/20 dark:border-white/10">
                 <Toggle
                   checked={settings.showSavingsCard ?? true}
                   onChange={(checked) => updateSettings({ showSavingsCard: checked })}
@@ -978,6 +1086,27 @@ export function DashboardHeaderAction() {
               </div>
             </>
           )}
+        </div>
+      </Sheet>
+
+      {/* Appearance Sheet */}
+      <Sheet open={appearanceOpen} onClose={() => setAppearanceOpen(false)} title="Appearance & Themes">
+        <div className="p-4 pb-16 space-y-4">
+          <AppearanceSettingsSection />
+        </div>
+      </Sheet>
+
+      {/* Accounts Settings Sheet */}
+      <Sheet open={accountsOpen} onClose={() => setAccountsOpen(false)} title="Accounts Settings">
+        <div className="p-4 pb-16">
+          <AccountsView />
+        </div>
+      </Sheet>
+
+      {/* Categories Settings Sheet */}
+      <Sheet open={categoriesOpen} onClose={() => setCategoriesOpen(false)} title="Categories Settings">
+        <div className="p-4 pb-16">
+          <CategoriesView />
         </div>
       </Sheet>
     </>

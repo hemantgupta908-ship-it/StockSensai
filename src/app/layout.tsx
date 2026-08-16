@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
@@ -19,7 +19,9 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   icons: {
     icon: "/icon.svg",
-    apple: "/icon.svg",
+    // iOS ignores the manifest and reads this link, and it does not accept SVG
+    // — pointing it at icon.svg meant a home-screen shortcut got a blank tile.
+    apple: "/apple-icon-180.png",
   },
 };
 
@@ -37,12 +39,26 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const riskTolerance = parseRiskTolerance(cookieStore.get(RISK_COOKIE)?.value);
+  // Set by the middleware, which owns the Content-Security-Policy. Undefined on
+  // any path the middleware does not match, where there is no policy to satisfy.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <head>
-        {/* Applies the theme class before first paint to avoid a light flash. */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* Applies the theme class before first paint to avoid a light flash.
+            Nonced because the CSP admits no inline script without one — without
+            this the page renders light, then snaps to dark on hydration.
+
+            `suppressHydrationWarning` because React deliberately does not carry
+            the nonce into the client tree — it reads `nonce=""` there and warns
+            about a mismatch it will not patch. The script has already run by
+            then, so the difference is in the warning only. */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body className="min-h-dvh antialiased">
         <ThemeProvider>

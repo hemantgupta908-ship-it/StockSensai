@@ -62,6 +62,20 @@ async function main() {
   }
 
   console.log(`\nChecked ${cards} cards.`);
+
+  // Every assertion above is per-card, so an empty feed satisfies all of them
+  // vacuously and this check reports success on an engine that emits nothing at
+  // all. That is not hypothetical: a feed-building bug that dropped every
+  // recommendation passed this script clean, and the UI's empty state explains
+  // a blank feed as a normal screening outcome, so nothing else flagged it.
+  if (cards === 0) {
+    console.log(
+      "\nFAILED: the engine produced no cards in any style or tolerance. " +
+        "Geometry assertions are per-card and cannot detect this on their own.",
+    );
+    process.exit(1);
+  }
+
   if (violations.length > 0) {
     console.log(`\n${violations.length} VIOLATION(S):`);
     for (const v of violations) console.log(`  ${v}`);

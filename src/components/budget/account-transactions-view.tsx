@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowsLeftRight,
   CaretDown,
+  CaretLeft,
   CaretUp,
   Clock,
   CreditCard,
@@ -31,9 +32,12 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { NavBar } from "@/components/ui/nav-bar";
 import { MobileSidebar } from "@/components/ui/mobile-sidebar";
 
 import { cn } from "@/lib/utils";
+import { getSmoothPath } from "@/lib/chart-path";
 import { TransactionSpecialType, type Transaction, type TransactionCategory } from "@/lib/budget/types";
 import {
   affectsWalletBalance,
@@ -91,37 +95,7 @@ type CycleGroup = {
   unpaidAmount?: number;
 };
 
-function getSmoothPath(points: { x: number; y: number }[], tension = 0.15): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-  if (points.length === 2)
-    return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)},${points[1].y.toFixed(1)}`;
 
-  let d = `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
-
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-
-  return d;
-}
-
-function formatCompactAmount(num: number): string {
-  const abs = Math.abs(num);
-  if (abs >= 100000) return `₹${(abs / 100000).toFixed(1)}L`;
-  if (abs >= 1000) return `₹${(abs / 1000).toFixed(1)}K`;
-  return `₹${Math.round(abs)}`;
-}
 
 function useGroupedByCycle(transactions: Transaction[], statementDay: number | null) {
   return useMemo(() => {
@@ -190,6 +164,11 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [modalDefaults, setModalDefaults] = useState<Partial<Transaction> | undefined>(undefined);
   const [modalDefaultTab, setModalDefaultTab] = useState<"expense" | "income" | "transfer" | undefined>(undefined);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const showTransactions = searchParams.get("view") === "transactions";
+  const [displayLimit, setDisplayLimit] = useState(100);
 
   const balance = useMemo(
     () => (wallet ? getWalletBalance(transactions, wallet.walletPk) : 0),
@@ -423,6 +402,8 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
     [allWallets, filtered, objectives],
   );
 
+  const displayed = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
+
   const dailyBalances = useMemo(() => {
     const sorted = [...walletTransactions].sort(
       (a, b) => new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime(),
@@ -442,9 +423,9 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
     return balances;
   }, [walletTransactions]);
 
-  const dayGroups = useGroupedByDay(filtered);
+  const dayGroups = useGroupedByDay(displayed);
   const cycleGroups = useGroupedByCycle(
-    filtered,
+    displayed,
     wallet && isCreditCard(wallet) ? (wallet.statementDay ?? null) : null,
   );
 
@@ -542,51 +523,36 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   }
 
   return (
-    <div
-      className="min-h-[100dvh]"
-      style={{
-        "--account-accent": accent,
-        background: `linear-gradient(180deg, ${accent}15 0%, ${accent}03 100%)`,
-      } as React.CSSProperties}
-    >
-      {/* Accent-themed header */}
-      <header
-        className="sticky top-0 z-30 border-b safe-top"
-        style={{
-          background: `linear-gradient(135deg, ${accent}18 0%, ${accent}08 100%)`,
-          borderColor: `${accent}25`,
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-        }}
-      >
+    <div className="min-h-[100dvh] bg-bg">
+      {/* Clean Apple Wallet-style Header */}
+      <header className="sticky top-0 z-30 border-b border-separator/30 bg-bg/80 backdrop-blur-xl safe-top">
         <div className={cn("mx-auto py-3", CONTAINER_WIDTHS.wide)}>
           <div className="flex items-center gap-3">
+            {/* Back Button */}
             <button
               type="button"
-              onClick={() => setMenuOpen(true)}
-              className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none"
-              aria-label="Open menu"
-              style={{ color: accent }}
+              onClick={() => {
+                router.push("/budget");
+              }}
+              className="-ml-1 flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
+              aria-label="Go back to Overview"
+              title="Go back to Overview"
             >
-              <div className="flex w-[18px] flex-col gap-[4px]">
-                <span className="h-[2px] w-full rounded-full bg-current" />
-                <span className="h-[2px] w-full rounded-full bg-current" />
-                <span className="h-[2px] w-full rounded-full bg-current" />
-              </div>
+              <CaretLeft size={22} weight="bold" />
             </button>
 
             <IconBadge
               iconName={wallet.iconName}
               colour={accent}
-              size={36}
+              size={38}
               fallback={wallet.name}
             />
 
             <div className="min-w-0 flex-1">
               <h1 className="flex items-center gap-2 truncate text-headline font-semibold text-label">
                 {wallet.name}
-                {isPrimary ? <Star size={13} className="shrink-0 fill-amber text-amber" /> : null}
-                {card ? <CreditCard size={14} className="shrink-0 text-label-secondary/50" /> : null}
+                {isPrimary ? <Star size={14} weight="fill" className="shrink-0 text-amber" /> : null}
+                {card ? <CreditCard size={15} weight="bold" className="shrink-0 text-label-secondary/50" /> : null}
               </h1>
               <p className="text-caption text-label-secondary/60">
                 {(wallet.currency ?? "INR").toUpperCase()} Account Details
@@ -622,9 +588,14 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
               {(wallet.currency ?? "INR").toUpperCase()}
             </span>
           </div>
-          <p className="mt-1 text-caption text-label-secondary/50 font-medium">
-            {walletTransactions.length} transactions
-          </p>
+          <button
+            type="button"
+            onClick={() => router.push(`${pathname}?view=transactions`)}
+            className="mt-2.5 inline-flex items-center justify-center gap-1.5 mx-auto rounded-full bg-fill/10 hover:bg-fill/15 active:scale-95 border border-separator/30 px-3 py-1 text-caption font-semibold text-label transition-all group"
+          >
+            <span>{walletTransactions.length} transactions</span>
+            <CaretDown size={12} weight="bold" className="text-label-secondary/70 group-hover:translate-y-0.5 transition-transform" />
+          </button>
         </div>
 
         {/*
@@ -1135,7 +1106,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
 
             {/* Standard List View when nothing is selected */}
             {!selectedCategoryPk ? (
-              <div className="divide-y divide-border/20 mt-2">
+              <div className="divide-y divide-separator/30 dark:divide-white/[0.08] mt-2">
                 {(doughnutExpanded
                   ? sortedCategoryEntries
                   : sortedCategoryEntries.slice(0, 2)
@@ -1239,7 +1210,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
           {doughnutTab === "outgoing" &&
           doughnutExpanded &&
           (cardPayments.count > 0 || lentOut.count > 0 || savings.count > 0) ? (
-            <div className="mt-2 space-y-1.5 border-t border-border/20 pt-2">
+            <div className="mt-2 space-y-1.5 border-t border-separator/30 dark:border-white/[0.08] pt-2">
               {cardPayments.count > 0 ? (
                 <NotSpendingRow
                   label="Card Payments"
@@ -1328,121 +1299,173 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
             </button>
           </div>
         ) : null}
-
-        {/* 9. Search & Transaction History List */}
-        <div className="space-y-4 pt-2">
-          <div className="flex gap-2 items-center">
-            <div className="flex-1">
-              <SearchField value={query} onChange={setQuery} placeholder="Search account transactions..." />
-            </div>
-            <button
-              onClick={() => setImportOpen(true)}
-              className="flex h-11 items-center gap-2 rounded-[14px] bg-fill/5 px-4 text-sm font-semibold text-label transition-colors hover:bg-fill/10 active:scale-[0.98] shrink-0 border border-border/40"
-            >
-              <UploadSimple size={16} />
-              <span className="hidden sm:inline">Upload</span>
-            </button>
-          </div>
-
-          <SegmentedTabs
-            value={direction}
-            onChange={setDirection}
-            options={[
-              { value: "all", label: "All" },
-              { value: "expense", label: "Expense" },
-              { value: "income", label: "Income" },
-            ]}
-          />
-
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon={ArrowsLeftRight}
-              title="No transactions found"
-              description={
-                query
-                  ? "Try a different search query."
-                  : "No transactions recorded for this account yet."
-              }
-            />
-          ) : cycleGroupsWithUnpaid ? (
-            <div className="space-y-6">
-              {cycleGroupsWithUnpaid.map((group) => (
-                <div key={group.key} className="relative">
-                  <div className="mb-2 flex items-center justify-between rounded-md bg-fill/5 px-3 py-2">
-                    <div>
-                      <h3 className="text-subhead font-semibold text-label">
-                        {group.cycleStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - {group.cycleEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                      </h3>
-                    </div>
-                    <div className="flex items-center gap-4 text-right">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Spend</p>
-                        <Amount value={group.spend} className="text-footnote font-medium text-label" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Payments</p>
-                        <Amount value={group.payments} className="text-footnote font-medium text-green" />
-                      </div>
-                      {group.unpaidAmount !== undefined && group.unpaidAmount > 5 ? (
-                        <button
-                          onClick={() => {
-                            setEditing(null);
-                            setModalDefaultTab("transfer");
-                            setModalDefaults({
-                              amount: group.unpaidAmount,
-                              toWalletFk: walletPk,
-                              name: `Card Payment`,
-                            } as any);
-                            setModalOpen(true);
-                          }}
-                          className="ml-1 rounded-[8px] bg-accent/15 px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/25 active:scale-95"
-                        >
-                          Pay
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                  <TransactionGroup>
-                    {group.items.map((t) => (
-                      <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
-                    ))}
-                  </TransactionGroup>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {dayGroups.map(([day, items]) => (
-                <div key={day}>
-                  <div className="mb-1.5 flex items-baseline justify-between px-1">
-                    <h3 className="text-footnote font-semibold text-label-secondary">
-                      {formatDayHeading(day)}
-                    </h3>
-                    <div className="flex items-center gap-3">
-                      {dailyBalances.has(day) ? (
-                        <span className="text-caption text-label-secondary/70">
-                          Bal: <Amount value={dailyBalances.get(day)!} className="font-medium" />
-                        </span>
-                      ) : null}
-                      <Amount
-                        value={items.reduce((sum, t) => sum + (t.paid ? t.amount : 0), 0)}
-                        colour
-                        showSign
-                        className="text-caption min-w-[70px] text-right"
-                      />
-                    </div>
-                  </div>
-                  <TransactionGroup>
-                    {items.map((t) => (
-                      <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
-                    ))}
-                  </TransactionGroup>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </main>
+
+      {/* Full-page Transactions View Overlay with Native Spring Slide-Up Animation */}
+      <AnimatePresence>
+        {showTransactions && (
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed inset-0 lg:left-[248px] z-40 bg-bg overflow-y-auto overscroll-none pb-24 shadow-2xl"
+          >
+            {/* Native Top Header */}
+            <div className="sticky top-0 z-50 bg-bg/85 backdrop-blur-xl border-b border-separator/30 safe-top">
+              <div className="mx-auto flex h-1 w-10 rounded-full bg-separator/50 mt-2 mb-1 lg:hidden" />
+              <div className={cn("mx-auto px-4 py-2.5 flex items-center justify-between", CONTAINER_WIDTHS.wide)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.history.length > 1) {
+                      router.back();
+                    } else {
+                      router.replace(pathname);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 py-1 px-2.5 -ml-2 rounded-xl text-subhead font-semibold text-label hover:bg-fill/10 active:scale-95 transition-all"
+                >
+                  <CaretLeft size={20} weight="bold" />
+                  <span>{wallet.name}</span>
+                </button>
+                <span className="text-caption font-semibold px-2.5 py-0.5 rounded-full bg-fill/10 text-label-secondary">
+                  {filtered.length} {filtered.length === 1 ? "transaction" : "transactions"}
+                </span>
+              </div>
+            </div>
+
+            <main className={cn("mx-auto px-4 pt-4", CONTAINER_WIDTHS.wide)}>
+              <div className="space-y-4">
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <SearchField value={query} onChange={setQuery} placeholder="Search account transactions..." />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImportOpen(true)}
+                    className="flex h-11 items-center gap-2 rounded-[14px] bg-fill/5 px-4 text-sm font-semibold text-label transition-colors hover:bg-fill/10 active:scale-[0.98] shrink-0 border border-separator/40 dark:border-white/10"
+                  >
+                    <UploadSimple size={16} />
+                    <span className="hidden sm:inline">Upload</span>
+                  </button>
+                </div>
+
+                <SegmentedTabs
+                  value={direction}
+                  onChange={setDirection}
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "expense", label: "Expense" },
+                    { value: "income", label: "Income" },
+                  ]}
+                />
+
+                {filtered.length === 0 ? (
+                  <EmptyState
+                    icon={ArrowsLeftRight}
+                    title="No transactions found"
+                    description={
+                      query
+                        ? "Try a different search query."
+                        : "No transactions recorded for this account yet."
+                    }
+                  />
+                ) : cycleGroupsWithUnpaid ? (
+                  <div className="space-y-6">
+                    {cycleGroupsWithUnpaid.map((group) => (
+                      <div key={group.key} className="relative">
+                        <div className="mb-2 flex items-center justify-between rounded-md bg-fill/5 px-3 py-2">
+                          <div>
+                            <h3 className="text-subhead font-semibold text-label">
+                              {group.cycleStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - {group.cycleEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-4 text-right">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Spend</p>
+                              <Amount value={group.spend} className="text-footnote font-medium text-label" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-label-secondary/50">Payments</p>
+                              <Amount value={group.payments} className="text-footnote font-medium text-green" />
+                            </div>
+                            {group.unpaidAmount !== undefined && group.unpaidAmount > 5 ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditing(null);
+                                  setModalDefaultTab("transfer");
+                                  setModalDefaults({
+                                    amount: group.unpaidAmount,
+                                    toWalletFk: walletPk,
+                                    name: `Card Payment`,
+                                  } as any);
+                                  setModalOpen(true);
+                                }}
+                                className="ml-1 rounded-[8px] bg-accent/15 px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/25 active:scale-95"
+                              >
+                                Pay
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <TransactionGroup>
+                          {group.items.map((t) => (
+                            <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
+                          ))}
+                        </TransactionGroup>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {dayGroups.map(([day, items]) => (
+                      <div key={day}>
+                        <div className="mb-1.5 flex items-baseline justify-between px-1">
+                          <h3 className="text-footnote font-semibold text-label-secondary">
+                            {formatDayHeading(day)}
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            {dailyBalances.has(day) ? (
+                              <span className="text-caption text-label-secondary/70">
+                                Bal: <Amount value={dailyBalances.get(day)!} className="font-medium" />
+                              </span>
+                            ) : null}
+                            <Amount
+                              value={items.reduce((sum, t) => sum + (t.paid ? t.amount : 0), 0)}
+                              colour
+                              showSign
+                              className="text-caption min-w-[70px] text-right"
+                            />
+                          </div>
+                        </div>
+                        <TransactionGroup>
+                          {items.map((t) => (
+                            <TransactionRow key={t.transactionPk} transaction={t} onEdit={openEdit} />
+                          ))}
+                        </TransactionGroup>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {filtered.length > displayLimit ? (
+                  <div className="pt-4 pb-12 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setDisplayLimit((l) => l + 100)}
+                      className="rounded-full bg-fill/5 px-6 py-2.5 text-footnote font-medium text-label-secondary transition-colors hover:bg-fill/10 active:scale-95"
+                    >
+                      Load more ({filtered.length - displayLimit} remaining)
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </main>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Accent-coloured FAB */}
       <button
@@ -1522,7 +1545,7 @@ function NotSpendingRow({
   );
 }
 
-function TimeRangeSelector({ value, onChange, accent }: { value: TimeRange; onChange: (v: TimeRange) => void; accent?: string }) {
+function TimeRangeSelector({ value, onChange }: { value: TimeRange; onChange: (v: TimeRange) => void; accent?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   
@@ -1545,35 +1568,31 @@ function TimeRangeSelector({ value, onChange, accent }: { value: TimeRange; onCh
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 rounded-full px-2.5 py-1 transition-colors text-[11px] font-semibold border"
-        style={{
-          backgroundColor: accent ? `${accent}15` : 'var(--fill-5)',
-          color: accent || 'var(--label-secondary)',
-          borderColor: accent ? `${accent}30` : 'var(--border-20)'
-        }}
+        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors text-[11px] font-semibold bg-fill/10 hover:bg-fill/15 text-label border border-separator/30 active:scale-95"
       >
-        <Clock size={12} />
+        <Clock size={12} className="text-label-secondary/70" />
         <span>{options[value]}</span>
-        <CaretDown size={10} className="opacity-70" />
+        <CaretDown size={10} className="text-label-secondary/60" />
       </button>
-      
+
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-32 rounded-[12px] bg-bg shadow-xl border border-border/40 py-1 z-50 overflow-hidden">
-          {(Object.entries(options) as [TimeRange, string][]).map(([k, label]) => (
+        <div className="absolute right-0 top-7 z-20 min-w-[120px] rounded-xl border border-separator/40 dark:border-white/10 bg-bg-secondary/95 backdrop-blur-xl p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+          {(Object.keys(options) as TimeRange[]).map((key) => (
             <button
-              key={k}
+              key={key}
+              type="button"
               onClick={() => {
-                onChange(k);
+                onChange(key);
                 setOpen(false);
               }}
               className={cn(
-                "w-full text-left px-3 py-1.5 text-[11px] transition-colors hover:bg-fill/10",
-                value === k ? "font-semibold" : "text-label-secondary font-medium"
+                "w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors",
+                value === key ? "bg-fill/15 font-semibold text-label" : "text-label-secondary/80 hover:bg-fill/10 hover:text-label"
               )}
-              style={value === k && accent ? { color: accent, backgroundColor: `${accent}10` } : (value === k ? { color: 'var(--label)', backgroundColor: 'var(--fill-5)' } : {})}
             >
-              {label}
+              {options[key]}
             </button>
           ))}
         </div>

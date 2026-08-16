@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { ArrowClockwise, House, WarningCircle } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export default function RouteError({
 }) {
   useEffect(() => {
     console.error("[route error]", error);
+    Sentry.captureException(error, { tags: { boundary: "route" } });
   }, [error]);
 
   return (

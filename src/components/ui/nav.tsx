@@ -179,7 +179,7 @@ export function NavSidebar({
                       className={cn(
                         "flex select-none items-center gap-3 rounded-ios px-3 py-2 transition-colors",
                         active
-                          ? "bg-accent/15 text-accent dark:bg-accent/20"
+                          ? "bg-accent/15 text-accent font-semibold"
                           : "text-label hover:bg-fill/10",
                       )}
                     >

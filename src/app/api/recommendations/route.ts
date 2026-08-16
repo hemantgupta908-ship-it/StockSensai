@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getCachedFeed } from "@/lib/engine/cache";
+import { callerKey, checkRateLimit } from "@/lib/api-rate-limit";
 import { TRADING_STYLES } from "@/lib/strategies/types";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,16 @@ export const dynamic = "force-dynamic";
  * which comfortably exceeds the default serverless timeout.
  */
 export const maxDuration = 120;
+
+/**
+ * Ceiling on forced screens per caller.
+ *
+ * Three a minute is well above what pull-to-refresh produces in normal use —
+ * the feed only changes when the cron rewrites it — while stopping a loop from
+ * keeping a full universe screen permanently in flight.
+ */
+const REFRESH_LIMIT = 3;
+const REFRESH_WINDOW_MS = 60_000;
 
 const querySchema = z.object({
   // Derived from TRADING_STYLES so a style the engine knows about can never be
@@ -36,6 +47,32 @@ export async function GET(request: Request) {
   }
 
   const { style, tolerance, refresh } = parsed.data;
+
+  // Only the forced path is metered. An ordinary read is served from the cache
+  // or the durable table and costs almost nothing, so limiting it would only
+  // break the app for someone switching styles quickly.
+  if (refresh === "1") {
+    const { allowed, retryAfterSeconds } = checkRateLimit(`recommendations:${callerKey(request)}`, {
+      limit: REFRESH_LIMIT,
+      windowMs: REFRESH_WINDOW_MS,
+    });
+
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many refreshes",
+          detail: `A full screen is expensive. Try again in ${retryAfterSeconds}s.`,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfterSeconds),
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+  }
 
   try {
     const feed = await getCachedFeed(style, tolerance, { force: refresh === "1" });

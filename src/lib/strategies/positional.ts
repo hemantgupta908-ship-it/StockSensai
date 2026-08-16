@@ -29,7 +29,9 @@ import {
   rewardToRisk,
   riskFromStopDistance,
   round2,
-  scoreConditions,
+  eventWindow,
+  scoreSignal,
+  stopClearOfEntry,
   type Strategy,
   type StrategyCondition,
   type StrategySignal,
@@ -100,7 +102,7 @@ const stageTwoTrend: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 200) return null;
 
     const price = closes(daily);
@@ -125,7 +127,35 @@ const stageTwoTrend: Strategy = {
       ? ((sma150Now - sma150Then) / sma150Then) * 100
       : NaN;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "Above the 150-day average",
         currentPrice > sma150Now,
@@ -171,18 +201,23 @@ const stageTwoTrend: Strategy = {
     // Below the 150-day average, but never risking more than an ATR-scaled
     // distance — in a stock that has run far ahead of its average, the average
     // can sit 20% away, which is not a stop, it is a hope.
-    const stopLoss = round2(
+    let stopLoss = round2(
       Math.max(sma150Now * 0.97, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.5),
     );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
+    // Clear the stop of the entry band before judging geometry, so a setup
+    // whose stop anchor happens to sit near spot is rejected on its
+    // reward-to-risk rather than silently on band overlap.
+    stopLoss = stopClearOfEntry(entry, stopLoss, "bullish");
+
     if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -257,7 +292,7 @@ const yearHighBreakout: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 260) return null;
 
     const price = closes(daily);
@@ -266,11 +301,13 @@ const yearHighBreakout: Strategy = {
     const avgVolume = averageVolume(daily, 20);
     const currentPrice = quote.price;
 
-    // Find the breakout: a session in the last five that closed above the prior
-    // 52-week high, measured excluding the breakout bar itself.
+    // Find the breakout: a session within a tolerance-scaled window (five at
+    // moderate) that closed above the prior 52-week high, measured excluding
+    // the breakout bar itself.
     let breakoutBarsAgo = -1;
     let priorHigh = NaN;
-    for (let back = 0; back <= 4; back++) {
+    const breakoutWindow = eventWindow(thresholds, 5);
+    for (let back = 0; back < breakoutWindow; back++) {
       const index = daily.length - 1 - back;
       const priorEnd = index - 1;
       if (priorEnd < YEAR_BARS) break;
@@ -296,7 +333,35 @@ const yearHighBreakout: Strategy = {
     const baseWidthPct = ((baseHigh - baseLow) / baseLow) * 100;
     const baseHeight = baseHigh - baseLow;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "New 52-week high",
         true,
@@ -343,16 +408,21 @@ const yearHighBreakout: Strategy = {
     });
     const measuredMove = priorHigh + baseHeight;
     const target = sanitiseBand(targetBand(measuredMove, 3.5));
-    const stopLoss = round2(Math.max(baseHigh * 0.94, priorHigh * 0.92));
+    let stopLoss = round2(Math.max(baseHigh * 0.94, priorHigh * 0.92));
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
+    // Clear the stop of the entry band before judging geometry, so a setup
+    // whose stop anchor happens to sit near spot is rejected on its
+    // reward-to-risk rather than silently on band overlap.
+    stopLoss = stopClearOfEntry(entry, stopLoss, "bullish");
+
     if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -428,7 +498,7 @@ const emaPullback: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 220) return null;
 
     const price = closes(daily);
@@ -469,7 +539,35 @@ const emaPullback: Strategy = {
       daily.slice(-5).reduce((sum, c) => sum + c.volume, 0) / 5;
     const slopePct = Number.isFinite(ema50Then) ? ((ema50Now - ema50Then) / ema50Then) * 100 : NaN;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "Above the 200-day EMA",
         currentPrice > ema200Now,
@@ -537,18 +635,23 @@ const emaPullback: Strategy = {
     // can sit 20% below in a stock that has trended for a year.
     const pullbackLow = lowestLow(daily, 10);
     const structuralStop = Math.min(pullbackLow * 0.985, ema50Now * 0.97);
-    const stopLoss = round2(
+    let stopLoss = round2(
       Math.max(structuralStop, currentPrice - atrNow * thresholds.stopAtrMultiple * 1.5),
     );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
+    // Clear the stop of the entry band before judging geometry, so a setup
+    // whose stop anchor happens to sit near spot is rejected on its
+    // reward-to-risk rather than silently on band overlap.
+    stopLoss = stopClearOfEntry(entry, stopLoss, "bullish");
+
     if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -624,7 +727,7 @@ const goldenCross: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 230) return null;
 
     const price = closes(daily);
@@ -636,7 +739,7 @@ const goldenCross: Strategy = {
     // horizon; a fifteen-session window is a swing trader's idea of fresh and
     // discards almost every genuine occurrence. The extension gate below is what
     // actually stops a stale, already-run entry being taken.
-    const crossBarsAgo = crossedAbove(ema50, ema200, 40);
+    const crossBarsAgo = crossedAbove(ema50, ema200, eventWindow(thresholds, 40));
     if (crossBarsAgo < 0) return null;
 
     const ema50Now = last(ema50);
@@ -656,7 +759,35 @@ const goldenCross: Strategy = {
     const fastRising = Number.isFinite(ema50Then) && ema50Now > ema50Then;
     const slowRising = Number.isFinite(ema200Then) && ema200Now > ema200Then;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "50 EMA crossed above the 200 EMA",
         true,
@@ -696,18 +827,23 @@ const goldenCross: Strategy = {
 
     const entry = sanitiseBand(longEntryBand(currentPrice, 2.4, 0.9));
     const target = sanitiseBand(targetBand(currentPrice * 1.2, 3.5));
-    const stopLoss = round2(
+    let stopLoss = round2(
       Math.max(ema200Now * 0.97, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.5),
     );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
+    // Clear the stop of the entry band before judging geometry, so a setup
+    // whose stop anchor happens to sit near spot is rejected on its
+    // reward-to-risk rather than silently on band overlap.
+    stopLoss = stopClearOfEntry(entry, stopLoss, "bullish");
+
     if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -811,7 +947,35 @@ const relativeStrengthLeader: Strategy = {
 
     if (!Number.isFinite(ema50Now) || !Number.isFinite(ema200Now)) return null;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         `Beating NIFTY by ≥ ${requiredSpread}pp over six months`,
         true,
@@ -853,18 +1017,23 @@ const relativeStrengthLeader: Strategy = {
     const entry = sanitiseBand(longEntryBand(currentPrice, 2.2, 0.9));
     const projected = currentPrice * (1 + (stockLong / 100) * 0.33);
     const target = sanitiseBand(targetBand(projected, 3));
-    const stopLoss = round2(
+    let stopLoss = round2(
       Math.max(ema50Now * 0.96, currentPrice - atrNow * thresholds.stopAtrMultiple * 2.2),
     );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
+    // Clear the stop of the entry band before judging geometry, so a setup
+    // whose stop anchor happens to sit near spot is rejected on its
+    // reward-to-risk rather than silently on band overlap.
+    stopLoss = stopClearOfEntry(entry, stopLoss, "bullish");
+
     if (!bandsAreOrdered(entry, target, stopLoss, "bullish")) return null;
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "positional")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {

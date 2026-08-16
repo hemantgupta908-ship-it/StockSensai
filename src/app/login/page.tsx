@@ -3,28 +3,45 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser, isSupabaseConfigured } from "@/lib/supabase/server";
+import { resolveNext } from "@/lib/auth/destination";
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthArtwork, BrandMark } from "@/components/auth/auth-artwork";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { DISCLAIMER_SHORT } from "@/components/disclaimer";
+import { DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to sync your watchlist and journal across devices.",
 };
 
+/**
+ * Reasons `/auth/callback` can bounce someone back here.
+ *
+ * Anything not in this map is ignored rather than echoed — the value arrives in
+ * a query string, so rendering it verbatim would let a crafted link put
+ * arbitrary text on the sign-in screen.
+ */
+const CALLBACK_ERRORS: Record<string, string> = {
+  cancelled: "Google sign-in was cancelled. Nothing has changed on your account.",
+  provider: "Google couldn’t complete the sign-in. Try again, or use your email and password.",
+  auth: "That sign-in link didn’t work — it may have already been used, or expired.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
-  // Only ever bounce back to a path inside this app — an absolute URL here
-  // would turn the sign-in screen into an open redirect.
-  const destination = next && next.startsWith("/") && !next.startsWith("//") ? next : "/home";
+  const { next, error: callbackError } = (await searchParams) || {};
+  const destination = resolveNext(next);
 
-  const user = await getCurrentUser();
-  if (user) redirect(destination);
+  try {
+    const user = await getCurrentUser();
+    if (user) redirect(destination);
+  } catch (error: any) {
+    if (error?.digest?.startsWith?.("NEXT_REDIRECT")) throw error;
+    // Otherwise continue to render login form in demo mode
+  }
 
   return (
     <main className="min-h-dvh bg-bg lg:grid lg:place-items-center lg:p-6">
@@ -106,7 +123,11 @@ export default async function LoginPage({
             </p>
 
             <div className="mt-7">
-              <LoginForm configured={isSupabaseConfigured} next={destination} />
+              <LoginForm
+                configured={isSupabaseConfigured}
+                next={destination}
+                initialError={(callbackError && CALLBACK_ERRORS[callbackError]) || null}
+              />
             </div>
 
             <p className="mt-8 text-center text-caption leading-relaxed text-label-secondary/75">

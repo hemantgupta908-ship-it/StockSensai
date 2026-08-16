@@ -9,16 +9,18 @@ import {
   type TradingStyle,
 } from "@/lib/strategies/types";
 import { formatINR } from "@/lib/utils";
+import { EquityChart, type EquityDataPoint } from "./equity-chart";
+import { useMemo } from "react";
+import { useSectorAllocation } from "./use-sector-allocation";
+import { SectorHeatmap } from "./sector-heatmap";
 
-interface PortfolioAnalyticsProps {
+export interface PortfolioAnalyticsProps {
   entries: PortfolioEntry[];
   quotes: Record<string, { price: number }>;
 }
 
 /** Matches the accent each style is given on the Strategies screen. */
 const STYLE_BAR_COLOUR: Record<TradingStyle, string> = {
-  intraday: "bg-red",
-  "short-term": "bg-amber",
   swing: "bg-blue",
   positional: "bg-purple",
   "long-term": "bg-green",
@@ -29,8 +31,12 @@ function isTradingStyle(value: string | null | undefined): value is TradingStyle
 }
 
 export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps) {
-  const openEntries = entries.filter((e) => e.exitPrice === null);
-  const closedEntries = entries.filter((e) => e.exitPrice !== null);
+  // Memoised because `equityCurveData` keys off `closedEntries`, which then
+  // feeds `EquityChart`'s effect. A fresh array each render would tear down and
+  // rebuild the whole lightweight-chart instance on every parent render.
+  const openEntries = useMemo(() => entries.filter((e) => e.exitPrice === null), [entries]);
+  const closedEntries = useMemo(() => entries.filter((e) => e.exitPrice !== null), [entries]);
+  const { allocation, loading: allocationLoading } = useSectorAllocation(entries, quotes);
 
   // Closed trades win rate analytics
   const closedTradesPnl = closedEntries.map((e) => ({
@@ -79,6 +85,45 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
   );
 
   const usedStyles = TRADING_STYLES.filter((s) => styleAllocation.byStyle[s] > 0);
+
+  // Realized P&L over time (Equity Curve)
+  const equityCurveData = useMemo(() => {
+    if (closedEntries.length === 0) return [];
+
+    // Sort closed trades chronologically by exit date
+    const chronological = [...closedEntries].sort((a, b) => {
+      const dateA = a.exitDate || "";
+      const dateB = b.exitDate || "";
+      return dateA.localeCompare(dateB);
+    });
+
+    let cumulative = 0;
+    const dataPoints: EquityDataPoint[] = [];
+
+    // Group by exitDate so multiple trades on the same day collapse into one step.
+    const byDate = new Map<string, number>();
+    for (const trade of chronological) {
+      if (!trade.exitDate) continue;
+      // Strip time if it's a full ISO string, or assume it's YYYY-MM-DD
+      const dateKey = trade.exitDate.split("T")[0];
+      const pnl = ((trade.exitPrice ?? 0) - trade.entryPrice) * trade.quantity;
+      byDate.set(dateKey, (byDate.get(dateKey) || 0) + pnl);
+    }
+
+    for (const [date, dailyPnl] of Array.from(byDate.entries())) {
+      cumulative += dailyPnl;
+      dataPoints.push({ time: date, value: cumulative });
+    }
+
+    return dataPoints;
+  }, [closedEntries]);
+
+  // The running maximum, which is what "peak" means. The last point is just the
+  // current net — equal to the peak only when the curve never drew down.
+  const peakPnl = useMemo(
+    () => equityCurveData.reduce((max, p) => Math.max(max, p.value), 0),
+    [equityCurveData],
+  );
 
   return (
     <motion.div
@@ -157,6 +202,48 @@ export function PortfolioAnalytics({ entries, quotes }: PortfolioAnalyticsProps)
           </div>
         </div>
       )}
+
+      {/* Sector Allocation Heatmap */}
+      {openEntries.length > 0 && (
+        <div className="rounded-card border border-separator/40 bg-bg-secondary p-3.5 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+          <div className="flex items-center justify-between text-caption font-semibold text-label mb-3">
+            <span className="flex items-center gap-1.5">
+              <ChartPie size={14} className="text-purple" />
+              Sector Allocation
+            </span>
+          </div>
+          <SectorHeatmap allocation={allocation} loading={allocationLoading} />
+        </div>
+      )}
+
+      {/* Equity Curve */}
+      <div className="rounded-card border border-separator/40 bg-bg-secondary p-3.5 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
+        <div className="flex items-center justify-between text-caption font-semibold text-label mb-2">
+          <span className="flex items-center gap-1.5">
+            <TrendUp size={14} className="text-green" />
+            Realized P&L Equity Curve
+          </span>
+          {equityCurveData.length > 0 && (
+            <span className="text-caption2 text-label-secondary/60">
+              Net: {formatINR(equityCurveData[equityCurveData.length - 1].value, { decimals: 0 })}
+              {peakPnl > equityCurveData[equityCurveData.length - 1].value && (
+                <> · peak {formatINR(peakPnl, { decimals: 0 })}</>
+              )}
+            </span>
+          )}
+        </div>
+        <div className="relative h-[200px] w-full mt-2">
+          {equityCurveData.length > 0 ? (
+            <EquityChart data={equityCurveData} />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-secondary/40 text-center text-label-secondary/60">
+              <ChartBar size={24} className="mb-2 opacity-50" />
+              <p className="text-caption font-semibold text-label">No closed trades yet</p>
+              <p className="text-caption2 mt-0.5">Close your first trade to unlock your Equity Curve.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 }

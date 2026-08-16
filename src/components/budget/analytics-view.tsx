@@ -13,6 +13,7 @@ import { ChartPie as PieIcon, CaretDown, CaretUp, CreditCard, X } from "@phospho
 import { TRANSFER_CATEGORY_PK } from "@/lib/budget/types";
 
 import { cn } from "@/lib/utils";
+import { getSmoothPath } from "@/lib/chart-path";
 import {
   dayKey,
   getCumulativeTotals,
@@ -28,7 +29,7 @@ import { amountRatioToPrimaryCurrencyGivenPk } from "@/lib/budget/currency";
 import { getIcon } from "@/lib/budget/icons";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import { IconBadge } from "./icon-picker";
-import { Amount, AnimatedNumberTicker, Card, CategoryDot, EmptyState, SegmentedTabs, Section } from "./budget-ui";
+import { Amount, AnimatedNumberTicker, Card, CategoryDot, EmptyState, SegmentedTabs, Section, RandomEntranceAnimator } from "./budget-ui";
 
 type Range = "month" | "3months" | "year";
 
@@ -133,7 +134,6 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
   const { transactions  } = useBudget(useShallow((s) => ({ transactions: s.transactions })));
   const [selectedPk, setSelectedPk] = useState<string | null>(null);
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set());
-
   const toggleSubcategories = (catPk: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedSubcategories((prev) => {
@@ -148,6 +148,7 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
   };
   const [expanded, setExpanded] = useState(false);
   const entries = [...byCategory.entries()];
+
   const total = entries.reduce((sum, [, v]) => sum + v, 0);
 
   const displayedEntries = useMemo(() => {
@@ -349,14 +350,16 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
         ) : null}
 
         <div className="relative flex flex-1 items-center justify-center py-2 w-full">
-          <svg viewBox="0 0 160 160" className={cn("shrink-0 overflow-visible", large ? "h-[450px] w-[450px] max-h-[460px] max-w-full" : "h-[220px] w-[220px]")}>
-            <g transform="rotate(-90 80 80)">
-              {svgElements}
-              {selectedSvgElements}
-            </g>
-            {floatingIcons}
-            {selectedFloatingIcons}
-          </svg>
+          <RandomEntranceAnimator className="shrink-0 flex items-center justify-center w-full">
+            <svg viewBox="0 0 160 160" className={cn("shrink-0 overflow-visible", large ? "h-[450px] w-[450px] max-h-[460px] max-w-full" : "h-[220px] w-[220px]")}>
+              <g transform="rotate(-90 80 80)">
+                {svgElements}
+                {selectedSvgElements}
+              </g>
+              {floatingIcons}
+              {selectedFloatingIcons}
+            </svg>
+          </RandomEntranceAnimator>
         </div>
 
         {!reverse && !hideLegend && counts ? (
@@ -661,29 +664,6 @@ export function CategoryBreakdown({ byCategory, title, hideLegend, noCard, layou
   );
 }
 
-function getSmoothPath(points: { x: number; y: number }[], tension = 0.15): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-  if (points.length === 2) return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)},${points[1].y.toFixed(1)}`;
-
-  let d = `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
-
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-
-  return d;
-}
 
 /** Running balance across the range. */
 export function LineGraph({ start, end }: { start: Date; end: Date }) {
@@ -810,6 +790,7 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
 
       <div className="relative">
         <div className="relative overflow-x-auto no-scrollbar" ref={scrollRef}>
+        <RandomEntranceAnimator>
         <div style={{ width: `${Math.max(100, (width / 320) * 100)}%`, minWidth: '100%' }}>
           <div className="relative h-[130px] xl:h-[175px]">
           <svg
@@ -937,6 +918,7 @@ export function LineGraph({ start, end }: { start: Date; end: Date }) {
               })}
             </div>
           </div>
+        </RandomEntranceAnimator>
         </div>
 
         {/* Y-axis Labels */}
@@ -1070,7 +1052,6 @@ export function Heatmap({ start, end }: { start: Date; end: Date }) {
   );
 }
 
-/** This-month summary for the home screen. */
 export function SpendingSummaryWidget() {
   const { transactions, allWallets, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives })));
 
@@ -1079,19 +1060,19 @@ export function SpendingSummaryWidget() {
   }, [transactions, allWallets, objectives]);
 
   return (
-    <Card>
-      <div className="grid grid-cols-3 gap-3 text-center">
+    <Card className="h-full flex items-center justify-center">
+      <div className="grid grid-cols-3 gap-3 text-center w-full">
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Income</p>
-          <Amount value={summary.income} className="text-subhead font-semibold text-green" animated />
+          <Amount value={summary.income} className="text-subhead font-semibold text-green" />
         </div>
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Expense</p>
-          <Amount value={summary.expense} className="text-subhead font-semibold text-red" animated />
+          <Amount value={summary.expense} className="text-subhead font-semibold text-red" />
         </div>
         <div>
           <p className="text-caption uppercase tracking-wide text-label-secondary/50">Net</p>
-          <Amount value={summary.net} colour showSign className="text-subhead font-semibold" animated />
+          <Amount value={summary.net} colour showSign className="text-subhead font-semibold" />
         </div>
       </div>
     </Card>
@@ -1175,26 +1156,26 @@ export function OverallCashFlowHealthWidget() {
           </div>
         </div>
 
-        {/* Right Metric Pillars in a sleek horizontal row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 text-left sm:text-right items-center">
-          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+        {/* Metric Pillars in a horizontally scrollable strip on mobile, flex row on desktop */}
+        <div className="flex items-center gap-2.5 sm:gap-6 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Spend</p>
             <Amount value={stats.avgMonthlySpend} className="text-subhead font-bold text-red" animated />
           </div>
 
-          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Income</p>
             <Amount value={stats.avgMonthlyIncome} className="text-subhead font-bold text-green" animated />
           </div>
 
-          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Savings Rate</p>
             <span className={cn("text-subhead font-bold tabular-nums block", stats.savingsRate >= 0 ? "text-green" : "text-red")}>
               {stats.savingsRate >= 0 ? `+${stats.savingsRate}%` : `${stats.savingsRate}%`}
             </span>
           </div>
 
-          <div className="px-2.5 py-1 rounded-lg bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent">
+          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Est. Runway</p>
             <span className="text-subhead font-bold text-label tabular-nums block">
               {stats.runwayMonths}
@@ -1224,20 +1205,22 @@ export function CategoryStackedBar({ byCategory, title }: { byCategory: Map<stri
           <Amount value={total} className="font-medium text-label" />
         </div>
       ) : null}
-      <div className="flex h-6 w-full overflow-hidden rounded-md bg-fill/5">
-        {entries.map(([categoryPk, value]) => {
-          const category = byPk.get(categoryPk);
-          const share = value / total;
-          return (
-            <div
-              key={categoryPk}
-              className="h-full transition-opacity hover:opacity-80"
-              style={{ width: `${share * 100}%`, backgroundColor: category?.colour ?? "#8E8E93" }}
-              title={`${category?.name ?? "Uncategorised"} — ${Math.round(share * 100)}% (${value.toFixed(2)})`}
-            />
-          );
-        })}
-      </div>
+        <RandomEntranceAnimator>
+          <div className="flex h-6 w-full overflow-hidden rounded-md bg-fill/5">
+            {entries.map(([categoryPk, value]) => {
+              const category = byPk.get(categoryPk);
+              const share = value / total;
+              return (
+                <div
+                  key={categoryPk}
+                  className="h-full transition-opacity hover:opacity-80"
+                  style={{ width: `${share * 100}%`, backgroundColor: category?.colour ?? "#8E8E93" }}
+                  title={`${category?.name ?? "Uncategorised"} — ${Math.round(share * 100)}% (${value.toFixed(2)})`}
+                />
+              );
+            })}
+          </div>
+        </RandomEntranceAnimator>
     </div>
   );
 }

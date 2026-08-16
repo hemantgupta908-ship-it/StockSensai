@@ -122,3 +122,24 @@ export function formatDate(iso: string | Date) {
   const d = typeof iso === "string" ? new Date(iso) : iso;
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+/**
+ * Today's date as `YYYY-MM-DD` in the *viewer's* timezone.
+ *
+ * `toISOString().slice(0, 10)` is the tempting one-liner and it is wrong
+ * everywhere east of UTC: it converts to UTC first, so every moment before
+ * 05:30 IST reports yesterday. As a form default that backdates the trade; as
+ * an `<input type="date" max>` it makes today unselectable, so a user logging a
+ * morning fill cannot enter the date it actually happened on.
+ */
+export function todayISO(): string {
+  return toDateInputValue(new Date());
+}
+
+/** A `Date` as `YYYY-MM-DD` in local time, for `<input type="date">`. */
+export function toDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

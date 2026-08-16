@@ -1,22 +1,44 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { DEFAULT_SIGNED_IN_PATH, resolveNext } from "@/lib/auth/destination";
 
 /**
- * Exchanges the email-confirmation code for a session, then redirects into the
- * app. Supabase sends users here from the link in their signup email.
+ * Exchanges an auth code for a session, then redirects into the app.
+ *
+ * Three flows land here: the link in a signup confirmation email, the link in a
+ * password-reset email, and the return leg of Google OAuth. They differ only in
+ * where `next` points.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const requested = url.searchParams.get("next");
+  const next = resolveNext(url.searchParams.get("next"));
 
-  // Only ever bounce to a path inside this app. `new URL("https://evil.com",
-  // origin)` resolves to the absolute URL and `//evil.com` to a protocol-
-  // relative one, so an unchecked `next` would hand an attacker a redirect that
-  // fires the instant the session cookie is set. Same guard as /login.
-  const next =
-    requested && requested.startsWith("/") && !requested.startsWith("//") ? requested : "/home";
+  /** Back to the sign-in screen with a reason, keeping the original destination. */
+  const bounce = (reason: string) => {
+    const login = new URL("/login", url.origin);
+    login.searchParams.set("error", reason);
+    if (next !== DEFAULT_SIGNED_IN_PATH) login.searchParams.set("next", next);
+    return NextResponse.redirect(login);
+  };
+
+  /**
+   * The provider can refuse before any code is issued — most often because the
+   * user hit "Cancel" on Google's consent screen, which is not an error worth
+   * shouting about. Without this branch that lands on a blank form, since the
+   * code below would simply fall through to the generic failure.
+   */
+  const providerError = url.searchParams.get("error");
+  if (providerError) {
+    if (providerError === "access_denied") return bounce("cancelled");
+    console.error(
+      "[auth/callback] provider error:",
+      providerError,
+      url.searchParams.get("error_description") ?? "",
+    );
+    return bounce("provider");
+  }
 
   if (code) {
     const supabase = await getSupabaseServerClient();
@@ -27,5 +49,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=auth", url.origin));
+  return bounce("auth");
 }

@@ -7,6 +7,9 @@ import { ArrowRight, CheckCircle, Eye, EyeSlash, Info } from "@phosphor-icons/re
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { REMEMBER_COOKIE, REMEMBERED_MAX_AGE } from "@/lib/auth/remember";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
+import { isDriveStorageEnabled, isGoogleAuthEnabled } from "@/lib/env";
+import { DRIVE_SCOPE } from "@/lib/drive/token";
 import { Button } from "@/components/ui/button";
 
 type Mode = "signin" | "signup";
@@ -47,7 +50,7 @@ const LEGACY_USERNAME_DOMAIN = "stocksensei.app";
  * actually enabled in the Supabase project. Showing it unconditionally would
  * mean a prominent button that errors for every self-hosted clone.
  */
-const GOOGLE_ENABLED = process.env.NEXT_PUBLIC_OAUTH_GOOGLE === "1";
+const GOOGLE_ENABLED = isGoogleAuthEnabled;
 
 const FIELD =
   "w-full rounded-[12px] border border-separator/50 bg-bg px-4 py-3 text-body text-label " +
@@ -80,7 +83,16 @@ function GoogleIcon() {
   );
 }
 
-export function LoginForm({ configured, next = "/home" }: { configured: boolean; next?: string }) {
+export function LoginForm({
+  configured,
+  next = DEFAULT_SIGNED_IN_PATH,
+  initialError = null,
+}: {
+  configured: boolean;
+  next?: string;
+  /** Message from a failed `/auth/callback` round trip, already made safe. */
+  initialError?: string | null;
+}) {
   const router = useRouter();
   const emailId = useId();
   const passwordId = useId();
@@ -92,7 +104,7 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   // With no Supabase project the app is still fully usable; say so plainly
   // rather than presenting a sign-in form that cannot work.
@@ -116,7 +128,12 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             </p>
           </div>
         </div>
-        <Button fullWidth size="lg" className={BRAND} onClick={() => router.push("/home")}>
+        <Button
+          fullWidth
+          size="lg"
+          className={BRAND}
+          onClick={() => router.push(DEFAULT_SIGNED_IN_PATH)}
+        >
           Continue to app
           <ArrowRight size={17} />
         </Button>
@@ -252,19 +269,43 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
     setStatus("reset-sent");
   }
 
+  /**
+   * Hands off to Google. On success this never returns — the browser is already
+   * navigating — so `status` is only ever reset on the failure path.
+   */
   async function signInWithGoogle() {
     setError(null);
+    setStatus("working");
     applyRememberChoice();
+
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
+    if (!supabase) {
+      setStatus("idle");
+      return;
+    }
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        /**
+         * Ask for the app-folder scope during sign-in, not on first save.
+         *
+         * A Google account's data lives in that account's own Drive, so the
+         * scope is not an optional extra to be requested later — it is where
+         * the user's watchlist and budget are about to go. Bundling it into the
+         * one consent screen also means a single decision rather than a second
+         * Google prompt appearing mid-task, which reads like something has gone
+         * wrong.
+         */
+        ...(isDriveStorageEnabled ? { scopes: DRIVE_SCOPE } : {}),
       },
     });
-    if (oauthError) setError(oauthError.message);
+
+    if (oauthError) {
+      setError(oauthError.message);
+      setStatus("idle");
+    }
   }
 
   if (status === "check-email" || status === "reset-sent") {
@@ -438,6 +479,19 @@ export function LoginForm({ configured, next = "/home" }: { configured: boolean;
             <GoogleIcon />
             Google
           </button>
+
+          {/*
+            Google's consent screen is about to ask for Drive access, which is
+            alarming without context — it reads like the app wants to rummage
+            through your files. Saying why first, in one line, is the difference
+            between a considered yes and a bounce.
+          */}
+          {isDriveStorageEnabled && (
+            <p className="text-center text-caption leading-relaxed text-label-secondary/70">
+              Sign in with Google and your watchlist, journal and budget are saved to a private
+              folder in your own Google Drive — never to our servers.
+            </p>
+          )}
         </>
       )}
 

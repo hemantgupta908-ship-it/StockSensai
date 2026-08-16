@@ -351,7 +351,6 @@ export function UpcomingWidget() {
     // Include unbilled credit card spend as upcoming
     for (const wallet of allWallets.list) {
       if (wallet.accountType === 2) { // AccountType.creditCard
-        const { getCreditCardStatus } = require("@/lib/budget/credit");
         const cardStatus = getCreditCardStatus(wallet, transactions);
         if (cardStatus.currentCycleSpend > 0) {
           const ratio = amountRatioToPrimaryCurrency(allWallets, wallet.currency);
@@ -364,16 +363,16 @@ export function UpcomingWidget() {
   }, [transactions, allWallets]);
 
   return (
-    <Link href="/budget/upcoming" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
-      <Card className="hover:bg-fill/5 transition-colors">
-        <div className="grid grid-cols-2 gap-3 text-center">
+    <Link href="/budget/upcoming" className="block h-full transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
+      <Card className="h-full flex items-center justify-center hover:bg-fill/5 transition-colors">
+        <div className="grid grid-cols-2 gap-3 text-center w-full">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Upcoming</p>
-            <Amount value={upcomingTotal} className="text-subhead font-semibold text-label" animated />
+            <Amount value={upcomingTotal} className="text-subhead font-semibold text-label" />
           </div>
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Overdue</p>
-            <Amount value={overdueTotal} className="text-subhead font-semibold text-red" animated />
+            <Amount value={overdueTotal} className="text-subhead font-semibold text-red" />
           </div>
         </div>
       </Card>
@@ -383,7 +382,13 @@ export function UpcomingWidget() {
 
 /** Lent / borrowed summary for the home screen. */
 export function CreditDebtWidget() {
-  const { transactions, allWallets, objectives  } = useBudget(useShallow((s) => ({ transactions: s.transactions, allWallets: s.allWallets, objectives: s.objectives })));
+  const { transactions, allWallets, objectives } = useBudget(
+    useShallow((s) => ({
+      transactions: s.transactions,
+      allWallets: s.allWallets,
+      objectives: s.objectives,
+    })),
+  );
 
   const { lent, borrowed, activeLoans } = useMemo(() => {
     let lentSum = 0;
@@ -413,29 +418,29 @@ export function CreditDebtWidget() {
 
   if (activeLoans.length === 0 && lent === 0 && borrowed === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+      <div className="flex h-full items-center gap-3 rounded-[18px] bg-bg-secondary p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fill/5 text-label-secondary">
           <Repeat size={20} />
         </div>
         <div className="flex-1">
           <span className="block text-subhead font-medium text-label">No active loans</span>
-          <span className="block text-caption text-label-secondary/60">You haven't lent or borrowed any money</span>
+          <span className="block text-caption text-label-secondary/60">You haven&apos;t lent or borrowed any money</span>
         </div>
       </div>
     );
   }
 
   return (
-    <Link href="/budget/loans" className="block transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
-      <Card className="hover:bg-fill/5 transition-colors">
-        <div className="grid grid-cols-2 gap-3 text-center">
+    <Link href="/budget/loans" className="block h-full transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent">
+      <Card className="h-full flex items-center justify-center hover:bg-fill/5 transition-colors">
+        <div className="grid grid-cols-2 gap-3 text-center w-full">
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Lent</p>
-            <Amount value={lent} className="text-subhead font-semibold text-green" animated />
+            <Amount value={lent} className="text-subhead font-semibold text-green" />
           </div>
           <div>
             <p className="text-caption uppercase tracking-wide text-label-secondary/50">Borrowed</p>
-            <Amount value={borrowed} className="text-subhead font-semibold text-red" animated />
+            <Amount value={borrowed} className="text-subhead font-semibold text-red" />
           </div>
         </div>
       </Card>

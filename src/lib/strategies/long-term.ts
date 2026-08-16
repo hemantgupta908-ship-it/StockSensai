@@ -8,7 +8,7 @@ import {
   rewardToRisk,
   riskFromStopDistance,
   round2,
-  scoreConditions,
+  scoreSignal,
   stopClearOfEntry,
   type Strategy,
   type StrategyCondition,
@@ -178,7 +178,7 @@ const valueInvesting: Strategy = {
 
     if (!requiredConditionsMet(conditions)) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     // Re-rating target: close two thirds of the gap to the sector median P/E.
@@ -340,7 +340,7 @@ const growthInvesting: Strategy = {
 
     if (!requiredConditionsMet(conditions)) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     // Project earnings forward 3 years at a conservatively decayed CAGR and
@@ -485,7 +485,7 @@ const dividendGrowth: Strategy = {
 
     if (!requiredConditionsMet(conditions)) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     // If the dividend compounds and the yield reverts to its current level,
@@ -650,7 +650,7 @@ const thematicGrowth: Strategy = {
 
     if (!requiredConditionsMet(conditions)) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     const projectedGrowth = Math.pow(1 + (f.revenueCagr3y * 0.7) / 100, 3);
@@ -789,7 +789,7 @@ const qualityMomentum: Strategy = {
 
     if (!requiredConditionsMet(conditions)) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     const conservativeGrowth = Math.max(Math.min(f.earningsCagr3y, 22), 8) * 0.7;

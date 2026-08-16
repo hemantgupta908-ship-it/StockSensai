@@ -3,13 +3,13 @@ import { useShallow } from "zustand/react/shallow";
 
 import { useMemo, useRef, useState } from "react";
 import { CheckCircle, DownloadSimple, Trash, UploadSimple, X } from "@phosphor-icons/react";
-import * as XLSX from "xlsx";
 
 import { cn } from "@/lib/utils";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import { createTransaction, matchAssociatedTitle } from "@/lib/budget/factory";
 import type { Transaction } from "@/lib/budget/types";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
+import { rowValues } from "@/lib/budget/xlsx-cell";
 
 interface PendingTransaction {
   id: string; // Temporary ID for React keys
@@ -39,24 +39,48 @@ export function ImportPreviewModal({
 
   const currentWallet = wallets.find(w => w.walletPk === defaultWalletFk) ?? wallets[0];
 
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["Date (DD/MM/YYYY)", "Description", "Debit", "Credit"]
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-    XLSX.writeFile(wb, "Transactions_Template.xlsx");
+  const handleDownloadTemplate = async () => {
+    setError(null);
+    try {
+      const ExcelJS = await import("exceljs");
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Transactions");
+      ws.addRow(["Date (DD/MM/YYYY)", "Description", "Debit", "Credit"]);
+
+      // ExcelJS has no `writeFile` in the browser — it writes buffers, and the
+      // download is ours to trigger.
+      const buffer = await wb.xlsx.writeBuffer();
+      const url = URL.createObjectURL(
+        new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Transactions_Template.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Could not build the template file.");
+      console.error(err);
+    }
   };
 
-  const parseDate = (dateStr: string | number): string => {
+  const parseDate = (dateStr: string | number | Date): string => {
+    // ExcelJS resolves date-formatted cells to `Date` itself, so the serial
+    // arithmetic below only ever sees a cell that was genuinely numeric.
+    if (dateStr instanceof Date) {
+      return Number.isNaN(dateStr.getTime()) ? new Date().toISOString() : dateStr.toISOString();
+    }
+
     if (typeof dateStr === "number") {
       // Excel serial date
       const date = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
       return date.toISOString();
     }
-    
+
     if (typeof dateStr !== "string") return new Date().toISOString();
-    
+
     // Parse DD/MM/YYYY
     const parts = dateStr.trim().split(/[-/]/);
     if (parts.length === 3) {
@@ -67,24 +91,37 @@ export function ImportPreviewModal({
     return new Date().toISOString();
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setError(null);
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    e.target.value = ""; // reset input
+
+    {
       try {
-        const data = event.target?.result;
-        const wb = XLSX.read(data, { type: "binary" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-        
+        const ExcelJS = await import("exceljs");
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(await file.arrayBuffer());
+
+        const ws = wb.worksheets[0];
+        if (!ws) {
+          setError("That file has no sheets in it.");
+          return;
+        }
+
+        // Flattened so the mapping below sees the plain grid the old reader
+        // handed it — see `rowValues` for what ExcelJS hands over instead.
+        const rows: unknown[][] = [];
+        ws.eachRow({ includeEmpty: false }, (row) => {
+          rows.push(rowValues(row.values as unknown[]));
+        });
+
         // Skip header
-        const dataRows = rows.slice(1).filter(r => r.length > 0);
-        
+        const dataRows = rows.slice(1).filter((r) => r.some((c) => c !== null && c !== ""));
+
         const parsed: PendingTransaction[] = dataRows.map((row, idx) => {
-          const dateStr = row[0] ?? "";
+          const dateStr = (row[0] ?? "") as string | number | Date;
           const desc = String(row[1] ?? "");
           const debit = parseFloat(String(row[2]).replace(/[^0-9.-]/g, "")) || 0;
           const credit = parseFloat(String(row[3]).replace(/[^0-9.-]/g, "")) || 0;
@@ -127,9 +164,7 @@ export function ImportPreviewModal({
         setError("Failed to parse the file. Please ensure it is a valid Excel file matching the template.");
         console.error(err);
       }
-    };
-    reader.readAsBinaryString(file);
-    e.target.value = ""; // reset input
+    }
   };
 
   const handleUpdatePending = (id: string, updates: Partial<PendingTransaction>) => {

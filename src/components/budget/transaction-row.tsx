@@ -44,7 +44,7 @@ export function TransactionRow({
   large?: boolean;
 }) {
   const { byPk } = useCategoryLookup();
-  const { wallets, settings, upsertTransaction, upsertTransactions, objectives  } = useBudget(useShallow((s) => ({ wallets: s.wallets, settings: s.settings, upsertTransaction: s.upsertTransaction, upsertTransactions: s.upsertTransactions, objectives: s.objectives })));
+  const { wallets, settings, upsertTransaction, upsertTransactions, objectives, transactions  } = useBudget(useShallow((s) => ({ wallets: s.wallets, settings: s.settings, upsertTransaction: s.upsertTransaction, upsertTransactions: s.upsertTransactions, objectives: s.objectives, transactions: s.transactions })));
 
   const category = byPk.get(transaction.categoryFk);
   const subCategory = transaction.subCategoryFk ? byPk.get(transaction.subCategoryFk) : null;
@@ -56,6 +56,13 @@ export function TransactionRow({
     transaction.type !== TransactionSpecialType.debt;
   const unsettled = scheduled && !transaction.paid && !transaction.skipPaid;
   const transfer = isTransfer(transaction);
+  
+  const pairedTransaction = transfer && transaction.pairedTransactionFk
+    ? transactions.find((t) => t.transactionPk === transaction.pairedTransactionFk)
+    : null;
+  const pairedWallet = pairedTransaction
+    ? wallets.find((w) => w.walletPk === pairedTransaction.walletFk)
+    : null;
 
   /** Settle the transaction and, if it repeats, write the next instance. */
   function pay() {
@@ -142,9 +149,13 @@ export function TransactionRow({
             ) : null}
             {transaction.skipPaid ? <span className="text-label-secondary/50">Skipped</span> : null}
             <span className="truncate">
-              {showDate ? `${new Date(transaction.dateCreated).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ` : ""}
-              {subCategory ? `${category?.name} › ${subCategory.name}` : (transfer && (transaction.name === "Card Payment" || transaction.name === "Cycle Payment") ? "Card Payment" : (category?.name ?? ""))}
-              {showAccount || settings.accountLabel ? ` · ${wallet?.name ?? ""}` : ""}
+              {showDate ? `${new Date(transaction.dateCreated).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} · ` : ""}
+              {transfer && pairedWallet ? (
+                `${transaction.income ? pairedWallet.name : (wallet?.name ?? "Unknown")} → ${transaction.income ? (wallet?.name ?? "Unknown") : pairedWallet.name}`
+              ) : (
+                subCategory ? `${category?.name} › ${subCategory.name}` : (transfer && (transaction.name === "Card Payment" || transaction.name === "Cycle Payment") ? "Card Payment" : (category?.name ?? ""))
+              )}
+              {!transfer && (showAccount || settings.accountLabel) ? ` · ${wallet?.name ?? ""}` : ""}
               {transaction.reoccurrence !== null && transaction.periodLength !== null
                 ? ` · ${reoccurrenceLabel(transaction.reoccurrence, transaction.periodLength)}`
                 : ""}

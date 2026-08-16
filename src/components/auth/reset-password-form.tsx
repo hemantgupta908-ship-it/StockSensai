@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle, Eye, EyeSlash, Warning } from "@phosphor-icons/react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 import { Button } from "@/components/ui/button";
 
 /** Matches the sign-in CTA; see the note on `BRAND` in `login-form.tsx`. */
@@ -102,7 +103,7 @@ export function ResetPasswordForm({ configured }: { configured: boolean }) {
           size="lg"
           className={BRAND}
           onClick={() => {
-            router.push("/home");
+            router.push(DEFAULT_SIGNED_IN_PATH);
             router.refresh();
           }}
         >

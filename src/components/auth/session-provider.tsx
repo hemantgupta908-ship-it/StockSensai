@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { clearDriveToken } from "@/lib/drive/token";
 
 interface SessionValue {
   user: User | null;
@@ -56,6 +57,10 @@ export function SessionProvider({
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     await supabase.auth.signOut();
+    // The Drive token outlives the Supabase session otherwise — it is held in a
+    // module variable, not a cookie — and signing into a second account in the
+    // same tab would then write the first account's Drive.
+    clearDriveToken();
     setUser(null);
   };
 

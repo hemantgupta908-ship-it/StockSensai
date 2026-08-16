@@ -66,4 +66,12 @@ export interface RecommendationFeed {
   isLiveData: boolean;
   /** How many instruments were screened to produce this feed. */
   universeSize: number;
+  /**
+   * True when no screen has finished yet and one is running in the background.
+   *
+   * `recommendations` is empty in that case and means "not computed yet", which
+   * is a different statement from "nothing qualified" — the UI must not render
+   * its no-setups empty state for it.
+   */
+  warming?: boolean;
 }

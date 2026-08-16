@@ -29,3 +29,35 @@ export const marketDataProviderName: ProviderName = PROVIDER_NAMES.includes(
 
 /** Shared secret used to protect the daily recompute cron endpoint. */
 export const cronSecret = process.env.CRON_SECRET ?? "";
+
+/**
+ * Sentry ingest endpoint. Absent by default, and absence is a supported state:
+ * the SDK initialises to a no-op without it, so a fresh clone still boots with
+ * no configuration and reports nothing anywhere.
+ */
+export const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? "";
+
+export const isSentryConfigured = sentryDsn.startsWith("http");
+
+/** Whether the sign-in screen offers Google. */
+export const isGoogleAuthEnabled = process.env.NEXT_PUBLIC_OAUTH_GOOGLE === "1";
+
+/**
+ * The Google OAuth client ID, as used by the browser.
+ *
+ * Distinct from the copy pasted into the Supabase dashboard, even though it is
+ * the same string: Supabase uses it to *authenticate* the user, while the
+ * browser needs it to mint Drive access tokens for the account's own storage.
+ * Without it, Google sign-in still works — those users simply have nowhere of
+ * their own to sync to, and stay on this device.
+ */
+export const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+/**
+ * Whether a Google user's data can be kept in their own Drive.
+ *
+ * Both halves are required. The client ID alone is useless if nobody can sign
+ * in with Google, and Google sign-in without a client ID is just an alternative
+ * password.
+ */
+export const isDriveStorageEnabled = isGoogleAuthEnabled && googleClientId.length > 20;

@@ -24,6 +24,8 @@ export type WatchlistItemRow = {
   exchange: string;
   note: string | null;
   price_at_addition: number | null;
+  alert_above: number | null;
+  alert_below: number | null;
   created_at: string;
 };
 
@@ -95,6 +97,41 @@ export type BudgetStoreRow = {
   payload: unknown;
   /** A serialised `BudgetSettings` from `src/lib/budget/defaults.ts`. */
   settings: unknown;
+  /**
+   * Optimistic-concurrency counter. A writer updates `where revision = <the one
+   * it read>`, so a device working from a stale copy matches no row and
+   * reconciles instead of overwriting. See `src/lib/budget/sync.ts`.
+   */
+  revision: number;
+  updated_at: string;
+};
+export type RecommendationHistoryRow = {
+  id: string;
+  stock_ticker: string;
+  strategy_id: string;
+  trading_style: string;
+  risk_tolerance: string;
+  buy_range_mid: number;
+  target_price: number;
+  stop_loss: number;
+  estimated_hold_days: number;
+  status: string;
+  generated_at: string;
+  evaluated_at: string | null;
+};
+
+export type StrategyPerformanceRow = {
+  strategy_id: string;
+  win_rate: number;
+  total_trades: number;
+  updated_at: string;
+};
+
+export type SectorMedianRow = {
+  sector: string;
+  pe: number;
+  pb: number;
+  sample_size: number;
   updated_at: string;
 };
 
@@ -108,7 +145,7 @@ export type Database = {
     Tables: {
       watchlist_items: {
         Row: WatchlistItemRow;
-        Insert: Insert<WatchlistItemRow, "id" | "created_at" | "note" | "price_at_addition">;
+        Insert: Insert<WatchlistItemRow, "id" | "created_at" | "note" | "price_at_addition" | "alert_above" | "alert_below">;
         Update: Partial<WatchlistItemRow>;
         Relationships: [];
       };
@@ -146,8 +183,26 @@ export type Database = {
       };
       budget_store: {
         Row: BudgetStoreRow;
-        Insert: Insert<BudgetStoreRow, "updated_at">;
+        Insert: Insert<BudgetStoreRow, "updated_at" | "revision">;
         Update: Partial<BudgetStoreRow>;
+        Relationships: [];
+      };
+      recommendation_history: {
+        Row: RecommendationHistoryRow;
+        Insert: Insert<RecommendationHistoryRow, "id" | "status" | "generated_at" | "evaluated_at">;
+        Update: Partial<RecommendationHistoryRow>;
+        Relationships: [];
+      };
+      strategy_performance: {
+        Row: StrategyPerformanceRow;
+        Insert: Insert<StrategyPerformanceRow, "win_rate" | "total_trades" | "updated_at">;
+        Update: Partial<StrategyPerformanceRow>;
+        Relationships: [];
+      };
+      sector_medians: {
+        Row: SectorMedianRow;
+        Insert: Insert<SectorMedianRow, "sample_size" | "updated_at">;
+        Update: Partial<SectorMedianRow>;
         Relationships: [];
       };
     };

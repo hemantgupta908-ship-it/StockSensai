@@ -12,10 +12,17 @@ const LABELS: Record<ThemePreference, string> = {
   light: "Light",
   dark: "Dark",
   system: "Match system",
-  // Reachable from the full picker in Settings but not from this cycle — the
-  // toggle stays a three-way, and lands back on it from either.
   oled: "OLED black",
   sepia: "Warm sepia",
+  midnight: "Midnight",
+  forest: "Forest Pine",
+  mocha: "Mocha",
+  velvet: "Cyber Velvet",
+  cream: "Ivory Cream",
+  nordic: "Nordic Frost",
+  blush: "Rose Quartz",
+  sage: "Mint Dew",
+  dune: "Solar Dune",
 };
 
 /**
@@ -27,7 +34,7 @@ const LABELS: Record<ThemePreference, string> = {
 export function ThemeToggle({ className }: { className?: string }) {
   const { preference, resolved, setPreference } = useTheme();
 
-  const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
+  const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length] || "light";
   const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : SunHorizon;
 
   // Used to also write `cashew.settings.theme` and fire an event for the budget
@@ -40,8 +47,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       whileTap={{ scale: 0.88 }}
       transition={{ type: "spring", stiffness: 600, damping: 24 }}
       onClick={handleToggle}
-      aria-label={`Theme: ${LABELS[preference]}. Switch to ${LABELS[next].toLowerCase()}.`}
-      title={`Theme: ${LABELS[preference]} — tap for ${LABELS[next].toLowerCase()}`}
+      aria-label={`Theme: ${LABELS[preference] || "Theme"}. Switch to ${(LABELS[next] || "theme").toLowerCase()}.`}
+      title={`Theme: ${LABELS[preference] || "Theme"} — tap for ${(LABELS[next] || "theme").toLowerCase()}`}
       className={cn(
         "relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full",
         "bg-fill/[0.10] text-label-secondary/70 transition-colors active:bg-fill/[0.18]",

@@ -1,0 +1,94 @@
+backtest · 204 stocks · 10 strategies · moderate · last 10y · step 1
+
+  25/204 stocks · 121s elapsed
+  50/204 stocks · 208s elapsed
+  75/204 stocks · 257s elapsed
+  100/204 stocks · 294s elapsed
+  125/204 stocks · 322s elapsed
+  150/204 stocks · 349s elapsed
+  200/204 stocks · 400s elapsed
+
+evaluated 39,62,260 strategy-days in 403s
+
+vsINDEX per trade, by exit rule (higher is better)
+
+strategy                             target+stop       stop only     target only hold to horizon
+------------------------------------------------------------------------------------------------
+swing-ma-crossover                        -0.07%          +0.58%          +0.04%          +0.65%
+swing-rsi-reversal                        -0.26%          -0.39%          +0.58%          -0.03%
+swing-consolidation-breakout              +0.01%          +0.42%          +0.22%          +0.84%
+swing-support-resistance-bounce           -0.02%          +0.49%          +0.49%          +1.21%
+swing-macd-crossover                      +0.21%          +0.89%          +0.77%          +1.67%
+pos-stage-two-trend                       +1.80%          +4.22%          +2.92%          +5.46%
+pos-52w-high-breakout                     +1.03%          +6.32%          +3.24%         +10.77%
+pos-ema-pullback                          +0.73%          +2.61%          +1.84%          +4.64%
+pos-golden-cross                          +1.29%          +3.77%          +2.22%          +5.28%
+pos-relative-strength-leader              +4.37%         +12.84%          +6.75%         +16.64%
+------------------------------------------------------------------------------------------------
+ALL (trade-weighted)                      +1.75%          +4.99%          +2.99%          +6.81%
+
+
+What the bad trades looked like, same exit rules
+
+                       trades     mean     worst   1-in-20  lost>20%    stdev
+-----------------------------------------------------------------------------
+target+stop            96,019   +2.65%    -30.8%    -12.5%      0.4%    13.5%
+stop only              96,019   +6.82%    -30.8%    -12.6%      0.4%    28.7%
+target only            96,019   +4.90%    -83.7%    -23.3%      7.0%    15.8%
+hold to horizon        96,019  +10.00%    -83.7%    -24.6%      7.9%    30.9%
+
+worst    = the single worst trade in the whole run.
+1-in-20  = 5th-percentile trade. One trade in twenty was at least this bad.
+lost>20% = share of trades that lost more than a fifth of the position.
+stdev    = spread of outcomes. Higher means a rougher ride for the same mean.
+
+A higher mean bought with a worse tail is not a free improvement. Whether that
+trade is worth making depends on capital and temperament, which a backtest
+cannot know.
+
+
+Detail for current behaviour (target+stop):
+
+strategy                          fills  occas   win%  expect   vsHOLD  vsINDEX     PF  hold
+--------------------------------------------------------------------------------------------
+swing-consolidation-breakout       6630   2661  39.8%  -0.23%   +0.02%   +0.01%   0.90     7
+pos-ema-pullback                  11067   3878  40.2%  +0.76%   -0.10%   +0.73%   1.22    20
+swing-support-resistance-bounce     380    326  40.5%  -0.32%   -0.10%   -0.02%   0.88    11
+swing-macd-crossover               8379   3373  43.1%  +0.19%   -0.10%   +0.21%   1.06    12
+pos-stage-two-trend               36556   5348  49.4%  +2.73%   -0.11%   +1.80%   1.57    55
+swing-rsi-reversal                  191    177  49.2%  -0.44%   -0.12%   -0.26%   0.78     4
+pos-golden-cross                   9476   1569  46.5%  +2.27%   -0.16%   +1.29%   1.47    53
+pos-52w-high-breakout              3462   1167  44.9%  +1.43%   -0.21%   +1.03%   1.35    24
+swing-ma-crossover                 2205   1090  45.4%  +0.16%   -0.22%   -0.07%   1.05    11
+pos-relative-strength-leader      17673   2948  52.1%  +6.78%   -0.30%   +4.37%   2.27    41
+--------------------------------------------------------------------------------------------
+ALL                              105686  96019                           +2.65%
+
+expect  = average net return per filled trade, after 0.4% round-trip costs.
+vsHOLD  = expect minus holding the SAME stock, bought the SAME day, for the
+          SAME number of sessions, with no target and no stop.
+          Isolates the EXIT rules: did the target and stop earn their keep?
+vsINDEX = expect minus NIFTY over the same calendar window.
+          Isolates the ENTRY rules: were these better picks than owning the market?
+occas   = distinct (stock, month) pairs behind the fills.
+
+The two controls answer different questions and a strategy can pass one and
+fail the other. Raw 'expect' answers neither: Indian equities rose through most
+of this decade, so anything holding stocks for weeks shows a profit whether its
+rules contribute or not.
+
+Four things flatter every number above:
+
+  1. Survivorship. The universe is TODAY'S Nifty 200. Companies that collapsed
+     or left the index are absent, so the sample is drawn from survivors.
+  2. Overlapping trades. A screen describing a *state* re-fires every session
+     that state holds, so one trend becomes hundreds of rows that are all the
+     same bet. Compare 'fills' against 'occas' — where they diverge sharply,
+     the effective sample is far smaller than the fill count suggests, and the
+     win rate is correspondingly less certain.
+  3. No capital constraint. One position per signal, unlimited money, no
+     sizing, no cap on concurrent positions.
+  4. Fundamentals excluded. The five long-term strategies are not measured
+     here at all, so this says nothing about them.
+
+None of this is a recommendation to trade any of these strategies.

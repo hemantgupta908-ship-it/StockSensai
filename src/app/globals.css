@@ -118,6 +118,177 @@
     color-scheme: light;
   }
 
+  .theme-midnight {
+    --bg: 11 15 25;
+    --bg-secondary: 17 24 39;
+    --bg-tertiary: 31 41 55;
+    --bg-elevated: 24 33 53;
+    --fill: 148 163 184;
+
+    --label: 248 250 252;
+    --label-secondary: 156 163 175;
+    --label-tertiary: 100 116 139;
+    --label-quaternary: 71 85 105;
+    --separator: 30 41 59;
+
+    --nav-bg: 13 18 30;
+    --chart-grid: 30 41 59;
+
+    color-scheme: dark;
+  }
+
+  .theme-forest {
+    --bg: 6 21 16;
+    --bg-secondary: 13 37 28;
+    --bg-tertiary: 22 58 45;
+    --bg-elevated: 18 48 37;
+    --fill: 110 231 183;
+
+    --label: 236 253 245;
+    --label-secondary: 167 243 208;
+    --label-tertiary: 110 231 183;
+    --label-quaternary: 52 211 153;
+    --separator: 29 74 58;
+
+    --nav-bg: 9 29 22;
+    --chart-grid: 22 56 43;
+
+    color-scheme: dark;
+  }
+
+  .theme-mocha {
+    --bg: 20 16 14;
+    --bg-secondary: 31 25 22;
+    --bg-tertiary: 45 37 33;
+    --bg-elevated: 38 31 27;
+    --fill: 180 160 145;
+
+    --label: 250 245 240;
+    --label-secondary: 214 199 184;
+    --label-tertiary: 168 152 138;
+    --label-quaternary: 128 114 102;
+    --separator: 62 51 45;
+
+    --nav-bg: 24 19 17;
+    --chart-grid: 40 32 28;
+
+    color-scheme: dark;
+  }
+
+  .theme-velvet {
+    --bg: 15 10 21;
+    --bg-secondary: 25 18 36;
+    --bg-tertiary: 39 28 56;
+    --bg-elevated: 33 24 47;
+    --fill: 192 132 252;
+
+    --label: 250 245 255;
+    --label-secondary: 216 180 254;
+    --label-tertiary: 168 85 247;
+    --label-quaternary: 126 34 206;
+    --separator: 59 44 82;
+
+    --nav-bg: 18 12 26;
+    --chart-grid: 33 24 48;
+
+    color-scheme: dark;
+  }
+
+  .theme-cream {
+    --bg: 251 249 244;
+    --bg-secondary: 255 255 255;
+    --bg-tertiary: 244 239 230;
+    --bg-elevated: 255 255 255;
+    --fill: 140 130 115;
+
+    --label: 36 30 23;
+    --label-secondary: 107 96 85;
+    --label-tertiary: 150 138 125;
+    --label-quaternary: 185 174 160;
+    --separator: 230 222 210;
+
+    --nav-bg: 246 243 236;
+    --chart-grid: 234 227 214;
+
+    color-scheme: light;
+  }
+
+  .theme-nordic {
+    --bg: 240 244 248;
+    --bg-secondary: 255 255 255;
+    --bg-tertiary: 226 232 240;
+    --bg-elevated: 255 255 255;
+    --fill: 100 116 139;
+
+    --label: 15 23 42;
+    --label-secondary: 71 85 105;
+    --label-tertiary: 100 116 139;
+    --label-quaternary: 148 163 184;
+    --separator: 203 213 225;
+
+    --nav-bg: 248 250 252;
+    --chart-grid: 226 232 240;
+
+    color-scheme: light;
+  }
+
+  .theme-blush {
+    --bg: 250 245 245;
+    --bg-secondary: 255 255 255;
+    --bg-tertiary: 245 235 235;
+    --bg-elevated: 255 255 255;
+    --fill: 168 120 135;
+
+    --label: 45 31 36;
+    --label-secondary: 120 88 100;
+    --label-tertiary: 160 128 140;
+    --label-quaternary: 195 168 178;
+    --separator: 232 216 216;
+
+    --nav-bg: 252 248 248;
+    --chart-grid: 240 226 226;
+
+    color-scheme: light;
+  }
+
+  .theme-sage {
+    --bg: 242 247 244;
+    --bg-secondary: 255 255 255;
+    --bg-tertiary: 227 236 230;
+    --bg-elevated: 255 255 255;
+    --fill: 100 140 120;
+
+    --label: 19 37 28;
+    --label-secondary: 71 102 85;
+    --label-tertiary: 105 138 120;
+    --label-quaternary: 150 178 162;
+    --separator: 203 218 208;
+
+    --nav-bg: 247 250 248;
+    --chart-grid: 227 236 230;
+
+    color-scheme: light;
+  }
+
+  .theme-dune {
+    --bg: 250 246 237;
+    --bg-secondary: 255 255 255;
+    --bg-tertiary: 242 236 224;
+    --bg-elevated: 255 255 255;
+    --fill: 150 135 110;
+
+    --label: 43 35 23;
+    --label-secondary: 117 101 78;
+    --label-tertiary: 155 138 115;
+    --label-quaternary: 190 175 152;
+    --separator: 228 218 200;
+
+    --nav-bg: 252 249 243;
+    --chart-grid: 238 230 216;
+
+    color-scheme: light;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;

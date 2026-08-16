@@ -1,18 +1,38 @@
 "use client";
-import { useShallow } from "zustand/react/shallow";
-
-/**
- * Settings for the budget environment.
- *
- * Budget-specific preferences live in `cashew.settings`. Appearance — theme and
- * accent — does not: it applies to both environments, so those two controls
- * write through `useTheme()` and the stock app's Settings screen shows the same
- * values.
- */
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowCounterClockwise, BookOpen, Check, DownloadSimple, Moon, ShieldCheck, SignIn, SignOut, SquaresFour, Sun, SunHorizon, UploadSimple, Wallet, Shapes, CaretRight, Tag, Users } from "@phosphor-icons/react";
+import { useShallow } from "zustand/react/shallow";
+import {
+  ArrowCounterClockwise,
+  BookOpen,
+  CaretRight,
+  Check,
+  Coffee,
+  DownloadSimple,
+  Feather,
+  Flower,
+  Moon,
+  MoonStars,
+  Palette,
+  Plant,
+  Plus,
+  Shapes,
+  ShieldCheck,
+  SignIn,
+  SignOut,
+  Snowflake,
+  Sparkle,
+  SquaresFour,
+  Sun,
+  SunDim,
+  SunHorizon,
+  Tag,
+  TreeEvergreen,
+  UploadSimple,
+  Users,
+  Wallet,
+} from "@phosphor-icons/react";
 import { useSession } from "@/components/auth/session-provider";
 
 import { cn } from "@/lib/utils";
@@ -22,7 +42,7 @@ import { CURRENCIES, DEFAULT_EXCHANGE_RATES, getCurrencyInfo } from "@/lib/budge
 import { getPolicySavingsTotal, getPolicyStatus } from "@/lib/budget/credit";
 import { AVATAR_OPTIONS } from "@/lib/budget/defaults";
 import { exportTransactionsCsv, importTransactionsCsv } from "@/lib/budget/csv";
-import { PRESET_AVATARS, USERPICS_PACKS, UserAvatar } from "./user-avatar";
+import { PRESET_AVATARS, UserAvatar } from "./user-avatar";
 import { useBudget } from "./budget-provider";
 import { DashboardHeaderAction } from "./budget-dashboard";
 import {
@@ -36,28 +56,12 @@ import {
   TextInput,
   Toggle,
 } from "./budget-ui";
-import { useTheme, type ThemePreference } from "@/components/theme-provider";
-
-const ACCENTS: { color: string; name: string }[] = [
-  { color: "#0071E3", name: "iOS Blue" },
-  { color: "#34C759", name: "Emerald Green" },
-  { color: "#00A896", name: "Forest Teal" },
-  { color: "#30B0C7", name: "Neon Cyan" },
-  { color: "#3F51B5", name: "Deep Indigo" },
-  { color: "#5856D6", name: "Violet Purple" },
-  { color: "#AF52DE", name: "Lavender Pink" },
-  { color: "#FF2D55", name: "Rose Magenta" },
-  { color: "#FF3B30", name: "Crimson Red" },
-  { color: "#FF6B6B", name: "Coral Orange" },
-  { color: "#FF9500", name: "Sunset Amber" },
-  { color: "#FFCC00", name: "Golden Yellow" },
-  { color: "#8BC34A", name: "Lime Green" },
-  { color: "#607D8B", name: "Slate Gray" },
-  { color: "#424242", name: "Cool Charcoal" },
-  { color: "#80CBC4", name: "Soft Mint" },
-  { color: "#FFAB91", name: "Warm Peach" },
-  { color: "#8D6E63", name: "Deep Mocha" },
-];
+import {
+  ACCENT_PALETTES,
+  type AccentPair,
+  type ThemePreference,
+  useTheme,
+} from "@/components/theme-provider";
 
 const THEME_OPTIONS: {
   value: ThemePreference;
@@ -66,15 +70,30 @@ const THEME_OPTIONS: {
   Icon: any;
   bgClass: string;
 }[] = [
-  { value: "system", label: "System", sublabel: "Auto OS match", Icon: SunHorizon, bgClass: "bg-fill/10 text-label" },
-  { value: "light", label: "Light", sublabel: "Crisp white", Icon: Sun, bgClass: "bg-white text-slate-900 border border-slate-200" },
-  { value: "dark", label: "Dark", sublabel: "Muted dark", Icon: Moon, bgClass: "bg-[#1C1C1E] text-white border border-white/10" },
-  { value: "oled", label: "OLED Black", sublabel: "Pitch black", Icon: SquaresFour, bgClass: "bg-black text-white border border-white/20" },
-  { value: "sepia", label: "Warm Sepia", sublabel: "Eye comfort", Icon: BookOpen, bgClass: "bg-[#F7F4EB] text-[#2C2620] border border-[#E5DFD0]" },
+  // Adaptive / System
+  { value: "system", label: "System", sublabel: "Auto OS match", Icon: SunHorizon, bgClass: "bg-fill/10 text-label border border-separator/30" },
+  
+  // Trending Light Themes
+  { value: "light", label: "Pure Light", sublabel: "Crisp white", Icon: Sun, bgClass: "bg-white text-slate-900 border border-slate-200 shadow-2xs" },
+  { value: "nordic", label: "Nordic Frost", sublabel: "Glacier white", Icon: Snowflake, bgClass: "bg-[#F0F4F8] text-[#0F172A] border border-[#CBD5E1] shadow-2xs" },
+  { value: "cream", label: "Ivory Cream", sublabel: "Warm linen", Icon: Feather, bgClass: "bg-[#FBF9F4] text-[#241E17] border border-[#E6DED2] shadow-2xs" },
+  { value: "sepia", label: "Warm Sepia", sublabel: "Paper book", Icon: BookOpen, bgClass: "bg-[#F7F4EB] text-[#2C2620] border border-[#E5DFD0] shadow-2xs" },
+  { value: "blush", label: "Rose Quartz", sublabel: "Cashmere pink", Icon: Flower, bgClass: "bg-[#FAF5F5] text-[#2D1F24] border border-[#E8D8D8] shadow-2xs" },
+  { value: "sage", label: "Mint Dew", sublabel: "Organic matcha", Icon: Plant, bgClass: "bg-[#F2F7F4] text-[#13251C] border border-[#CBDAD0] shadow-2xs" },
+  { value: "dune", label: "Solar Dune", sublabel: "Desert sand", Icon: SunDim, bgClass: "bg-[#FAF6ED] text-[#2B2317] border border-[#E4DAC8] shadow-2xs" },
+
+  // Trending Luxury Dark Themes (Explicit text-white for 100% crystal clear contrast)
+  { value: "dark", label: "Graphite Dark", sublabel: "Classic dark", Icon: Moon, bgClass: "bg-[#1C1C1E] text-white border border-white/20 shadow-xs" },
+  { value: "oled", label: "OLED Black", sublabel: "Pure black", Icon: SquaresFour, bgClass: "bg-black text-white border border-white/30 shadow-xs" },
+  { value: "midnight", label: "Midnight", sublabel: "Deep navy", Icon: MoonStars, bgClass: "bg-[#0B0F19] text-white border border-blue-500/50 shadow-xs" },
+  { value: "forest", label: "Forest Pine", sublabel: "British racing", Icon: TreeEvergreen, bgClass: "bg-[#061510] text-white border border-emerald-500/50 shadow-xs" },
+  { value: "mocha", label: "Mocha", sublabel: "Warm espresso", Icon: Coffee, bgClass: "bg-[#14100E] text-white border border-amber-500/50 shadow-xs" },
+  { value: "velvet", label: "Cyber Velvet", sublabel: "Obsidian violet", Icon: Palette, bgClass: "bg-[#0F0A15] text-white border border-purple-500/50 shadow-xs" },
 ];
 
 export function BudgetSettingsView() {
-  const { settings,
+  const {
+    settings,
     updateSettings,
     wallets,
     categories,
@@ -85,10 +104,26 @@ export function BudgetSettingsView() {
     resetDatabase,
     upsertTransactions,
     upsertCategory,
-   } = useBudget(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings, wallets: s.wallets, categories: s.categories, transactions: s.transactions, allWallets: s.allWallets, exportDatabase: s.exportDatabase, replaceDatabase: s.replaceDatabase, resetDatabase: s.resetDatabase, upsertTransactions: s.upsertTransactions, upsertCategory: s.upsertCategory })));
+  } = useBudget(
+    useShallow((s) => ({
+      settings: s.settings,
+      updateSettings: s.updateSettings,
+      wallets: s.wallets,
+      categories: s.categories,
+      transactions: s.transactions,
+      allWallets: s.allWallets,
+      exportDatabase: s.exportDatabase,
+      replaceDatabase: s.replaceDatabase,
+      resetDatabase: s.resetDatabase,
+      upsertTransactions: s.upsertTransactions,
+      upsertCategory: s.upsertCategory,
+    })),
+  );
+
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+
   function download(filename: string, contents: string, type: string) {
     const blob = new Blob([contents], { type });
     const url = URL.createObjectURL(blob);
@@ -122,13 +157,13 @@ export function BudgetSettingsView() {
         wallets,
         defaultWalletPk: settings.primaryWalletPk,
       });
-      // Categories invented during the parse must land before the transactions
-      // that reference them, or those rows render as uncategorised.
       for (const category of result.categories) upsertCategory(category);
       if (result.transactions.length > 0) upsertTransactions(result.transactions);
       setImportMessage(
         `Imported ${result.transactions.length} transactions` +
-          (result.categories.length > 0 ? `, created ${result.categories.length} categor${result.categories.length === 1 ? "y" : "ies"}` : "") +
+          (result.categories.length > 0
+            ? `, created ${result.categories.length} categor${result.categories.length === 1 ? "y" : "ies"}`
+            : "") +
           "." +
           (result.skipped > 0 ? ` Skipped ${result.skipped} unreadable row(s).` : ""),
       );
@@ -136,12 +171,14 @@ export function BudgetSettingsView() {
     reader.readAsText(file);
   }
 
-
   return (
     <>
       <Section title="Organise">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card href="/budget/accounts" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+          <Card
+            href="/budget/accounts"
+            className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent"
+          >
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
                 <Wallet size={20} weight="fill" />
@@ -153,8 +190,11 @@ export function BudgetSettingsView() {
             </div>
             <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
           </Card>
-          
-          <Card href="/budget/categories" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+
+          <Card
+            href="/budget/categories"
+            className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent"
+          >
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
                 <Shapes size={20} weight="fill" />
@@ -167,37 +207,43 @@ export function BudgetSettingsView() {
             <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
           </Card>
 
-          <Card href="/budget/associated-titles" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+          <Card
+            href="/budget/associated-titles"
+            className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent"
+          >
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
                 <Tag size={20} weight="fill" />
               </div>
               <div>
                 <p className="font-semibold text-label">Associated Titles</p>
-                <p className="text-caption2 text-label-secondary mt-0.5">Autocomplete category from name</p>
+                <p className="text-caption2 text-label-secondary mt-0.5">
+                  Autocomplete category from name
+                </p>
               </div>
             </div>
             <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
           </Card>
 
-          <Card href="/budget/bill-splitter" className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent">
+          <Card
+            href="/budget/bill-splitter"
+            className="flex items-center justify-between gap-4 p-4 hover:border-accent/40 border border-transparent"
+          >
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fill/10 text-label-secondary">
                 <Users size={20} weight="fill" />
               </div>
               <div>
                 <p className="font-semibold text-label">Bill Splitter</p>
-                <p className="text-caption2 text-label-secondary mt-0.5">Split a bill amongst people</p>
+                <p className="text-caption2 text-label-secondary mt-0.5">
+                  Split a bill amongst people
+                </p>
               </div>
             </div>
             <CaretRight size={16} className="text-label-secondary opacity-50 shrink-0" />
           </Card>
         </div>
       </Section>
-
-
-
-
 
       <Section title="Money">
         <Card>
@@ -235,8 +281,8 @@ export function BudgetSettingsView() {
       <Section title="Exchange rates">
         <Card>
           <p className="mb-3 text-caption text-label-secondary/60">
-            Units per 1 USD. These are indicative offline values — edit any rate to match the one
-            you want used for cross-currency totals.
+            Units per 1 USD. These are indicative offline values — edit any rate to match the one you
+            want used for cross-currency totals.
           </p>
           <div className="space-y-2">
             {[...new Set(wallets.map((w) => w.currency).filter(Boolean))].map((code) => {
@@ -365,7 +411,9 @@ export function BudgetSettingsView() {
           />
           <Toggle
             checked={settings.showUpcomingTransactions}
-            onChange={(showUpcomingTransactions) => updateSettings({ showUpcomingTransactions })}
+            onChange={(showUpcomingTransactions) =>
+              updateSettings({ showUpcomingTransactions })
+            }
             label="Overdue & upcoming"
           />
           <Toggle
@@ -390,7 +438,9 @@ export function BudgetSettingsView() {
           />
           <Toggle
             checked={settings.showRecentTransactions ?? true}
-            onChange={(showRecentTransactions) => updateSettings({ showRecentTransactions })}
+            onChange={(showRecentTransactions) =>
+              updateSettings({ showRecentTransactions })
+            }
             label="Recent transactions"
           />
         </Card>
@@ -510,8 +560,8 @@ export function BudgetSettingsView() {
       <Section title="Currencies">
         <Card>
           <p className="text-caption text-label-secondary/60">
-            {CURRENCIES.length} currencies available when creating an account. Change an
-            account&apos;s currency from the Accounts screen.
+            {CURRENCIES.length} currencies available when creating an account. Change an account&apos;s
+            currency from the Accounts screen.
           </p>
         </Card>
       </Section>
@@ -525,16 +575,16 @@ export function BudgetSettingsView() {
   );
 }
 
-/**
- * Controls for the Savings card.
- *
- * The per-policy list exists because "savings" is not true of every policy: a
- * term insurance premium buys cover and returns nothing, so counting it as
- * money you hold would overstate your position. Exclusions are stored, so a
- * policy added later counts without needing to be found in here first.
- */
 function SavingsSettingsSection() {
-  const { policies, transactions, allWallets, settings, updateSettings  } = useBudget(useShallow((s) => ({ policies: s.policies, transactions: s.transactions, allWallets: s.allWallets, settings: s.settings, updateSettings: s.updateSettings })));
+  const { policies, transactions, allWallets, settings, updateSettings } = useBudget(
+    useShallow((s) => ({
+      policies: s.policies,
+      transactions: s.transactions,
+      allWallets: s.allWallets,
+      settings: s.settings,
+      updateSettings: s.updateSettings,
+    })),
+  );
   const active = policies.filter((p) => !p.archived);
   const excluded = settings.savingsExcludedPolicyPks ?? [];
 
@@ -607,99 +657,71 @@ function SavingsSettingsSection() {
 }
 
 export function ProfileSettingsSection() {
-  const { settings, updateSettings  } = useBudget(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings })));
+  const { settings, updateSettings } = useBudget(
+    useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings })),
+  );
   const { user, signOut } = useSession();
-  const [selectedPackId, setSelectedPackId] = useState<string>("all");
 
   return (
-    <Section title="Profile">
-      <Card className="space-y-5 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
+    <Section title="Account">
+      <Card className="space-y-4 p-4 border border-separator/40 dark:border-white/10 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3.5 min-w-0">
             <UserAvatar
               avatarVal={settings.userAvatar}
               email={user?.email}
-              className="h-16 w-16 text-2xl shadow-md ring-2 ring-fill/15"
+              className="h-12 w-12 text-xl shadow-md ring-2 ring-accent/30 shrink-0"
             />
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="truncate text-base sm:text-lg font-bold text-label">
-                  {user?.email?.split("@")[0] || "Local Profile"}
-                </h3>
-                <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-                  <ShieldCheck size={14} weight="fill" />
-                  {user ? "Signed in" : "Offline / Local"}
-                </span>
-              </div>
-              <p className="truncate text-footnote sm:text-subhead text-label-secondary/80 mt-1">
-                {user?.email || "All data stored safely in local browser memory"}
+              <h3 className="truncate text-subhead font-bold text-label">
+                {user?.email?.split("@")[0] || "Hemant Gupta"}
+              </h3>
+              <p className="truncate text-caption text-label-secondary/75">
+                {user?.email || "hemantgupta908@gmail.com"}
               </p>
             </div>
           </div>
+
           {user ? (
             <button
               type="button"
               onClick={() => signOut()}
-              aria-label="Log Out"
-              title="Log Out"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-red text-white shadow-md hover:bg-red/90 active:scale-95 transition-all shrink-0"
+              aria-label="Sign Out"
+              title="Sign Out"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red/10 hover:bg-red/20 text-red font-semibold text-caption transition-all active:scale-95 border border-red/20 shrink-0"
             >
-              <SignOut size={20} weight="bold" />
+              <SignOut size={15} weight="bold" />
+              <span>Sign Out</span>
             </button>
           ) : (
             <Link
               href="/login"
               aria-label="Sign In"
               title="Sign In"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-fg shadow-md hover:bg-accent/90 active:scale-95 transition-all shrink-0"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-accent-fg font-semibold text-caption shadow-sm hover:opacity-95 transition-all active:scale-95 shrink-0"
             >
-              <SignIn size={20} weight="bold" />
+              <SignIn size={15} weight="bold" />
+              <span>Sign In</span>
             </Link>
           )}
         </div>
 
-        <Field label="Choose Avatar Pack">
-          {/* Userpics Pack Filter Tabs */}
-          <div className="flex gap-1 overflow-x-auto pb-1 pt-0.5 no-scrollbar snap-x">
-            <button
-              type="button"
-              onClick={() => setSelectedPackId("all")}
-              className={cn(
-                "px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all shrink-0 select-none",
-                selectedPackId === "all"
-                  ? "bg-accent text-accent-fg shadow-sm"
-                  : "bg-fill/10 text-label-secondary hover:bg-fill/20"
-              )}
-            >
-              All Packs
-            </button>
-            {USERPICS_PACKS.map((pack) => (
-              <button
-                key={pack.id}
-                type="button"
-                onClick={() => setSelectedPackId(pack.id)}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all shrink-0 select-none",
-                  selectedPackId === pack.id
-                    ? "bg-accent text-accent-fg shadow-sm"
-                    : "bg-fill/10 text-label-secondary hover:bg-fill/20"
-                )}
-              >
-                {pack.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Avatar Swatches in selected pack */}
-          <div className="flex gap-3.5 overflow-x-auto py-2 px-1 no-scrollbar snap-x">
-            {(selectedPackId === "all"
-              ? PRESET_AVATARS
-              : USERPICS_PACKS.find((p) => p.id === selectedPackId)?.avatars ?? PRESET_AVATARS
-            ).map((avatar) => {
+        <Field
+          label={
+            <span className="flex items-center justify-between w-full">
+              <span>Choose Profile Icon</span>
+              <span className="text-[11px] font-semibold text-accent opacity-90">
+                {PRESET_AVATARS.find((a) => a.id === (settings.userAvatar || "initial"))?.label || "Letter Initial"}
+              </span>
+            </span>
+          }
+        >
+          <div className="flex gap-2.5 overflow-x-auto py-1 px-1 no-scrollbar scroll-smooth overscroll-x-contain touch-pan-x items-center [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
+            {PRESET_AVATARS.map((avatar) => {
               const isSelected =
                 settings.userAvatar === avatar.id ||
-                settings.userAvatar === avatar.url ||
-                ((!settings.userAvatar || settings.userAvatar === "initial") && avatar.id === "initial");
+                ((!settings.userAvatar || settings.userAvatar === "initial") &&
+                  avatar.id === "initial");
               return (
                 <button
                   key={avatar.id}
@@ -711,16 +733,16 @@ export function ProfileSettingsSection() {
                   }
                   title={avatar.label}
                   className={cn(
-                    "group relative flex h-12 w-12 shrink-0 snap-start items-center justify-center rounded-full transition-all shadow-sm select-none p-0.5 border-2",
+                    "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all shadow-2xs select-none p-0.5 border-2",
                     isSelected
-                      ? "border-label dark:border-white scale-105 z-10"
-                      : "border-transparent opacity-75 hover:opacity-100 hover:scale-105"
+                      ? "border-accent scale-105 ring-2 ring-accent/30 z-10"
+                      : "border-transparent opacity-75 hover:opacity-100 hover:scale-105",
                   )}
                 >
                   <UserAvatar
-                    avatarVal={avatar.url || avatar.id}
+                    avatarVal={avatar.id}
                     email={user?.email}
-                    className="h-full w-full text-base"
+                    className="h-full w-full text-sm"
                   />
                 </button>
               );
@@ -733,15 +755,34 @@ export function ProfileSettingsSection() {
 }
 
 export function AppearanceSettingsSection() {
-  const { settings, updateSettings  } = useBudget(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings })));
-  const { preference: theme, setPreference: setTheme, accent, setAccent } = useTheme();
-  const selectedAccent = ACCENTS.find((a) => a.color === accent) ?? ACCENTS[0];
+  const { settings, updateSettings } = useBudget(
+    useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings })),
+  );
+  const {
+    preference: theme,
+    setPreference: setTheme,
+    resolved,
+    accent,
+    resolvedAccent,
+    activePair,
+    setAccent,
+  } = useTheme();
 
   return (
     <Section title="Appearance">
-      <Card className="space-y-3 p-4">
-        <Field label="Theme Mode">
-          <div className="flex gap-2 overflow-x-auto py-1.5 px-1 no-scrollbar snap-x">
+      <Card className="space-y-4 p-4">
+        {/* Theme Selector */}
+        <Field
+          label={
+            <span className="flex items-center justify-between w-full">
+              <span>Theme Mode</span>
+              <span className="text-[11px] font-semibold text-accent opacity-90">
+                {THEME_OPTIONS.find((o) => o.value === theme)?.label || "System"} ({resolved} mode)
+              </span>
+            </span>
+          }
+        >
+          <div className="flex gap-2.5 overflow-x-auto py-2 px-1 no-scrollbar scroll-smooth overscroll-x-contain touch-pan-x items-center [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
             {THEME_OPTIONS.map(({ value, label, Icon, bgClass }) => {
               const isActive = theme === value;
               return (
@@ -750,42 +791,60 @@ export function AppearanceSettingsSection() {
                   type="button"
                   onClick={() => setTheme(value)}
                   className={cn(
-                    "flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all text-center relative overflow-hidden select-none shrink-0 w-[100px] h-[58px] snap-start border-2",
+                    "flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all text-center relative overflow-hidden select-none shrink-0 w-[105px] h-[60px] border",
                     bgClass,
                     isActive
-                      ? "border-label dark:border-white font-bold opacity-100 shadow-sm"
-                      : "border-transparent opacity-60 hover:opacity-90"
+                      ? "border-accent ring-2 ring-accent/40 shadow-sm scale-[1.03] z-10 font-bold"
+                      : "hover:scale-[1.02] hover:shadow-xs",
                   )}
                 >
-                  <Icon size={16} className="mb-0.5 shrink-0" />
-                  <p className="text-[11px] font-semibold leading-tight truncate w-full">{label}</p>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Icon size={15} weight={isActive ? "fill" : "bold"} className="shrink-0" />
+                    {isActive ? (
+                      <span className="flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] font-bold leading-tight truncate w-full tracking-tight text-inherit">
+                    {label}
+                  </p>
                 </button>
               );
             })}
           </div>
         </Field>
 
-        <Field label={`Accent colour — ${selectedAccent.name}`}>
-          <div className="flex gap-2 overflow-x-auto py-1.5 px-1 no-scrollbar snap-x">
-            {ACCENTS.map(({ color, name }) => {
-              const isActive = accent === color;
+        {/* Adaptive Paired Accent Selector */}
+        <Field
+          label={
+            <span className="flex items-center justify-between w-full">
+              <span>Accent Colour — <span className="font-semibold text-label">{activePair.name}</span></span>
+              <span className="text-[11px] font-mono font-normal opacity-60">
+                {resolved === "dark" ? `Dark: ${activePair.dark}` : `Light: ${activePair.light}`}
+              </span>
+            </span>
+          }
+        >
+          <div className="flex gap-2.5 overflow-x-auto py-2 px-1 no-scrollbar scroll-smooth overscroll-x-contain touch-pan-x items-center [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
+            {ACCENT_PALETTES.map((pair) => {
+              const isSelected = activePair.id === pair.id;
+              const displayColor = resolved === "dark" ? pair.dark : pair.light;
               return (
                 <button
-                  key={color}
+                  key={pair.id}
                   type="button"
-                  onClick={() => setAccent(color)}
-                  aria-label={`Accent ${name}`}
-                  title={name}
+                  onClick={() => setAccent(pair.id)}
+                  aria-label={`Accent ${pair.name}`}
+                  title={`${pair.name} (Light: ${pair.light} | Dark: ${pair.dark})`}
                   className={cn(
-                    "group relative h-7 w-7 shrink-0 snap-start rounded-full transition-all flex items-center justify-center shadow-xs border-2",
-                    isActive
-                      ? "border-label dark:border-white scale-105"
-                      : "border-transparent opacity-85 hover:opacity-100"
+                    "group relative h-9 w-16 shrink-0 rounded-xl transition-all flex items-center justify-center shadow-xs border-2 select-none",
+                    isSelected
+                      ? "border-label dark:border-white scale-105 shadow-md ring-2 ring-accent/30 z-10"
+                      : "border-transparent opacity-80 hover:opacity-100 hover:scale-105",
                   )}
-                  style={{ backgroundColor: color }}
+                  style={{ backgroundColor: displayColor }}
                 >
-                  {isActive ? (
-                    <Check size={12} weight="bold" className="text-white drop-shadow-sm" />
+                  {isSelected ? (
+                    <Check size={15} weight="bold" className="text-accent-fg drop-shadow-sm" />
                   ) : null}
                 </button>
               );
@@ -793,7 +852,48 @@ export function AppearanceSettingsSection() {
           </div>
         </Field>
 
-        <div className="space-y-2 pt-1 border-t border-separator/30 dark:border-white/10">
+        {/* Live Interactive Accent & Theme Preview Card */}
+        <div className="rounded-xl border border-separator/40 bg-fill/5 p-3.5 space-y-2.5 dark:border-white/10">
+          <div className="flex items-center justify-between text-caption2 uppercase tracking-wide text-label-secondary/70 font-semibold">
+            <span className="flex items-center gap-1.5">
+              <Sparkle size={13} className="text-accent" /> Live Accent Preview
+            </span>
+            <span className="font-mono lowercase text-[10px] bg-fill/10 px-2 py-0.5 rounded-full text-label-secondary">
+              {resolved} mode
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            {/* Primary Action Button Preview */}
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg shadow-sm transition-transform active:scale-95"
+            >
+              <span>Primary Button</span>
+            </button>
+
+            {/* Ghost / Pill Preview */}
+            <span className="inline-flex items-center gap-1 rounded-full border border-accent/35 bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
+              <span>+14.2% Growth</span>
+            </span>
+
+            {/* Selected Tab Preview */}
+            <span className="inline-flex items-center rounded-lg bg-accent/20 px-2.5 py-1 text-xs font-bold text-accent">
+              Active Tab
+            </span>
+
+            {/* Mini FAB button preview */}
+            <div className="ml-auto relative flex items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-accent/40 blur-sm animate-pulse" />
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-fg shadow-sm">
+                <Plus size={16} weight="bold" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div className="space-y-2 pt-2 border-t border-separator/30 dark:border-white/10">
           <Toggle
             checked={settings.showDecimals}
             onChange={(showDecimals) => updateSettings({ showDecimals })}
@@ -808,7 +908,9 @@ export function AppearanceSettingsSection() {
           />
           <Toggle
             checked={settings.animatedBudgetBackground}
-            onChange={(animatedBudgetBackground) => updateSettings({ animatedBudgetBackground })}
+            onChange={(animatedBudgetBackground) =>
+              updateSettings({ animatedBudgetBackground })
+            }
             label="Animated budget background"
           />
         </div>

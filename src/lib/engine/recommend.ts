@@ -15,6 +15,7 @@ import {
   type TradingStyle,
 } from "@/lib/strategies/types";
 import type { Recommendation, RecommendationFeed } from "./types";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
  * The recommendation engine.
@@ -29,6 +30,74 @@ import type { Recommendation, RecommendationFeed } from "./types";
 
 const MAX_PER_STRATEGY = 6;
 const MAX_FEED_SIZE = 40;
+
+/**
+ * Pseudo-count for the win-rate prior.
+ *
+ * A strategy's measured win rate is used to nudge its confidence up or down, but
+ * an unshrunk rate off two resolved trades is noise, not evidence: one winner
+ * would read as 100% and multiply confidence by the full amount. Blending the
+ * observed rate toward a 0.5 prior with a weight of `PRIOR_TRADES` means a
+ * strategy needs roughly this many resolved trades before its record moves the
+ * score even half as far as the raw rate would suggest.
+ */
+const PRIOR_TRADES = 20;
+
+/** Bound on how far a strategy's track record may move its confidence. */
+const WIN_RATE_TILT = 0.3;
+
+interface StrategyRecord {
+  winRate: number;
+  totalTrades: number;
+}
+
+/**
+ * Realised track record per strategy, keyed by strategy id.
+ *
+ * Shared by the feed and the stock detail screen so the same setup never shows
+ * one confidence on a card and a different one on the page it links to.
+ */
+async function fetchStrategyRecords(): Promise<Map<string, StrategyRecord>> {
+  const records = new Map<string, StrategyRecord>();
+  try {
+    const supabase = getSupabaseAdminClient();
+    if (!supabase) return records;
+
+    const { data } = await supabase
+      .from("strategy_performance")
+      .select("strategy_id, win_rate, total_trades");
+
+    for (const row of data ?? []) {
+      records.set(row.strategy_id, {
+        winRate: Number(row.win_rate),
+        totalTrades: Number(row.total_trades),
+      });
+    }
+  } catch {
+    // Track records are an optional enhancement — a feed without them is still
+    // correct, just untilted.
+  }
+  return records;
+}
+
+/**
+ * Tilt a confidence score by the strategy's realised win rate.
+ *
+ * The shrunk rate sits in [0, 1] and is centred on 0.5, so the multiplier spans
+ * [1 - WIN_RATE_TILT, 1 + WIN_RATE_TILT] and lands on exactly 1 for a strategy
+ * with no record at all. The score stays inside the 0–98 band the strategies
+ * themselves use — nothing in markets deserves a 100.
+ */
+function applyWinRate(confidence: number, record: StrategyRecord | undefined): number {
+  if (!record || record.totalTrades <= 0) return confidence;
+
+  const shrunk =
+    (record.winRate * record.totalTrades + 0.5 * PRIOR_TRADES) /
+    (record.totalTrades + PRIOR_TRADES);
+
+  const multiplier = 1 + (shrunk - 0.5) * 2 * WIN_RATE_TILT;
+  return Math.max(0, Math.min(98, Math.round(confidence * multiplier)));
+}
 
 function toRecommendation(
   signal: StrategySignal,
@@ -113,6 +182,8 @@ export async function generateFeed(
   const strategies = getStrategiesByStyle(style);
   const generatedAt = new Date().toISOString();
 
+  const performanceMap = await fetchStrategyRecords();
+
   const byStrategy = new Map<string, Recommendation[]>();
 
   for (const bundle of bundles) {
@@ -131,8 +202,11 @@ export async function generateFeed(
       // Only long setups become recommendation cards.
       if (!signal || signal.direction !== "bullish") continue;
 
+      const rec = toRecommendation(signal, bundle, generatedAt);
+      rec.confidenceScore = applyWinRate(rec.confidenceScore, performanceMap.get(strategy.id));
+
       const list = byStrategy.get(strategy.id) ?? [];
-      list.push(toRecommendation(signal, bundle, generatedAt));
+      list.push(rec);
       byStrategy.set(strategy.id, list);
     }
   }
@@ -198,6 +272,12 @@ export async function analyseStock(
   const provider = getMarketDataProvider();
   const generatedAt = new Date().toISOString();
   const signals = evaluateAllStrategies(bundle, tolerance);
+  const performanceMap = await fetchStrategyRecords();
+
+  // Tilt by track record before sorting, so the ordering here matches the feed's.
+  for (const signal of signals) {
+    signal.confidence = applyWinRate(signal.confidence, performanceMap.get(signal.strategyId));
+  }
 
   const bullishSignals = signals
     .filter((s) => s.direction === "bullish")

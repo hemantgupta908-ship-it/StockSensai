@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { BudgetDashboard } from "@/components/budget/budget-dashboard";
+import { BudgetDashboard, DashboardHeaderAction } from "@/components/budget/budget-dashboard";
 import { BudgetHeader, BudgetPage } from "@/components/budget/budget-ui";
 
 export const metadata: Metadata = {
@@ -14,6 +14,7 @@ export default function BudgetHomePage() {
       <BudgetHeader 
         title="Overview"
         width="fluid"
+        action={<DashboardHeaderAction />}
       />
       <BudgetPage width="fluid">
         <BudgetDashboard />

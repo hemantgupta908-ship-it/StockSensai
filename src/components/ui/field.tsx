@@ -25,13 +25,15 @@ export function Field({
   hint,
   className,
   group = false,
+  ariaLabel,
 }: {
-  label: string;
+  label: React.ReactNode;
   children: React.ReactNode;
   hint?: string;
   className?: string;
   /** The children are a set of controls, not one. Renders a labelled group. */
   group?: boolean;
+  ariaLabel?: string;
 }) {
   const caption = (
     <span className="mb-1 block px-1 text-[11px] font-semibold uppercase tracking-wider text-label-secondary/50">
@@ -44,7 +46,11 @@ export function Field({
 
   if (group) {
     return (
-      <div className={cn("mb-3 block", className)} role="group" aria-label={label}>
+      <div
+        className={cn("mb-3 block", className)}
+        role="group"
+        aria-label={ariaLabel || (typeof label === "string" ? label : undefined)}
+      >
         {caption}
         {children}
         {help}

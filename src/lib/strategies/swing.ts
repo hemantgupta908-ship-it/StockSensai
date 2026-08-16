@@ -38,7 +38,9 @@ import {
   rewardToRisk,
   riskFromStopDistance,
   round2,
-  scoreConditions,
+  eventWindow,
+  scoreSignal,
+  stopClearOfEntry,
   type Strategy,
   type StrategyCondition,
   type StrategySignal,
@@ -62,7 +64,7 @@ const maCrossover: Strategy = {
   name: "Moving Average Crossover",
   style: "swing",
   tagline: "20 EMA crossing above the 50 EMA on rising volume",
-  holdPeriodLabel: "5–15 trading days",
+  holdPeriodLabel: "15–30 trading days",
   baseRisk: "Medium",
   explainer: {
     summary:
@@ -100,7 +102,7 @@ const maCrossover: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 80) return null;
 
     const price = closes(daily);
@@ -115,7 +117,7 @@ const maCrossover: Strategy = {
     const weeklyEma50 = ema(weeklyPrice, 50);
     const weeklyTrendUp = bundle.weekly.length >= 50 ? last(weeklyEma20) > last(weeklyEma50) : true; // Allow new stocks to pass
 
-    const crossBarsAgo = crossedAbove(ema20, ema50, 5);
+    const crossBarsAgo = crossedAbove(ema20, ema50, eventWindow(thresholds, 5));
     if (crossBarsAgo < 0) return null;
 
     const crossIndex = daily.length - 1 - crossBarsAgo;
@@ -127,7 +129,35 @@ const maCrossover: Strategy = {
     const rsiNow = last(rsi14);
     const atrNow = last(atr14);
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "20 EMA crossed above 50 EMA",
         true,
@@ -180,9 +210,17 @@ const maCrossover: Strategy = {
     // Stop below the 50 EMA — a close under it kills the thesis. But when price
     // has already run well clear of the 50 EMA, that would risk far more than
     // the setup justifies, so cap the distance at the ATR-scaled stop.
-    const stopLoss = round2(
+    // Anchored under the 50 EMA, then cleared of the entry band.
+    //
+    // The clamp is not cosmetic here, it is what makes this screen able to fire
+    // at all: at a *fresh* 20/50 cross price sits on the 50 EMA by definition,
+    // so the raw anchor lands about half a percent under spot — inside the
+    // entry band — and `bandsAreOrdered` rejected every such setup. The
+    // reward-to-risk floor below is what keeps the widened stop honest.
+    const rawStop = round2(
       Math.max(ema50Now * 0.995, currentPrice - atrNow * thresholds.stopAtrMultiple),
     );
+    const stopLoss = stopClearOfEntry(entry, rawStop, "bullish");
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
@@ -191,7 +229,7 @@ const maCrossover: Strategy = {
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -208,7 +246,7 @@ const maCrossover: Strategy = {
       entry,
       target,
       stopLoss,
-      holdDays: { min: 5, max: 15 },
+      holdDays: { min: 15, max: 30 },
       risk: riskFromStopDistance((entry.low + entry.high) / 2, stopLoss),
       metrics: [
         { label: "20 EMA", value: money(ema20Now) },
@@ -229,7 +267,7 @@ const rsiReversal: Strategy = {
   name: "RSI Reversal",
   style: "swing",
   tagline: "RSI turning up from oversold with a confirming candle",
-  holdPeriodLabel: "4–12 trading days",
+  holdPeriodLabel: "15–30 trading days",
   baseRisk: "Medium",
   explainer: {
     summary:
@@ -266,7 +304,7 @@ const rsiReversal: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 60) return null;
 
     const price = closes(daily);
@@ -277,8 +315,8 @@ const rsiReversal: Strategy = {
     const avgVolume = averageVolume(daily, 20);
     const lastCandle = daily[daily.length - 1];
 
-    const bullishCross = crossedAboveLevel(rsi14, thresholds.rsiOversold, 3);
-    const bearishCross = crossedBelowLevel(rsi14, thresholds.rsiOverbought, 3);
+    const bullishCross = crossedAboveLevel(rsi14, thresholds.rsiOversold, eventWindow(thresholds, 3));
+    const bearishCross = crossedBelowLevel(rsi14, thresholds.rsiOverbought, eventWindow(thresholds, 3));
     if (bullishCross < 0 && bearishCross < 0) return null;
 
     const isBullish = bullishCross >= 0;
@@ -299,7 +337,47 @@ const rsiReversal: Strategy = {
       ? ((currentPrice - recentLow) / recentLow) * 100 <= 8
       : ((recentHigh - currentPrice) / recentHigh) * 100 <= 8;
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      // Weighted, deliberately not required — unlike the trend-following
+      // screens, where it is a genuine filter.
+      //
+      // This is a mean-reversion setup: it fires when RSI crosses back up out
+      // of oversold, and a stock only reaches oversold by falling harder than
+      // the market. Demanding rising 20-day relative strength at the same
+      // moment asks for a stock that has both underperformed enough to be sold
+      // to an extreme and outperformed over the same window. The conjunction is
+      // near-unsatisfiable, and it was: this screen returned nothing across the
+      // whole universe on both live and seeded data, at every tolerance.
+      //
+      // Relative strength still says something useful about which bounce to
+      // prefer, so it keeps its weight and stops vetoing the setup outright.
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+      ),
       condition(
         isBullish ? `RSI crossed up through ${thresholds.rsiOversold}` : `RSI crossed down through ${thresholds.rsiOverbought}`,
         true,
@@ -361,6 +439,12 @@ const rsiReversal: Strategy = {
       stopLoss = round2(lastCandle.high + atrNow * 0.35);
     }
 
+    // Clear the stop of the entry band before judging the geometry. Reversal
+    // and cross setups anchor their stop to a level that sits close to spot by
+    // construction, so the raw anchor frequently lands inside the band and the
+    // setup was discarded on geometry rather than on merit.
+    stopLoss = stopClearOfEntry(entry, stopLoss, isBullish ? "bullish" : "bearish");
+
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
@@ -368,7 +452,7 @@ const rsiReversal: Strategy = {
     const rr = rewardToRisk(entry, target, stopLoss, isBullish ? "bullish" : "bearish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     const shortName = instrument.name.replace(/ Ltd$/, "");
@@ -388,7 +472,7 @@ const rsiReversal: Strategy = {
       entry,
       target,
       stopLoss,
-      holdDays: { min: 4, max: 12 },
+      holdDays: { min: 15, max: 30 },
       risk: riskFromStopDistance((entry.low + entry.high) / 2, stopLoss),
       metrics: [
         { label: "RSI(14)", value: ratio(rsiNow, 1) },
@@ -409,7 +493,7 @@ const consolidationBreakout: Strategy = {
   name: "Breakout from Consolidation",
   style: "swing",
   tagline: "Multi-week range broken on 1.5x+ volume",
-  holdPeriodLabel: "6–20 trading days",
+  holdPeriodLabel: "15–30 trading days",
   baseRisk: "Medium",
   explainer: {
     summary:
@@ -448,7 +532,7 @@ const consolidationBreakout: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 70) return null;
 
     const price = closes(daily);
@@ -462,12 +546,14 @@ const consolidationBreakout: Strategy = {
     const weeklyEma50 = ema(weeklyPrice, 50);
     const weeklyTrendUp = bundle.weekly.length >= 50 ? last(weeklyEma20) > last(weeklyEma50) : true;
 
-    // Look for the break within the last 4 sessions; measure the base behind it.
+    // Look for the break within a tolerance-scaled window of recent sessions
+    // (4 at moderate); measure the base behind it.
     let breakoutBarsAgo = -1;
     let rangeHigh = NaN;
     let rangeLow = NaN;
 
-    for (let back = 0; back <= 3; back++) {
+    const breakoutWindow = eventWindow(thresholds, 4);
+    for (let back = 0; back < breakoutWindow; back++) {
       const breakIndex = daily.length - 1 - back;
       const baseEnd = breakIndex - 1;
       const baseStart = baseEnd - 19;
@@ -495,7 +581,35 @@ const consolidationBreakout: Strategy = {
     const ema50Now = last(ema50);
     const atrNow = last(atr14);
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "Tight multi-week base",
         true,
@@ -547,7 +661,11 @@ const consolidationBreakout: Strategy = {
     });
     const measuredMove = rangeHigh + rangeHeight;
     const target = sanitiseBand(targetBand(measuredMove, 3));
-    const stopLoss = round2(Math.min(rangeHigh * 0.978, rangeHigh - atrNow * 0.8));
+    const stopLoss = stopClearOfEntry(
+      entry,
+      round2(Math.min(rangeHigh * 0.978, rangeHigh - atrNow * 0.8)),
+      "bullish",
+    );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
@@ -556,7 +674,7 @@ const consolidationBreakout: Strategy = {
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -572,7 +690,7 @@ const consolidationBreakout: Strategy = {
       entry,
       target,
       stopLoss,
-      holdDays: { min: 6, max: 20 },
+      holdDays: { min: 15, max: 30 },
       risk: riskFromStopDistance((entry.low + entry.high) / 2, stopLoss),
       metrics: [
         { label: "Range high", value: money(rangeHigh) },
@@ -593,7 +711,7 @@ const supportResistanceBounce: Strategy = {
   name: "Support / Resistance Bounce",
   style: "swing",
   tagline: "Reversal candle off a well-tested horizontal level",
-  holdPeriodLabel: "4–14 trading days",
+  holdPeriodLabel: "15–30 trading days",
   baseRisk: "Low",
   explainer: {
     summary:
@@ -631,7 +749,7 @@ const supportResistanceBounce: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 120) return null;
 
     const window = daily.slice(-120);
@@ -662,7 +780,35 @@ const supportResistanceBounce: Strategy = {
       .slice(-5)
       .some((c) => c.close < support.level * 0.975);
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         "Well-tested support zone",
         support.touches >= 3,
@@ -715,7 +861,11 @@ const supportResistanceBounce: Strategy = {
       high: round2(entryCeiling),
     });
     const target = sanitiseBand(targetBand(nextResistance, 2.4));
-    const stopLoss = round2(Math.min(support.level * 0.975, lastCandle.low - atrNow * 0.3));
+    const stopLoss = stopClearOfEntry(
+      entry,
+      round2(Math.min(support.level * 0.975, lastCandle.low - atrNow * 0.3)),
+      "bullish",
+    );
 
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
@@ -724,7 +874,7 @@ const supportResistanceBounce: Strategy = {
     const rr = rewardToRisk(entry, target, stopLoss, "bullish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     return {
@@ -740,7 +890,7 @@ const supportResistanceBounce: Strategy = {
       entry,
       target,
       stopLoss,
-      holdDays: { min: 4, max: 14 },
+      holdDays: { min: 15, max: 30 },
       risk: riskFromStopDistance((entry.low + entry.high) / 2, stopLoss),
       metrics: [
         { label: "Support level", value: money(support.level) },
@@ -761,7 +911,7 @@ const macdCrossover: Strategy = {
   name: "MACD Signal Crossover",
   style: "swing",
   tagline: "MACD crossing its signal line with trend alignment",
-  holdPeriodLabel: "5–18 trading days",
+  holdPeriodLabel: "15–30 trading days",
   baseRisk: "Medium",
   explainer: {
     summary:
@@ -799,7 +949,7 @@ const macdCrossover: Strategy = {
   },
 
   evaluate({ bundle, thresholds }): StrategySignal | null {
-    const { daily, quote, instrument } = bundle;
+    const { daily, quote, instrument, benchmarkDaily } = bundle;
     if (daily.length < 80) return null;
 
     const price = closes(daily);
@@ -809,8 +959,8 @@ const macdCrossover: Strategy = {
     const avgVolume = averageVolume(daily, 20);
     const currentPrice = quote.price;
 
-    const bullishCross = crossedAbove(macdLine, signal, 4);
-    const bearishCross = crossedBelow(macdLine, signal, 4);
+    const bullishCross = crossedAbove(macdLine, signal, eventWindow(thresholds, 4));
+    const bearishCross = crossedBelow(macdLine, signal, eventWindow(thresholds, 4));
     if (bullishCross < 0 && bearishCross < 0) return null;
 
     const isBullish = bullishCross >= 0;
@@ -823,7 +973,35 @@ const macdCrossover: Strategy = {
     const trendAligned = isBullish ? currentPrice > ema50Now : currentPrice < ema50Now;
     const lastCandle = daily[daily.length - 1];
 
+    
+    if (benchmarkDaily.length < 50) return null;
+    const benchmarkPrice = closes(benchmarkDaily);
+    const benchmarkEma50Now = last(ema(benchmarkPrice, 50));
+    const currentBenchmarkPrice = last(benchmarkPrice);
+    const marketUptrend = currentBenchmarkPrice > benchmarkEma50Now;
+    
+    const currentPriceForRs = quote.price;
+    const stockPriceThen = at(closes(daily), 20);
+    const benchmarkPriceThen = at(benchmarkPrice, 20);
+    const rsUptrend = Number.isFinite(stockPriceThen) && Number.isFinite(benchmarkPriceThen)
+      ? (currentPriceForRs / currentBenchmarkPrice) > (stockPriceThen / benchmarkPriceThen)
+      : true;
+
     const conditions: StrategyCondition[] = [
+      condition(
+        "Market in uptrend",
+        marketUptrend,
+        `NIFTY 50 above its 50 EMA`,
+        2,
+        true,
+      ),
+      condition(
+        "Outperforming the market",
+        rsUptrend,
+        `Stock RS rising vs NIFTY 50 over 20 days`,
+        2,
+        true,
+      ),
       condition(
         isBullish ? "MACD crossed above signal" : "MACD crossed below signal",
         true,
@@ -879,6 +1057,12 @@ const macdCrossover: Strategy = {
       );
     }
 
+    // Clear the stop of the entry band before judging the geometry. Reversal
+    // and cross setups anchor their stop to a level that sits close to spot by
+    // construction, so the raw anchor frequently lands inside the band and the
+    // setup was discarded on geometry rather than on merit.
+    stopLoss = stopClearOfEntry(entry, stopLoss, isBullish ? "bullish" : "bearish");
+
     // A stop inside the entry band, or a target overlapping it, is not a
     // tradeable setup — and `rewardToRisk` cannot see either, because it
     // works from midpoints. Must run before the reward-to-risk floor.
@@ -886,7 +1070,7 @@ const macdCrossover: Strategy = {
     const rr = rewardToRisk(entry, target, stopLoss, isBullish ? "bullish" : "bearish");
     if (rr < minRewardRiskFor(thresholds, "swing")) return null;
 
-    const confidence = scoreConditions(conditions);
+    const confidence = scoreSignal(conditions, bundle);
     if (confidence < thresholds.minConfidence) return null;
 
     const shortName = instrument.name.replace(/ Ltd$/, "");
@@ -905,7 +1089,7 @@ const macdCrossover: Strategy = {
       entry,
       target,
       stopLoss,
-      holdDays: { min: 5, max: 18 },
+      holdDays: { min: 15, max: 30 },
       risk: riskFromStopDistance((entry.low + entry.high) / 2, stopLoss),
       metrics: [
         { label: "MACD", value: ratio(macdNow, 3) },
