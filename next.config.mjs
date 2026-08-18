@@ -12,15 +12,32 @@ import { withSentryConfig } from "@sentry/nextjs";
  * The split is done with `pageExtensions` rather than a second app directory,
  * so the two builds share every file that does not actually differ — which is
  * almost all of them. A file named `page.web.tsx` is a page in the web build
- * and invisible to the mobile one; `page.mobile.tsx` is the reverse. Route
- * handlers are all `route.web.ts`, which is what keeps `output: "export"` from
- * tripping over `force-dynamic`.
+ * and invisible to the mobile one; `page.mobile.tsx` is the reverse.
+ *
+ * Route handlers are the exception, and they are hidden from the mobile build
+ * by *extension* rather than by name: they keep the stock `route.ts`, and the
+ * mobile build simply does not treat bare `.ts` as a route file. They cannot be
+ * `route.web.ts`, however much that would match the pages beside them —
+ * Next's client-reference-manifest plugin only recognises route handlers under
+ * the stock extensions, so a `route.web.ts` compiles to a `route.js` with no
+ * `route_client-reference-manifest.js` next to it, and deploying that fails on
+ * Vercel with an ENOENT for exactly that file. Pages are unaffected, which is
+ * why `page.web.tsx` is still fine.
+ *
+ * Dropping `ts` from the mobile extensions is enough to hide every one of them,
+ * because the only other route-significant `.ts` in the tree is `manifest.ts` —
+ * a PWA manifest a WebView has no use for. Nothing else under `app/` is a
+ * route file with a `.ts` extension; if that ever changes, this stops being a
+ * clean line to cut along.
  */
 const isMobile = process.env.NEXT_PUBLIC_MOBILE === "1";
 
 const platformExtensions = isMobile
   ? ["mobile.tsx", "mobile.ts"]
   : ["web.tsx", "web.ts"];
+
+/** Stock extensions a route file may use. See above for why mobile omits `ts`. */
+const baseExtensions = isMobile ? ["tsx", "jsx"] : ["tsx", "ts", "jsx", "js"];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -46,7 +63,7 @@ const nextConfig = {
   // Platform-specific first: a `page.mobile.tsx` must win over a bare
   // `page.tsx` sitting beside it, which is how a screen provides a WebView
   // implementation without forking the whole route.
-  pageExtensions: [...platformExtensions, "tsx", "ts", "jsx", "js"],
+  pageExtensions: [...platformExtensions, ...baseExtensions],
 
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
