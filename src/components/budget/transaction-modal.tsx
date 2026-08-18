@@ -29,7 +29,7 @@ import { createTransferPair } from "@/lib/budget/recurring";
 import { getWalletBalance } from "@/lib/budget/calculations";
 import { atMidday, fromDateInputValue, toDateInputValue, fromDateTimeInputValue, toDateTimeInputValue } from "@/lib/budget/period";
 import { formatCurrencyAmount, getCurrencyInfo } from "@/lib/budget/currency";
-import { amountValue, evaluateExpression, isExpression } from "@/lib/budget/expression";
+import { amountValue, isExpression } from "@/lib/budget/expression";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
   Field,
@@ -42,8 +42,8 @@ import {
   Toggle,
   CategoryDot,
 } from "./budget-ui";
+import { AmountInput } from "@/components/ui/amount-input";
 import { CategoryEditor } from "./categories-view";
-import { cn } from "@/lib/utils";
 
 type Tab = "expense" | "income" | "transfer";
 
@@ -434,47 +434,28 @@ export function TransactionModal({
       ) : null}
 
       <Field label="Amount">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-body text-label-secondary/60">
-            {getCurrencyInfo(fromWallet?.currency)?.symbol ?? ""}
-          </span>
-          {/*
-            Deliberately `text`, not `number`: a number input reports an empty
-            value for anything it cannot parse, so "886.38-878" would never
-            reach React and the arithmetic below could not run.
-          */}
-          <TextInput
-            type="text"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onBlur={() => {
-              // Settle the field to its result once you leave it, so what is
-              // saved is what you last saw.
-              const value = evaluateExpression(amount);
-              if (value !== null && isExpression(amount)) setAmount(String(value));
-            }}
-            placeholder="0.00"
-            className="pl-8 text-title3 font-semibold"
-            autoFocus
-          />
-        </div>
-        {isExpression(amount) ? (
-          <p
-            className={cn(
-              "mt-1 text-caption",
-              Number.isFinite(numericAmount) ? "text-label-secondary/70" : "text-red",
-            )}
-          >
-            {Number.isFinite(numericAmount)
-              ? `= ${formatCurrencyAmount(numericAmount, fromWallet?.currency)}`
-              : "Not a valid calculation"}
+        {/*
+          `AmountInput`, not a `number` input: a number input reports an empty
+          value for anything it cannot parse, so "886.38-878" would never reach
+          React and the arithmetic could not run — and on a phone the OS numeric
+          keyboard has no operator keys at all, so the app supplies its own.
+        */}
+        <AmountInput
+          value={amount}
+          onChange={setAmount}
+          prefix={getCurrencyInfo(fromWallet?.currency)?.symbol ?? ""}
+          keypadLabel="Amount"
+          allowNegative
+          formatPreview={(value) => formatCurrencyAmount(value, fromWallet?.currency)}
+          placeholder="0.00"
+          className="text-title3 font-semibold"
+          autoFocus
+        />
+        {!isExpression(amount) && tab === "expense" ? (
+          <p className="mt-1 text-caption text-label-secondary/70">
+            Tip: Enter a negative amount (e.g. -50) for refunds.
           </p>
-        ) : (
-          tab === "expense" ? (
-             <p className="mt-1 text-caption text-label-secondary/70">Tip: Enter a negative amount (e.g. -50) for refunds.</p>
-          ) : null
-        )}
+        ) : null}
       </Field>
 
       {tab === "transfer" ? (
@@ -508,13 +489,10 @@ export function TransactionModal({
               <TextInput type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             <Field label="Transfer fee" hint="Charged to source." className="mb-0">
-              <TextInput
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
+              <AmountInput
                 value={transferFee}
-                onChange={(e) => setTransferFee(e.target.value)}
+                onChange={setTransferFee}
+                keypadLabel="Transfer fee"
                 placeholder="0.00"
               />
             </Field>

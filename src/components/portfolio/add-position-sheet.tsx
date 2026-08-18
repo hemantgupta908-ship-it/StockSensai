@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Sheet } from "@/components/ui/sheet";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import {
   TRADING_STYLES,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/strategies/types";
 import { formatINR, todayISO } from "@/lib/utils";
 import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
+import { apiFetch } from "@/lib/mobile/api";
 import { usePortfolio } from "./portfolio-provider";
 
 interface AddPositionSheetProps {
@@ -47,7 +49,7 @@ export function AddPositionSheet({ open, onClose, initialTicker }: AddPositionSh
   async function fillLivePrice(symbol: string) {
     setPricePending(true);
     try {
-      const res = await fetch(`/api/quotes?tickers=${encodeURIComponent(symbol)}`, {
+      const res = await apiFetch(`/api/quotes?tickers=${encodeURIComponent(symbol)}`, {
         cache: "no-store",
       });
       if (!res.ok) return;
@@ -238,27 +240,20 @@ export function AddPositionSheet({ open, onClose, initialTicker }: AddPositionSh
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Quantity *">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
+            <AmountInput
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={setQuantity}
+              keypadLabel="Quantity"
               placeholder="Shares count"
-              className={inputClass}
             />
           </Field>
 
           <Field label="Buy Price (₹) *">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.05"
-              min={0}
+            <AmountInput
               value={entryPrice}
-              onChange={(e) => setEntryPrice(e.target.value)}
+              onChange={setEntryPrice}
+              keypadLabel="Buy price"
               placeholder="0.00"
-              className={inputClass}
             />
           </Field>
         </div>

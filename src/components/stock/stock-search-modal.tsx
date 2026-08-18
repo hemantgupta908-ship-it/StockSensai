@@ -9,6 +9,7 @@ import { SEED_INSTRUMENTS } from "@/lib/market-data/seed/instruments";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { Recommendation } from "@/lib/engine/types";
+import { apiFetch } from "@/lib/mobile/api";
 
 const QUICK_STOCKS = [
   { symbol: "BSE", label: "BSE Ltd" },
@@ -114,7 +115,7 @@ export function StockSearchModal({
     setPreview(null);
     setPreviewError(null);
     try {
-      const res = await fetch(`/api/recommendations?style=swing&tolerance=moderate`);
+      const res = await apiFetch(`/api/recommendations?style=swing&tolerance=moderate`);
       if (!res.ok) throw new Error(`Feed responded ${res.status}`);
 
       const feed = (await res.json()) as { recommendations?: Recommendation[] };

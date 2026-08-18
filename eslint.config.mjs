@@ -20,6 +20,12 @@ export default [
       ".next.tmp/**",
       "node_modules/**",
       "next-env.d.ts",
+      // The Android build's static export, and the copy of it Capacitor syncs
+      // into the native project. Both are minified webpack output.
+      "out/**",
+      "android/**",
+      // Source images for the launcher icon and splash.
+      "assets/**",
       // Agent worktrees carry their own build output, which is not source.
       ".claude/**",
       // Generated instrument universe — thousands of lines of data literals.

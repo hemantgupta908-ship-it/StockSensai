@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Funnel, NotePencil, PencilSimple, Plus, Trash, Lightbulb, Lightning } from "@phosphor-icons/react";
+import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Flask, Funnel, NotePencil, PencilSimple, Plus, Trash, Lightbulb, Lightning } from "@phosphor-icons/react";
 
 import {
   TRADING_STYLES,
@@ -16,6 +16,7 @@ import { useSession } from "@/components/auth/session-provider";
 import { Badge, ExchangeBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LocalStorageNotice } from "@/components/local-storage-notice";
 import { PageContainer } from "@/components/ui/page-container";
@@ -43,7 +44,7 @@ export function PortfolioView() {
   const [styleFilter, setStyleFilter] = useState<StyleFilter>("all");
 
   const openEntries = useMemo(() => entries.filter((e) => e.exitPrice === null), [entries]);
-  const { quotes, refetch, refreshing } = useQuotes(openEntries.map((e) => e.ticker));
+  const { quotes, refetch, refreshing, isLiveData } = useQuotes(openEntries.map((e) => e.ticker));
 
   // Filtered entries
   const filteredEntries = useMemo(() => {
@@ -176,6 +177,34 @@ export function PortfolioView() {
       <PageContainer width="wide" className="space-y-3">
         {isLocal && authEnabled && (
           <LocalStorageNotice what="journal" reason={user ? "google-local" : "signed-out"} />
+        )}
+
+        {/*
+          Simulated prices must say so here above all other screens.
+
+          Every figure on this page — "Now", the P&L, the percentage, the
+          take-profit prompts — is derived from the quote. When the provider is
+          the seeded simulation, a holding can read "+330%" in the same
+          typography a real gain would use, and nothing distinguishes the two.
+          A screen that shows invented numbers about someone's actual money has
+          to label them.
+        */}
+        {isLiveData === false && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-card border border-orange/30 bg-orange/[0.08] p-3.5"
+          >
+            <Flask size={18} weight="duotone" className="mt-0.5 shrink-0 text-orange" />
+            <p className="text-caption leading-relaxed text-label-secondary/80">
+              <strong className="font-semibold text-label">
+                &ldquo;Now&rdquo; prices below are simulated.
+              </strong>{" "}
+              This device is screening on seeded demo data, so the current values, profit and loss,
+              and any suggestions drawn from them are not real. Your holdings and entry prices are
+              your own. Add your deployment&apos;s URL in Settings &rarr; Data source for live NSE
+              and BSE prices.
+            </p>
+          </div>
         )}
 
         {/* Top Summary Bar */}
@@ -576,13 +605,10 @@ function CloseSheet({
             <span className="mb-1.5 block text-footnote font-medium text-label-secondary/70">
               Exit price (₹)
             </span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.05"
-              min={0}
+            <AmountInput
               value={exitPrice}
-              onChange={(e) => setExitPrice(e.target.value)}
+              onChange={setExitPrice}
+              keypadLabel="Exit price"
               placeholder={String(entry.entryPrice)}
               className="w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]"
             />
@@ -664,11 +690,10 @@ function EditSheet({
             <span className="mb-1.5 block text-footnote font-medium text-label-secondary/70">
               Quantity
             </span>
-            <input
-              type="number"
-              min={1}
+            <AmountInput
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={setQuantity}
+              keypadLabel="Quantity"
               className="w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]"
             />
           </label>
@@ -677,12 +702,10 @@ function EditSheet({
             <span className="mb-1.5 block text-footnote font-medium text-label-secondary/70">
               Entry price (₹)
             </span>
-            <input
-              type="number"
-              step="0.05"
-              min={0}
+            <AmountInput
               value={entryPrice}
-              onChange={(e) => setEntryPrice(e.target.value)}
+              onChange={setEntryPrice}
+              keypadLabel="Entry price"
               className="w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]"
             />
           </label>

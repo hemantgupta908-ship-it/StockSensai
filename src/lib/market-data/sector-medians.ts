@@ -16,11 +16,9 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
  * neither has to choose between real peer comparisons and a fast page.
  */
 
-export interface SectorMedian {
-  pe: number;
-  pb: number;
-  sampleSize: number;
-}
+import type { SectorMedian, SectorMedianStore } from "./sector-median-store";
+
+export type { SectorMedian };
 
 /**
  * Below this many peers a median is noise rather than a peer group, so the
@@ -159,3 +157,17 @@ export async function saveSectorMedians(
     return 0;
   }
 }
+
+
+/**
+ * The Supabase-backed store, for the server.
+ *
+ * `save` returns a row count that the provider does not need, so it is dropped
+ * here rather than widening the interface the device also has to satisfy.
+ */
+export const supabaseSectorMedianStore: SectorMedianStore = {
+  load: loadSectorMedians,
+  async save(medians) {
+    await saveSectorMedians(medians);
+  },
+};

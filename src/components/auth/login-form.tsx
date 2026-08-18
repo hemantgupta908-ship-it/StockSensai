@@ -11,6 +11,7 @@ import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 import { isDriveStorageEnabled, isGoogleAuthEnabled } from "@/lib/env";
 import { DRIVE_SCOPE } from "@/lib/drive/token";
 import { Button } from "@/components/ui/button";
+import { authCallbackUrl } from "@/lib/auth/callback-url";
 
 type Mode = "signin" | "signup";
 type Status = "idle" | "working" | "check-email" | "reset-sent";
@@ -183,7 +184,7 @@ export function LoginForm({
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: resolvedEmail,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: { emailRedirectTo: authCallbackUrl() },
         });
         if (signUpError) throw signUpError;
 
@@ -258,7 +259,7 @@ export function LoginForm({
     }
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(clean, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
+      redirectTo: authCallbackUrl("/auth/reset"),
     });
 
     if (resetError) {
@@ -287,7 +288,7 @@ export function LoginForm({
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: authCallbackUrl(next),
         /**
          * Ask for the app-folder scope during sign-in, not on first save.
          *

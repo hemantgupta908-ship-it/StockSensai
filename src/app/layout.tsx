@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { cookies, headers } from "next/headers";
 import "./globals.css";
 
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import { IconProvider } from "@/components/icon-provider";
-import { parseRiskTolerance, RISK_COOKIE } from "@/lib/preferences";
+import { NativeShell } from "@/components/mobile/native-shell";
+import { getCspNonce, getInitialRiskTolerance } from "@/lib/request-context";
 
 export const metadata: Metadata = {
   title: {
@@ -37,11 +37,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const riskTolerance = parseRiskTolerance(cookieStore.get(RISK_COOKIE)?.value);
+  const riskTolerance = await getInitialRiskTolerance();
   // Set by the middleware, which owns the Content-Security-Policy. Undefined on
   // any path the middleware does not match, where there is no policy to satisfy.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const nonce = await getCspNonce();
 
   return (
     <html lang="en-IN" suppressHydrationWarning>
@@ -64,6 +63,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ThemeProvider>
           <IconProvider>
             <PreferencesProvider initialRiskTolerance={riskTolerance}>
+              {/* Hardware back button, status-bar tinting, splash dismissal and
+                  external-link handling. Renders nothing, and is inert outside
+                  the Android build. */}
+              <NativeShell />
               {children}
             </PreferencesProvider>
           </IconProvider>

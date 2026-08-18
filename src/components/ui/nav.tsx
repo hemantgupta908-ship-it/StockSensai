@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+
 import { motion } from "framer-motion";
 import type { Icon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
+import { useAppPathname } from "@/lib/use-app-pathname";
 
 /**
  * One navigation chrome, driven by a per-environment manifest.
@@ -54,7 +55,7 @@ export function isActivePath(pathname: string, href: string): boolean {
  * Hidden from `lg` up, where the sidebar takes over.
  */
 export function NavTabBar({ items, label }: { items: NavItem[]; label: string }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
 
   return (
     <nav
@@ -152,7 +153,7 @@ export function NavSidebar({
   header?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
 
   return (
     <aside

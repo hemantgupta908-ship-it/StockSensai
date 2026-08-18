@@ -246,6 +246,15 @@ create table if not exists public.budget_store (
   -- Serialised BudgetSettings (see src/lib/budget/defaults.ts).
   settings   jsonb not null default '{}'::jsonb,
 
+  -- Optimistic concurrency. NOT optional: `readBudget` selects this column by
+  -- name, so a table without it fails every read with `42703 column does not
+  -- exist` — and because the client falls back to local data on a failed read,
+  -- the breakage is invisible on a device that already has data cached and
+  -- total on a fresh one. Added by migration after this file was written; it
+  -- lives here too so a new deployment running only `schema.sql` is not born
+  -- broken. See src/lib/budget/sync.ts.
+  revision   bigint not null default 0,
+
   updated_at timestamptz not null default now()
 );
 

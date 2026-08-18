@@ -47,6 +47,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getNetWorth, getCumulativeTotals } from "@/lib/budget/calculations";
 import { useBudget, usePolicySavings } from "./budget-provider";
+import { SyncStatusBanner } from "./sync-status-banner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AddFab, Amount, Card, Section, Sheet, Toggle } from "./budget-ui";
 import { AppearanceSettingsSection } from "./budget-settings-view";
@@ -339,6 +340,9 @@ export function BudgetDashboard() {
 
   return (
     <>
+      {/* Only rendered when a remote read actually failed — see the component. */}
+      <SyncStatusBanner />
+
       {/* Mobile View: Sequential list using custom homePageOrder */}
       <div className="flex flex-col gap-6 xl:hidden">
         {effectiveOrder.map((id, index) => {

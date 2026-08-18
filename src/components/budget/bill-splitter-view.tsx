@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { newId } from "@/lib/budget/factory";
 import { useBudget } from "./budget-provider";
-import { Card, EmptyState, Field, Section, TextInput } from "./budget-ui";
+import { AmountInput, Card, EmptyState, Field, Section, TextInput } from "./budget-ui";
 
 interface BillItem {
   id: string;
@@ -116,12 +116,10 @@ export function BillSplitterView() {
           </Field>
 
           <Field label="Multiplier" hint="Applied to every item — useful when tax or tip is charged per item.">
-            <TextInput
-              type="number"
-              step="0.01"
-              min="0"
+            <AmountInput
               value={multiplier}
-              onChange={(e) => setMultiplier(e.target.value)}
+              onChange={setMultiplier}
+              keypadLabel="Multiplier"
             />
           </Field>
 
@@ -139,18 +137,19 @@ export function BillSplitterView() {
                       }
                       placeholder="Item description"
                     />
-                    <TextInput
-                      type="number"
-                      step="0.01"
-                      className="w-32 shrink-0"
-                      value={item.cost}
-                      onChange={(e) =>
-                        setItems((current) =>
-                          current.map((i) => (i.id === item.id ? { ...i, cost: e.target.value } : i)),
-                        )
-                      }
-                      placeholder="0.00"
-                    />
+                    <div className="w-32 shrink-0">
+                      <AmountInput
+                        value={item.cost}
+                        onChange={(next) =>
+                          setItems((current) =>
+                            current.map((i) => (i.id === item.id ? { ...i, cost: next } : i)),
+                          )
+                        }
+                        keypadLabel={item.name || "Item cost"}
+                        showPreview={false}
+                        placeholder="0.00"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setItems((current) => current.filter((i) => i.id !== item.id))}

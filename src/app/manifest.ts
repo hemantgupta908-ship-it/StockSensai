@@ -3,11 +3,17 @@ import type { MetadataRoute } from "next";
 /**
  * Web app manifest.
  *
- * Beyond making the site installable, this is the foundation for shipping to
- * Android later: a Trusted Web Activity (Bubblewrap) or a Capacitor shell both
- * read this file for the app's identity, icons and display mode. Getting it
- * right now costs nothing and avoids reworking it at packaging time.
+ * Beyond making the site installable, this is what the Android shell reads for
+ * the app's identity, icons and display mode.
  */
+
+/**
+ * Nothing here varies by request, and saying so is what lets the Android build
+ * emit it as a file. Metadata routes are route handlers underneath, and an
+ * unannotated one is dynamic by default — which `output: "export"` cannot
+ * represent, since there is no server to run it on.
+ */
+export const dynamic = "force-static";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "WealthSensei — NSE & BSE stock screener",

@@ -381,6 +381,23 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+  /*
+   * Occupies a fixed 44pt bar *plus* the status-bar inset it sits under.
+   *
+   * The spacer used to be `h-[44px] safe-top`, which cannot work: `height` is
+   * border-box here, so the padding is absorbed *inside* the 44px and the
+   * spacer stays exactly 44px tall whatever the inset is. The bar itself is
+   * that padding *plus* a 44px row, so it measures `inset + 44` — and the
+   * difference is precisely how far the first element on every screen slid up
+   * underneath it. Invisible while the bar was transparent; it hid content the
+   * moment the bar became opaque.
+   *
+   * Only the fixed `NavBar` needs this. The sticky headers participate in
+   * normal flow and reserve their own space.
+   */
+  .safe-top-bar-spacer {
+    height: calc(44px + env(safe-area-inset-top, 0px));
+  }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

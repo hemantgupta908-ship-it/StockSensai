@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { PortfolioEntry } from "./portfolio-provider";
 import type { Instrument } from "@/lib/market-data/types";
+import { apiFetch } from "@/lib/mobile/api";
 
 export interface SectorAllocation {
   sector: string;
@@ -48,7 +49,7 @@ export function useSectorAllocation(entries: PortfolioEntry[], quotes: Record<st
 
       try {
         if (missing.length > 0) {
-          const res = await fetch(`/api/instruments?tickers=${missing.join(",")}`);
+          const res = await apiFetch(`/api/instruments?tickers=${missing.join(",")}`);
           if (!res.ok) throw new Error("Failed to fetch instruments");
 
           const fetched: Record<string, Instrument> = await res.json();

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+
 import { Info, ShieldWarning } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
  */
 
 import { DISCLAIMER_SHORT, DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { useAppPathname } from "@/lib/use-app-pathname";
 export { DISCLAIMER_SHORT, DISCLAIMER_FULL };
 
 /** Stock & investment paths where the stock market disclaimer is relevant. */
@@ -26,7 +27,7 @@ const RELEVANT_STOCK_PATHS = [
 
 /** Persistent footer strip, rendered only on stock/investment pages. */
 export function DisclaimerFooter({ className }: { className?: string }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
 
   // Only show disclaimer on stock/investment pages; hide on budgeting/planning/personal finance screens.
   const isRelevant = RELEVANT_STOCK_PATHS.some((path) => pathname?.startsWith(path));

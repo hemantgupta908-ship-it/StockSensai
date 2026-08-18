@@ -171,10 +171,23 @@ function readLocalSettings(): BudgetSettings {
 
 type TableName = keyof BudgetDatabase;
 
+/**
+ * How the last attempt to reach this account's remote store went.
+ *
+ * `unreachable` is the one that matters. The provider falls back to local data
+ * when a read fails, which is right — an offline device must stay usable — but
+ * on a fresh install "local data" is *empty*, and rendering it silently is
+ * indistinguishable from every transaction having been deleted. This is what
+ * lets the UI say "we could not reach your data" instead of showing zero.
+ */
+export type RemoteStatus = "local" | "ok" | "empty" | "unreachable";
+
 interface BudgetStore extends BudgetDatabase {
   loading: boolean;
   /** True when running without a backend — everything lives in this browser. */
   isLocal: boolean;
+  /** Outcome of the last remote read. See `RemoteStatus`. */
+  remoteStatus: RemoteStatus;
   settings: BudgetSettings;
   /** Accounts plus resolved primary currency, for every money calculation. */
   allWallets: AllWallets;
@@ -225,6 +238,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<BudgetDatabase>(emptyDatabase);
   const [settings, setSettings] = useState<BudgetSettings>(DEFAULT_BUDGET_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>("local");
   const hydrated = useRef(false);
 
   /**
@@ -270,9 +284,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           revisionRef.current,
         );
 
-        if (result === null) return;
+        if (result === null) {
+          // A write that cannot reach the remote is the same class of problem as
+          // a read that cannot, and was equally silent: the device carries on
+          // from localStorage while the account quietly stops receiving
+          // anything. That is how a broken `budget_store` schema went unnoticed
+          // — every write had been failing, and the only symptom was a second
+          // device showing an empty account.
+          console.warn(`[budget] store=${backend} write=unreachable`);
+          setRemoteStatus("unreachable");
+          return;
+        }
         if (result !== "conflict") {
           revisionRef.current = result.revision;
+          setRemoteStatus("ok");
           return;
         }
 
@@ -361,6 +386,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setData(localData);
           setSettings(localSettings);
+          setRemoteStatus("local");
           setLoading(false);
           hydrated.current = true;
         }
@@ -370,6 +396,16 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const remote = await readBudget(backend, user, getSupabaseBrowserClient());
 
       if (cancelled) return;
+
+      // Distinguished deliberately: "your store is empty" and "we could not
+      // read your store" both fall back to local data, but only one of them is
+      // safe to render without saying so.
+      const outcome = remote === UNREACHABLE ? "unreachable" : remote.payload ? "ok" : "empty";
+      // Named explicitly because the three outcomes are indistinguishable on
+      // screen — two of them render the same empty dashboard. This one line is
+      // the difference between diagnosing a sync problem and guessing at it.
+      console.info(`[budget] store=${backend} read=${outcome}`);
+      setRemoteStatus(outcome);
 
       if (remote === UNREACHABLE || !remote.payload) {
         // Either nothing stored yet, or the remote could not be reached: keep
@@ -930,6 +966,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       ...data,
       loading,
       isLocal,
+      remoteStatus,
       settings,
       allWallets,
       updateSettings,
@@ -962,6 +999,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       data,
       loading,
       isLocal,
+      remoteStatus,
       settings,
       allWallets,
       updateSettings,

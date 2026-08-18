@@ -16,6 +16,7 @@ import { newId } from "@/lib/budget/factory";
 import { NAV_SECTIONS } from "@/components/ui/nav-items";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
+  AmountInput,
   Card,
   CategoryDot,
   EmptyState,
@@ -238,13 +239,7 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
       </Field>
 
       <Field label="Multiplier" hint="Applied to every item — useful when tax is charged per item.">
-        <TextInput
-          type="number"
-          step="0.01"
-          min="0"
-          value={multiplier}
-          onChange={(e) => setMultiplier(e.target.value)}
-        />
+        <AmountInput value={multiplier} onChange={setMultiplier} keypadLabel="Multiplier" />
       </Field>
 
       <Field label="Items">
@@ -261,18 +256,19 @@ function BillSplitter({ open, onClose }: { open: boolean; onClose: () => void })
                   }
                   placeholder="Item"
                 />
-                <TextInput
-                  type="number"
-                  step="0.01"
-                  className="w-28 shrink-0"
-                  value={item.cost}
-                  onChange={(e) =>
-                    setItems((current) =>
-                      current.map((i) => (i.id === item.id ? { ...i, cost: e.target.value } : i)),
-                    )
-                  }
-                  placeholder="0.00"
-                />
+                <div className="w-28 shrink-0">
+                  <AmountInput
+                    value={item.cost}
+                    onChange={(next) =>
+                      setItems((current) =>
+                        current.map((i) => (i.id === item.id ? { ...i, cost: next } : i)),
+                      )
+                    }
+                    keypadLabel={item.name || "Item cost"}
+                    showPreview={false}
+                    placeholder="0.00"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setItems((current) => current.filter((i) => i.id !== item.id))}

@@ -14,6 +14,7 @@ import { LocalStorageNotice } from "@/components/local-storage-notice";
 import { PageContainer } from "@/components/ui/page-container";
 import { NavBar } from "@/components/ui/nav-bar";
 import { RefreshButton } from "@/components/ui/refresh-button";
+import { AmountInput } from "@/components/ui/amount-input";
 import { useWatchlist } from "./watchlist-provider";
 
 export function WatchlistView() {
@@ -190,10 +191,11 @@ export function WatchlistView() {
                             <label className="text-[10px] uppercase font-bold text-label-secondary/60 tracking-wider">Alert Above</label>
                             <div className="relative">
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-label-secondary/60 text-sm">₹</span>
-                              <input 
-                                type="number" 
+                              <AmountInput
                                 value={alertAbove}
-                                onChange={(e) => setAlertAbove(e.target.value)}
+                                onChange={setAlertAbove}
+                                keypadLabel="Alert above"
+                                showPreview={false}
                                 placeholder="e.g. 250"
                                 className="w-full bg-bg border border-separator/40 dark:border-white/[0.06] rounded-md pl-6 pr-2 py-1.5 text-sm outline-none focus:border-blue"
                               />
@@ -203,10 +205,11 @@ export function WatchlistView() {
                             <label className="text-[10px] uppercase font-bold text-label-secondary/60 tracking-wider">Alert Below</label>
                             <div className="relative">
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-label-secondary/60 text-sm">₹</span>
-                              <input 
-                                type="number" 
+                              <AmountInput
                                 value={alertBelow}
-                                onChange={(e) => setAlertBelow(e.target.value)}
+                                onChange={setAlertBelow}
+                                keypadLabel="Alert below"
+                                showPreview={false}
                                 placeholder="e.g. 190"
                                 className="w-full bg-bg border border-separator/40 dark:border-white/[0.06] rounded-md pl-6 pr-2 py-1.5 text-sm outline-none focus:border-blue"
                               />

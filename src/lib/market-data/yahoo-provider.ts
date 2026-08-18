@@ -1,5 +1,3 @@
-import "server-only";
-
 import type {
   Candle,
   CandleInterval,
@@ -11,7 +9,12 @@ import type {
 } from "./types";
 import { isNseCashMarketOpen } from "./mock-provider";
 import { createLimiter, createRateLimiter, withRetry } from "./rate-limit";
-import { loadSectorMedians, saveSectorMedians, type SectorMedian } from "./sector-medians";
+import {
+  createMemorySectorMedianStore,
+  type SectorMedian,
+  type SectorMedianStore,
+} from "./sector-median-store";
+import { marketDataFetch, type FetchLike } from "@/lib/mobile/native-http";
 import { SECTOR_STATS, SEED_BY_TICKER, SEED_INSTRUMENTS } from "./seed/instruments";
 import { toYahooSymbol } from "./yahoo-symbols";
 
@@ -208,12 +211,35 @@ function toSessionDate(epochSeconds: number): number {
 
 // ------------------------------------------------------------------ provider
 
+/**
+ * Constructor dependencies, both with defaults that suit the Android build.
+ *
+ * The server overrides both: it has a Supabase-backed median store shared by
+ * every user, and no need for native HTTP. Nothing else about the provider
+ * differs between the two, which is the point — a live price is computed from
+ * the same response either way.
+ */
+export interface YahooProviderOptions {
+  /** Defaults to the native-capable fetch, which is plain `fetch` off-device. */
+  fetch?: FetchLike;
+  /** Defaults to an in-process store. */
+  sectorMedianStore?: SectorMedianStore;
+}
+
 export class YahooMarketDataProvider implements MarketDataProvider {
   readonly name = "yahoo";
   readonly isLive = true;
 
   private readonly pace = createRateLimiter(RATE_LIMIT_RPS);
   private readonly limit = createLimiter(CONCURRENCY);
+
+  private readonly fetch: FetchLike;
+  private readonly medianStore: SectorMedianStore;
+
+  constructor(options: YahooProviderOptions = {}) {
+    this.fetch = options.fetch ?? marketDataFetch;
+    this.medianStore = options.sectorMedianStore ?? createMemorySectorMedianStore();
+  }
 
   private cookie: string | null = null;
   private crumb: string | null = null;
@@ -244,7 +270,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
             };
             if (useCrumb && this.cookie) headers.Cookie = this.cookie;
 
-            const response = await fetch(url, { headers, cache: "no-store" });
+            const response = await this.fetch(url, { headers, cache: "no-store" });
 
             if (response.status === 401 || response.status === 403) {
               // Crumb expired or was never valid — force a fresh handshake.
@@ -282,7 +308,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
 
         for (const seedUrl of COOKIE_SEED_URLS) {
           try {
-            const seed = await fetch(seedUrl, {
+            const seed = await this.fetch(seedUrl, {
               headers: {
                 "User-Agent": USER_AGENT,
                 Accept: "text/html,application/xhtml+xml",
@@ -305,7 +331,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
         if (jar.size === 0) throw new Error("no cookies returned from any seed URL");
         this.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
 
-        const crumbResponse = await fetch(CRUMB_URL, {
+        const crumbResponse = await this.fetch(CRUMB_URL, {
           headers: { "User-Agent": USER_AGENT, Cookie: this.cookie, Accept: "*/*" },
         });
         const crumb = (await crumbResponse.text()).trim();
@@ -554,10 +580,8 @@ export class YahooMarketDataProvider implements MarketDataProvider {
         // Persist so a stock detail page can read real peer medians without
         // paying for this fan-out itself. Not awaited into the caller's
         // critical path — a failed write costs accuracy, not the screen.
-        void saveSectorMedians(toPersist).then(
-          (count) => {
-            if (count > 0) console.log(`[yahoo] persisted ${count} sector medians`);
-          },
+        void this.medianStore.save(toPersist).then(
+          () => console.log(`[yahoo] stored medians for ${Object.keys(toPersist).length} sectors`),
           (error) => console.error("[yahoo] sector median persist failed:", error),
         );
       } finally {
@@ -692,7 +716,7 @@ export class YahooMarketDataProvider implements MarketDataProvider {
     // static table. The middle step is what lets a single detail page compare
     // against real peers — it reads one small row set instead of re-deriving
     // the medians from 200-odd summary requests of its own.
-    const persisted = await loadSectorMedians();
+    const persisted = await this.medianStore.load();
     const fallbackSector = SECTOR_STATS[seed.sector] ?? { pe: 25, pb: 4 };
     const sectorStat =
       this.sectorMedians?.stats.get(seed.sector) ??

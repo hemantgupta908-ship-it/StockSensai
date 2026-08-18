@@ -6,6 +6,7 @@ import { NotePencil } from "@phosphor-icons/react";
 
 import type { StrategySignal } from "@/lib/strategies/types";
 import { Sheet } from "@/components/ui/sheet";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { formatINR, todayISO } from "@/lib/utils";
 import { usePortfolio } from "./portfolio-provider";
@@ -89,26 +90,19 @@ export function LogTradeButton({
           </p>
 
           <Field label="Quantity">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
+            <AmountInput
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={setQuantity}
+              keypadLabel="Quantity"
               placeholder="Number of shares"
-              className={inputClass}
             />
           </Field>
 
           <Field label="Entry price (₹)">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.05"
-              min={0}
+            <AmountInput
               value={entryPrice}
-              onChange={(e) => setEntryPrice(e.target.value)}
-              className={inputClass}
+              onChange={setEntryPrice}
+              keypadLabel="Entry price"
             />
           </Field>
 

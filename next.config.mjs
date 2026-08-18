@@ -1,8 +1,4 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { withSentryConfig } from "@sentry/nextjs";
-
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Two builds come out of this one source tree.
@@ -28,7 +24,20 @@ const platformExtensions = isMobile
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  distDir: isMobile ? ".next.mobile" : ".next",
+  /**
+   * A directory each.
+   *
+   * The two builds compile the same routes to different outputs, so sharing
+   * `.next` means every switch between them starts from a cache describing the
+   * other one — which on Windows surfaces as a readlink error on
+   * `.next/diagnostics`, not as a clean rebuild.
+   *
+   * `out` for mobile rather than `.next.mobile` because an export with a custom
+   * `distDir` *replaces* that directory with the exported site instead of
+   * writing a sibling `out/`. Naming it `out` puts the finished assets exactly
+   * where `webDir` in `capacitor.config.ts` expects them.
+   */
+  distDir: isMobile ? "out" : ".next",
   reactStrictMode: true,
   // Lint runs in the build. It was disabled before, which read as "we know
   // about the warnings" but actually meant there was no ESLint config at all.
@@ -54,21 +63,6 @@ const nextConfig = {
         images: { unoptimized: true },
       }
     : {}),
-
-  webpack(config) {
-    if (isMobile) {
-      // Swap the request-scoped server modules for WebView equivalents. These
-      // are aliases rather than runtime branches so the real implementations —
-      // and the secrets and Node built-ins they reach for — are never linked
-      // into a bundle that ships on a device.
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        "@/lib/supabase/server": path.resolve(here, "src/lib/mobile/stubs/supabase-server.ts"),
-        "@/lib/request-context": path.resolve(here, "src/lib/mobile/stubs/request-context.ts"),
-      };
-    }
-    return config;
-  },
 };
 
 /**

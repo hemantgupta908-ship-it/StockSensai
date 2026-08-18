@@ -39,6 +39,7 @@ import {
 } from "@/lib/budget/period";
 import { useBudget } from "./budget-provider";
 import {
+  AmountInput,
   AddFab,
   Amount,
   Card,
@@ -666,12 +667,10 @@ function ObjectiveEditor({
       {!(isLoan && indefinite) ? (
         <>
           <Field label={isLoan ? "Total loan amount" : "Target amount"}>
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              min="0"
+            <AmountInput
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={setAmount}
+              keypadLabel={isLoan ? "Total loan amount" : "Target amount"}
               placeholder="0.00"
             />
           </Field>
@@ -722,12 +721,10 @@ function ObjectiveEditor({
               {backfillMode === "lump" ? (
                 <>
                   <Field label="Total already paid">
-                    <TextInput
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
+                    <AmountInput
                       value={alreadyPaid}
-                      onChange={(e) => setAlreadyPaid(e.target.value)}
+                      onChange={setAlreadyPaid}
+                      keypadLabel="Total already paid"
                       placeholder="0.00"
                     />
                   </Field>
@@ -742,12 +739,10 @@ function ObjectiveEditor({
               ) : (
                 <>
                   <Field label="Amount per payment">
-                    <TextInput
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
+                    <AmountInput
                       value={emiAmount}
-                      onChange={(e) => setEmiAmount(e.target.value)}
+                      onChange={setEmiAmount}
+                      keypadLabel="Amount per payment"
                       placeholder="0.00"
                     />
                   </Field>

@@ -11,7 +11,7 @@ import { useShallow } from "zustand/react/shallow";
  */
 
 import React, { useMemo, useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CaretLeft, Plus } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -25,6 +25,7 @@ import { formatCurrencyAmount } from "@/lib/budget/currency";
 import { getIcon } from "@/lib/budget/icons";
 import { useBudget } from "./budget-provider";
 import { MobileSidebar } from "@/components/ui/mobile-sidebar";
+import { useAppPathname } from "@/lib/use-app-pathname";
 
 /**
  * Re-exported from the shared kit.
@@ -36,6 +37,7 @@ import { MobileSidebar } from "@/components/ui/mobile-sidebar";
  * import them from `@/components/ui/*` directly.
  */
 export { Field, TextInput, inputClass } from "@/components/ui/field";
+export { AmountInput } from "@/components/ui/amount-input";
 export { SelectInput } from "@/components/ui/select-input";
 export { Toggle } from "@/components/ui/toggle";
 export { SearchField } from "@/components/ui/search-field";
@@ -69,7 +71,7 @@ export function BudgetHeader({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isRootBudget = pathname === "/budget" || pathname === "/budget/transactions";
   const shouldShowBack = Boolean(backHref) || !isRootBudget;
 

@@ -3,7 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlass, SignOut, X } from "@phosphor-icons/react";
 
@@ -14,6 +14,7 @@ import { UserAvatar } from "@/components/budget/user-avatar";
 import { BrandMark } from "@/components/auth/auth-artwork";
 import { NAV_SECTIONS } from "./nav-items";
 import { isActivePath } from "./nav";
+import { useAppPathname } from "@/lib/use-app-pathname";
 
 interface MobileSidebarProps {
   open: boolean;
@@ -24,7 +25,7 @@ interface MobileSidebarProps {
 
 export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const { user, signOut } = useSession();
   const { settings  } = useBudget(useShallow((s) => ({ settings: s.settings })));
 

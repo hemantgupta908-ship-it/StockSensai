@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { BrandMark } from "@/components/auth/auth-artwork";
-import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Set a new password",

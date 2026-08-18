@@ -1,6 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 
 import { SessionProvider } from "@/components/auth/session-provider";
+import { RequireSession } from "@/components/auth/require-session";
 import { WatchlistProvider } from "@/components/watchlist/watchlist-provider";
 import { PortfolioProvider } from "@/components/portfolio/portfolio-provider";
 import { BudgetProvider } from "@/components/budget/budget-provider";
@@ -36,6 +37,8 @@ export function AppShell({
 }) {
   return (
     <SessionProvider initialUser={user}>
+      {/* Inert on the web, where the middleware already gated this request. */}
+      <RequireSession />
       <WatchlistProvider>
         <PortfolioProvider>
           <BudgetProvider>

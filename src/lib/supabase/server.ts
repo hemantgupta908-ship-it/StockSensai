@@ -6,6 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { IS_MOBILE } from "@/lib/mobile/config";
 import type { Database } from "./types";
 
 /**
@@ -14,6 +15,13 @@ import type { Database } from "./types";
  */
 export async function getSupabaseServerClient(): Promise<SupabaseClient<Database> | null> {
   if (!isSupabaseConfigured) return null;
+  // There is no server session to read in the Android build, and reaching for
+  // one would opt every layout out of static generation. A session cookie set
+  // on a deployment's origin is not readable from `https://localhost` anyway,
+  // so this would return null even if it ran. `SessionProvider` resolves the
+  // real session from the browser client, which can see it.
+  if (IS_MOBILE) return null;
+
   const cookieStore = await cookies();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -82,6 +90,11 @@ export async function getCurrentUser() {
  */
 export async function requireUser() {
   if (!isSupabaseConfigured) return null;
+  // The Android build has no server-side session to require and no response to
+  // redirect. `RequireSession` enforces the same gate on the client, where the
+  // session actually lives.
+  if (IS_MOBILE) return null;
+
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   return user;

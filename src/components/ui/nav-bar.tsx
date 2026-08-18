@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CaretLeft, List, MagnifyingGlass } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 
@@ -10,6 +10,8 @@ import { ThemeToggle } from "./theme-toggle";
 import { CONTAINER_WIDTHS, type ContainerWidth } from "./page-container";
 import { StockSearchModal } from "@/components/stock/stock-search-modal";
 import { MobileSidebar } from "./mobile-sidebar";
+import { IS_MOBILE } from "@/lib/mobile/config";
+import { useAppPathname } from "@/lib/use-app-pathname";
 
 const ROOT_PATHS = ["/", "/home", "/watchlist", "/portfolio", "/budget", "/budget/transactions", "/settings"];
 
@@ -44,7 +46,7 @@ export function NavBar({
   width = "wide",
 }: NavBarProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -79,7 +81,12 @@ export function NavBar({
         className={cn(
           "fixed inset-x-0 top-0 z-30 safe-top lg:left-[248px]",
           "transition-all duration-300",
-          scrolled ? "material hairline-b" : "bg-transparent",
+          // Always opaque in the APK. The transparent-until-scrolled treatment
+          // relies on the page being at scroll 0 whenever the bar is see-through,
+          // and in a WebView that is not dependable — the settings screen showed
+          // its own "ACCOUNT" heading through the bar, on top of the title.
+          // A frosted bar costs an effect; a legible one is not optional.
+          IS_MOBILE || scrolled ? "material hairline-b" : "bg-transparent",
         )}
       >
         <div className={cn("mx-auto flex h-[44px] items-center gap-1.5", containerWidth)}>
@@ -152,8 +159,11 @@ export function NavBar({
 
       <StockSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {/* Occupies the fixed bar's height in normal flow. */}
-      <div className="h-[44px] safe-top" aria-hidden />
+      {/* Occupies the fixed bar's full height — the 44pt row and the status-bar
+          inset above it. See `.safe-top-bar-spacer`; this must stay in step with
+          the header's own height or the first element on the page slides
+          underneath it. */}
+      <div className="safe-top-bar-spacer" aria-hidden />
 
       {largeTitle && title && (
         <div className={cn("mx-auto pb-4 pt-1 lg:pt-3", containerWidth)}>

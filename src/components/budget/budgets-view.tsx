@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { CaretRight, ChartPie, ClockCounterClockwise } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
+import { budgetDetailHref } from "@/lib/mobile/routes";
 import {
   BudgetReoccurence,
   BudgetTransactionFilters,
@@ -35,6 +36,7 @@ import {
 import { createBudget } from "@/lib/budget/factory";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
+  AmountInput,
   AddFab,
   Amount,
   Card,
@@ -109,7 +111,7 @@ export function BudgetCard({ budget, compact = false }: { budget: Budget; compac
   const over = snapshot.spent > budget.amount;
 
   return (
-    <Card href={`/budget/budgets/${budget.budgetPk}`} className="!p-4">
+    <Card href={budgetDetailHref(budget.budgetPk)} className="!p-4">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-headline text-label">{budget.name}</p>
@@ -433,12 +435,10 @@ export function BudgetEditor({
       </Field>
 
       <Field label="Amount">
-        <TextInput
-          type="number"
-          inputMode="decimal"
-          min="0"
+        <AmountInput
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={setAmount}
+          keypadLabel="Budget amount"
           placeholder="0.00"
         />
       </Field>

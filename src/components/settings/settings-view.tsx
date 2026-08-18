@@ -35,6 +35,7 @@ import {
   ProfileSettingsSection,
 } from "@/components/budget/budget-settings-view";
 import { StorageCard } from "@/components/settings/storage-card";
+import { DataSourceCard } from "@/components/settings/data-source-card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PageContainer } from "@/components/ui/page-container";
 import { Card, SectionLabel } from "@/components/ui/card";
@@ -219,6 +220,9 @@ export function SettingsView() {
               </p>
             </div>
           </section>
+
+          {/* Android only — renders nothing on the web. */}
+          <DataSourceCard />
 
           <StorageCard />
 

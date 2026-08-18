@@ -36,6 +36,7 @@ import { createPolicy, createPremiumTransaction } from "@/lib/budget/factory";
 import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { useBudget } from "./budget-provider";
 import {
+  AmountInput,
   AddFab,
   Amount,
   Card,
@@ -493,12 +494,10 @@ export function PolicyCard({
         <div className="mt-4 border-t border-separator/40 pt-4">
           <div className="mb-4 grid grid-cols-2 gap-3">
             <Field label="Amount" className="mb-0">
-              <TextInput
-                type="number"
-                step="0.01"
-                min="0"
+              <AmountInput
                 value={selectedAmount}
-                onChange={(e: any) => setSelectedAmount(e.target.value)}
+                onChange={setSelectedAmount}
+                keypadLabel="Amount"
               />
             </Field>
             <Field label="Date" className="mb-0">
@@ -749,12 +748,10 @@ function PolicyEditor({
         <>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Premium amount">
-              <TextInput
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <AmountInput
                 value={premiumAmount}
-                onChange={(e) => setPremiumAmount(e.target.value)}
+                onChange={setPremiumAmount}
+                keypadLabel="Premium amount"
                 placeholder="0.00"
               />
             </Field>
@@ -837,23 +834,19 @@ function PolicyEditor({
           <div className="grid grid-cols-2 gap-2">
             {isInsurance ? (
               <Field label="Sum assured">
-                <TextInput
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
+                <AmountInput
                   value={sumAssured}
-                  onChange={(e) => setSumAssured(e.target.value)}
+                  onChange={setSumAssured}
+                  keypadLabel="Sum assured"
                   placeholder="Optional"
                 />
               </Field>
             ) : null}
             <Field label="Value at maturity">
-              <TextInput
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <AmountInput
                 value={maturityValue}
-                onChange={(e) => setMaturityValue(e.target.value)}
+                onChange={setMaturityValue}
+                keypadLabel="Value at maturity"
                 placeholder="Optional"
               />
             </Field>

@@ -18,11 +18,13 @@ import { getCreditCardStatus, isCreditCard, getTotalCreditOutstanding } from "@/
 import { getNetWorth, getWalletBalance } from "@/lib/budget/calculations";
 import { CURRENCIES, getCurrencyInfo, formatCurrencyAmount } from "@/lib/budget/currency";
 import { createBalanceCorrection } from "@/lib/budget/recurring";
+import { accountDetailHref } from "@/lib/mobile/routes";
 import { atMidday, fromDateInputValue, toDateInputValue } from "@/lib/budget/period";
 import { createWallet, newId } from "@/lib/budget/factory";
 import { ColourPicker, IconBadge, IconPicker } from "./icon-picker";
 import { useBudget, usePolicySavings } from "./budget-provider";
 import {
+  AmountInput,
   AddFab,
   Amount,
   Card,
@@ -142,7 +144,7 @@ export function AccountsView() {
                         openMenuWalletPk === wallet.walletPk ? "z-30 ring-1 ring-separator/40" : "z-0"
                       )}
                     >
-                      <Link href={`/budget/accounts/${wallet.walletPk}`} className="flex flex-1 items-center justify-between gap-3 min-w-0 pr-2">
+                      <Link href={accountDetailHref(wallet.walletPk)} className="flex flex-1 items-center justify-between gap-3 min-w-0 pr-2">
                         {/* Left: Avatar + Title & Subtitle */}
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill/10 dark:bg-white/10">
@@ -518,12 +520,10 @@ function AccountEditor({
             label="Credit limit"
             hint="Used for the available-credit and utilisation figures."
           >
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              min="0"
+            <AmountInput
               value={creditLimit}
-              onChange={(e) => setCreditLimit(e.target.value)}
+              onChange={setCreditLimit}
+              keypadLabel="Credit limit"
               placeholder="Optional"
             />
           </Field>
@@ -595,12 +595,11 @@ function AccountEditor({
             : "What is in this account right now. Leave blank to start from zero."
         }
       >
-        <TextInput
-          type="number"
-          inputMode="decimal"
-          step="0.01"
+        <AmountInput
           value={openingBalance}
-          onChange={(e) => setOpeningBalance(e.target.value)}
+          onChange={setOpeningBalance}
+          keypadLabel={isCard ? "Current outstanding" : "Opening balance"}
+          allowNegative
           placeholder="0.00"
         />
       </Field>
@@ -624,12 +623,11 @@ function AccountEditor({
             label="Set balance"
             hint={`Currently ${formatCurrencyAmount(currentBalance, currency)}. Saving a different value adds a balance-correction transaction.`}
           >
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              step="0.01"
+            <AmountInput
               value={newBalance}
-              onChange={(e) => setNewBalance(e.target.value)}
+              onChange={setNewBalance}
+              keypadLabel="Set balance"
+              allowNegative
               placeholder={String(currentBalance)}
             />
           </Field>
@@ -730,7 +728,7 @@ export function AccountsSummary() {
         return (
           <div
             key={wallet.walletPk}
-            onClick={() => router.push(`/budget/accounts/${wallet.walletPk}`)}
+            onClick={() => router.push(accountDetailHref(wallet.walletPk))}
             className="group relative min-w-[144px] shrink-0 rounded-[18px] bg-bg-secondary p-4 shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.96] cursor-pointer"
             style={{ border: `1px solid ${accentColour}60` }}
           >

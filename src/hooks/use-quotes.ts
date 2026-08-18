@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { Quote } from "@/lib/market-data/types";
+import { apiFetch } from "@/lib/mobile/api";
 
 /**
  * Fetches quotes for a set of tickers and returns them keyed by symbol.
@@ -26,6 +27,18 @@ export function useQuotes(tickers: string[]) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  /**
+   * Whether these prices are real.
+   *
+   * The endpoint has always reported this and every caller discarded it, which
+   * was survivable while the only provider a user could reach was the one their
+   * own deployment configured. It stopped being survivable on Android: the APK
+   * screens on-device against the *seeded* provider unless it is pointed at a
+   * deployment, so a portfolio would render simulated prices — and a P&L
+   * computed from them — with nothing on screen saying so. Starts null, meaning
+   * "not known yet", which is distinct from a known false.
+   */
+  const [isLiveData, setIsLiveData] = useState<boolean | null>(null);
 
   const fetchQuotes = async (isManual = false) => {
     if (!key) {
@@ -40,11 +53,11 @@ export function useQuotes(tickers: string[]) {
     }
 
     try {
-      const response = await fetch(`/api/quotes?tickers=${encodeURIComponent(key)}`, {
+      const response = await apiFetch(`/api/quotes?tickers=${encodeURIComponent(key)}`, {
         cache: "no-store",
       });
       if (!response.ok) throw new Error(response.statusText);
-      const data = (await response.json()) as { quotes?: Quote[] };
+      const data = (await response.json()) as { quotes?: Quote[]; isLiveData?: boolean };
       const map: Record<string, Quote> = {};
       if (Array.isArray(data?.quotes)) {
         for (const quote of data.quotes) {
@@ -53,6 +66,7 @@ export function useQuotes(tickers: string[]) {
         }
       }
       setQuotes(map);
+      setIsLiveData(data?.isLiveData ?? null);
       setLastUpdated(new Date());
     } catch (error) {
       console.error("[useQuotes] failed:", error);
@@ -68,5 +82,5 @@ export function useQuotes(tickers: string[]) {
 
   const refetch = () => fetchQuotes(true);
 
-  return { quotes, loading, refreshing, lastUpdated, refetch };
+  return { quotes, loading, refreshing, lastUpdated, refetch, isLiveData };
 }

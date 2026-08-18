@@ -32,12 +32,13 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { NavBar } from "@/components/ui/nav-bar";
 import { MobileSidebar } from "@/components/ui/mobile-sidebar";
 
 import { cn } from "@/lib/utils";
 import { getSmoothPath } from "@/lib/chart-path";
+import { useAppPathname } from "@/lib/use-app-pathname";
 import { TransactionSpecialType, type Transaction, type TransactionCategory } from "@/lib/budget/types";
 import {
   affectsWalletBalance,
@@ -165,7 +166,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
   const [modalDefaults, setModalDefaults] = useState<Partial<Transaction> | undefined>(undefined);
   const [modalDefaultTab, setModalDefaultTab] = useState<"expense" | "income" | "transfer" | undefined>(undefined);
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const searchParams = useSearchParams();
   const showTransactions = searchParams.get("view") === "transactions";
   const [displayLimit, setDisplayLimit] = useState(100);
@@ -590,7 +591,18 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
           </div>
           <button
             type="button"
-            onClick={() => router.push(`${pathname}?view=transactions`)}
+            onClick={() => {
+              // Build on the params already in the URL rather than replacing
+              // them. On the web the wallet is a path segment, so discarding the
+              // query string was harmless. In the Android build the wallet *is*
+              // a query param (`?wallet=<pk>` — a static export cannot
+              // pre-render a segment whose value is user data), so dropping it
+              // left this screen with no wallet to look up and it rendered
+              // "Account not found" from the account's own page.
+              const params = new URLSearchParams(searchParams);
+              params.set("view", "transactions");
+              router.push(`${pathname}?${params}`);
+            }}
             className="mt-2.5 inline-flex items-center justify-center gap-1.5 mx-auto rounded-full bg-fill/10 hover:bg-fill/15 active:scale-95 border border-separator/30 px-3 py-1 text-caption font-semibold text-label transition-all group"
           >
             <span>{walletTransactions.length} transactions</span>

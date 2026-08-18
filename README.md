@@ -231,6 +231,84 @@ Import the repo, add whichever environment variables you're using, deploy. Nothi
 
 ---
 
+## Android app
+
+The same app ships as a native Android package. It is a Capacitor shell around a
+static export of this codebase — not a rewrite — so every screen, strategy and
+budget feature is the one you see on the web, and a change to either follows
+automatically.
+
+### Building
+
+```bash
+npm run android:apk
+```
+
+That runs the mobile export, syncs it into `android/`, and assembles a debug
+APK at `android/app/build/outputs/apk/debug/app-debug.apk`. It needs a **JDK 21**
+and the **Android SDK** (platform 35 + build-tools) on the machine; the simplest
+way to get both is to install Android Studio once and let it provision them.
+
+Other commands:
+
+```bash
+npm run build:mobile     # static export only, into out/
+npm run sync:android     # export + copy into the native project
+npm run android          # export + sync + open in Android Studio
+npm run check:device     # prove the on-device engine still fires
+```
+
+### How it differs from the web build
+
+One source tree produces both. The split is `pageExtensions` in
+[`next.config.mjs`](next.config.mjs): a file named `page.web.tsx` exists only in
+the web build, `page.mobile.tsx` only in the Android one, and everything without
+a suffix — which is nearly all of it — is shared. Route handlers are all
+`route.web.ts`, which is what keeps `output: "export"` from tripping over
+`force-dynamic`.
+
+Four things genuinely cannot exist in a WebView, and each has a counterpart:
+
+| Web | Android |
+| --- | --- |
+| API routes under `src/app/api` | [`src/lib/mobile/device-api.ts`](src/lib/mobile/device-api.ts) — same paths, same contracts, served on-device |
+| `middleware.ts` session gate | [`RequireSession`](src/components/auth/require-session.tsx), reading the browser client's session |
+| SSR on `/stock/[ticker]` | [`StockDetailLoader`](src/components/stock/stock-detail-loader.tsx), fetching the same payload |
+| `cookies()` / `headers()` | Guarded in [`request-context.ts`](src/lib/request-context.ts); `PreferencesProvider` restores the value from localStorage |
+
+Every client call goes through [`apiFetch`](src/lib/mobile/api.ts), which is
+plain `fetch` on the web. Nothing else in the component tree knows which build
+it is running in.
+
+### Data sources
+
+The APK works with no configuration: the seeded provider and the strategy engine
+run in the WebView itself, on a Web Worker so screening 204 instruments does not
+freeze the UI. Every screen is functional offline.
+
+Point it at a deployment — **Settings → Markets → Data source**, or
+`NEXT_PUBLIC_API_BASE_URL` at build time — and it uses that instead for live
+prices, the cron's precomputed feed and cross-device sync, falling back to
+on-device screening whenever the deployment cannot be reached.
+
+Because the WebView's origin is `https://localhost`, the deployment's session
+cookie is cross-site and never sent. The app presents the same Supabase session
+as a bearer token instead, which the middleware validates identically; see
+[`mobile-origin.ts`](src/lib/auth/mobile-origin.ts) for that and the CORS
+allow-list it is paired with. For Google sign-in, add
+`com.wealthsensei.app://auth/callback` to the Supabase dashboard's redirect
+allow-list — the manifest already registers that scheme.
+
+### Native behaviour
+
+[`NativeShell`](src/components/mobile/native-shell.tsx) wires the hardware back
+button to the router, tints the status bar to whichever of the app's themes is
+resolved, dismisses the splash once the first screen paints, routes deep links,
+and opens external links in the system browser rather than replacing the app
+with a web page. It renders nothing and is inert on the web.
+
+---
+
 ## Design notes
 
 iOS-inspired throughout: SF Pro system font stack, 16–24px corner radii, `backdrop-filter` materials on the nav and tab bars, spring physics on every transition (no linear easing), and semantic colour tokens mirroring Apple's `systemBackground` / `label` families so light and dark are a single class swap on `<html>` rather than a `dark:` variant on every element. The theme is applied by an inline script before first paint to avoid a flash of light.

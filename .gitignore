@@ -16,3 +16,13 @@ tsconfig.tsbuildinfo
 # Backtest history cache — regenerate with scripts/fetch-history.ts
 data/history/
 backtest-full.txt
+
+# Build outputs
+.next.mobile
+.next.tmp
+android/app/build
+android/build
+android/.gradle
+android/app/src/main/assets/public
+android/app/src/main/res/xml/config.xml
+android/local.properties

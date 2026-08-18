@@ -23,6 +23,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { RecommendationCard } from "./recommendation-card";
 import { RecommendationRow } from "./recommendation-row";
 import { RefreshButton } from "@/components/ui/refresh-button";
+import { apiFetch } from "@/lib/mobile/api";
 
 /**
  * Column counts are chosen so a card never drops below ~380px, which is where
@@ -138,11 +139,11 @@ export function RecommendationFeed() {
         if (force) params.set("refresh", "1");
         let response: Response;
         try {
-          response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
+          response = await apiFetch(`/api/recommendations?${params}`, { cache: "no-store" });
         } catch {
           // Retry once if server is restarting or connection flickered
           await new Promise((resolve) => setTimeout(resolve, 800));
-          response = await fetch(`/api/recommendations?${params}`, { cache: "no-store" });
+          response = await apiFetch(`/api/recommendations?${params}`, { cache: "no-store" });
         }
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
         const data = (await response.json()) as FeedPayload;
