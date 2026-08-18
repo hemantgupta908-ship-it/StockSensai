@@ -361,7 +361,7 @@ export function LoginForm({
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label htmlFor={emailId} className={LABEL}>
-          Email or username <span className="text-red/75">*</span>
+          Email or username
         </label>
         <input
           id={emailId}
@@ -374,14 +374,13 @@ export function LoginForm({
           autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
           className={FIELD}
         />
       </div>
 
       <div>
         <label htmlFor={passwordId} className={LABEL}>
-          Password <span className="text-red/75">*</span>
+          Password
         </label>
         <div className="relative">
           <input
@@ -393,7 +392,6 @@ export function LoginForm({
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === "signup" ? "At least 8 characters" : "••••••••"}
             className={`${FIELD} pr-12`}
           />
           <button
@@ -480,19 +478,6 @@ export function LoginForm({
             <GoogleIcon />
             Google
           </button>
-
-          {/*
-            Google's consent screen is about to ask for Drive access, which is
-            alarming without context — it reads like the app wants to rummage
-            through your files. Saying why first, in one line, is the difference
-            between a considered yes and a bounce.
-          */}
-          {isDriveStorageEnabled && (
-            <p className="text-center text-caption leading-relaxed text-label-secondary/70">
-              Sign in with Google and your watchlist, journal and budget are saved to a private
-              folder in your own Google Drive — never to our servers.
-            </p>
-          )}
         </>
       )}
 

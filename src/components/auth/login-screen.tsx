@@ -1,9 +1,6 @@
-import Link from "next/link";
-
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthArtwork, BrandMark } from "@/components/auth/auth-artwork";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 /**
  * The sign-in screen's markup, shared by both builds.
@@ -34,10 +31,7 @@ export function LoginScreen({
       >
         {/*
           Brand panel. On a phone this is a compact banner the form sits under;
-          from `lg` it becomes the full-height left half of the card. The
-          artwork is dropped below `lg` rather than scaled down — at banner
-          height it would be illegible and would push the form below the fold,
-          which on a sign-in screen is the one thing that must stay reachable.
+          from `lg` it becomes the full-height left half of the card.
         */}
         <aside
           className="
@@ -62,22 +56,9 @@ export function LoginScreen({
               <br />
               great to see you
             </h2>
-            {/*
-              Hidden on phones. The banner is fixed furniture above a form, and
-              every line here pushes the "Log In" button further down — on a
-              667px-tall handset this paragraph alone was enough to put it below
-              the fold. The subtitle beside the form says the same thing anyway.
-            */}
-            <p className="mt-4 hidden max-w-sm text-subhead leading-relaxed text-white/80 lg:block">
-              Twenty-five rule-based screens across five trading styles, on NSE and BSE listings.
-            </p>
           </div>
 
           <AuthArtwork className="mx-auto mt-10 hidden h-auto w-full max-w-[360px] text-white/90 lg:block" />
-
-          <p className="hidden text-caption text-white/75 lg:block">
-            Educational screening only · never investment advice
-          </p>
 
           {/* Soft glow behind the artwork, purely decorative. */}
           <div
@@ -88,33 +69,14 @@ export function LoginScreen({
 
         {/* Form side */}
         <div className="relative flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-14 lg:py-14">
-          {/*
-            Absolutely placed rather than sitting in the flow: this column is
-            already tight enough on a short handset that the artwork and the
-            brand paragraph had to go, and a row of its own would push "Log In"
-            back below the fold.
-          */}
           <ThemeToggle className="absolute right-5 top-5 z-10 lg:right-6 lg:top-6" />
 
           <div className="mx-auto w-full max-w-sm">
             <h1 className="text-largetitle font-bold tracking-tight text-label/90">Welcome back!</h1>
-            <p className="mt-1.5 text-subhead text-label-secondary/80">
-              Sign in to sync your watchlist, journal and budget across devices.
-            </p>
 
             <div className="mt-7">
               <LoginForm configured={configured} next={next} initialError={initialError} />
             </div>
-
-            <p className="mt-8 text-center text-caption leading-relaxed text-label-secondary/75">
-              {DISCLAIMER_SHORT}{" "}
-              <Link
-                href="/disclaimer"
-                className="font-semibold text-brand underline-offset-2 hover:underline"
-              >
-                Full disclaimer
-              </Link>
-            </p>
           </div>
         </div>
       </div>
