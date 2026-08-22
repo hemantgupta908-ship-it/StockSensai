@@ -189,8 +189,18 @@ export function CalendarView() {
   return (
     <div className="pb-2 select-none">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
-      {/* Calendar column — centred and phone-width until the grid splits. */}
-      <div className="mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
+      {/*
+        Calendar column — centred and phone-width until the grid splits.
+
+        `min-w-0` is load-bearing, not defensive. A grid item's automatic
+        minimum size is its min-content width, and the month ribbon inside is a
+        row of `shrink-0` buttons roughly 675px wide. Without this the track
+        sizes to that instead of the viewport: the ribbon stops scrolling and
+        stretches the card to 576px (its `max-w-xl` cap), which on a 360px phone
+        pushes the document to 592px and scrolls the whole page sideways —
+        clipping Saturday off the grid and the title off the header.
+      */}
+      <div className="min-w-0 mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
       {/* Top Header & Month Ribbon */}
       <div className="bg-bg-elevated rounded-[24px] p-3 shadow-xs border border-separator/20 lg:p-3.5 xl:p-4">
         {/* Month Selector Scrollable Ribbon with Year */}
@@ -305,9 +315,19 @@ export function CalendarView() {
                   ) : null}
                 </div>
 
-                {/* Day Amount Subtext */}
-                <span className={cn("text-[10px] font-bold leading-none tabular-nums truncate max-w-full lg:text-[11px]", isSelected ? "text-white/90" : netDayValue > 0 ? "text-green" : netDayValue < 0 ? "text-red/80" : "text-label-secondary/40")}>
-                  {dayData ? formatCurrencyAmount(Math.abs(netDayValue), undefined, { decimals: 0, compact: true }) : "₹0"}
+                {/*
+                  Day Amount Subtext.
+
+                  No currency symbol, and 9px until `sm`. A day cell is ~34px
+                  wide on a 320px phone and ~40px on a 360px one; at 10px with a
+                  ₹ in front, a six-character figure like ₹54.4K overruns and
+                  `truncate` renders it as "₹54.…". The month's totals directly
+                  above are denominated, so the unit is never in question here.
+                */}
+                <span className={cn("text-[9px] font-bold leading-none tabular-nums truncate max-w-full sm:text-[10px] lg:text-[11px]", isSelected ? "text-white/90" : netDayValue > 0 ? "text-green" : netDayValue < 0 ? "text-red/80" : "text-label-secondary/40")}>
+                  {dayData
+                    ? formatCurrencyAmount(Math.abs(netDayValue), undefined, { decimals: 0, compact: true, symbol: false })
+                    : "0"}
                 </span>
               </button>
             );
@@ -321,7 +341,7 @@ export function CalendarView() {
         day breakdown in view; capped and scrollable so a heavy day can't run off
         the bottom of a pinned panel with no way to reach it.
       */}
-      <div className="mx-auto w-full max-w-xl space-y-4 lg:mx-0 lg:max-w-none lg:sticky lg:top-[72px] lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:no-scrollbar">
+      <div className="min-w-0 mx-auto w-full max-w-xl space-y-4 lg:mx-0 lg:max-w-none lg:sticky lg:top-[72px] lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:no-scrollbar">
       {/* Selected Day Transactions Section */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-2 lg:px-3">

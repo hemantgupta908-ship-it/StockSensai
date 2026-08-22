@@ -37,6 +37,23 @@ interface PortfolioValue {
   add: (entry: NewPortfolioEntry) => Promise<void>;
   update: (id: string, updates: Partial<PortfolioEntry>) => Promise<void>;
   close: (id: string, exitPrice: number, exitDate: string) => Promise<void>;
+  /**
+   * Exit `quantity` shares of a position, which may be fewer than it holds.
+   *
+   * Selling the lot in full is `close` by another name. Selling part of it
+   * splits the row: the quantity sold becomes its own closed entry and the
+   * remainder stays open. Splitting rather than adding an `exitQuantity`
+   * column keeps every existing calculation correct without touching them —
+   * realised P&L, open value, the CSV export and the analytics all read
+   * `(exitPrice - entryPrice) * quantity` over the same flat list, and a lot
+   * that was exited in three tranches is simply three rows.
+   */
+  sell: (
+    id: string,
+    quantity: number,
+    exitPrice: number,
+    exitDate: string,
+  ) => Promise<void>;
   remove: (id: string) => Promise<void>;
   isLocal: boolean;
 }
@@ -81,6 +98,45 @@ function fromRow(row: any): PortfolioEntry {
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Split an open lot into an exited tranche and the remainder still held.
+ *
+ * Pure, and shared by the browser-storage and Drive paths so the two cannot
+ * drift. The invariant that matters: the quantity across the resulting rows
+ * equals the quantity before, so no shares are created or destroyed by an exit.
+ *
+ * Returns `null` when the split is not a partial one — an unknown id, a
+ * non-positive quantity, or a quantity covering the whole lot, the last of
+ * which is an ordinary close and is handled as one.
+ */
+export function splitLot(
+  entries: PortfolioEntry[],
+  id: string,
+  quantity: number,
+  exitPrice: number,
+  exitDate: string,
+  newId: () => string,
+): PortfolioEntry[] | null {
+  const entry = entries.find((e) => e.id === id);
+  if (!entry) return null;
+  if (!(quantity > 0) || quantity >= entry.quantity) return null;
+
+  const closedLot: PortfolioEntry = {
+    ...entry,
+    id: newId(),
+    quantity,
+    exitPrice,
+    exitDate,
+  };
+
+  return [
+    closedLot,
+    ...entries.map((e) =>
+      e.id === id ? { ...e, quantity: e.quantity - quantity } : e,
+    ),
+  ];
+}
 
 /**
  * Trade journal. Same Supabase-or-local pattern as the watchlist.
@@ -306,6 +362,105 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     [user, backend, persistDrive],
   );
 
+  const sell = useCallback(
+    async (id: string, quantity: number, exitPrice: number, exitDate: string) => {
+      const entry = entriesRef.current.find((e) => e.id === id);
+      if (!entry) return;
+
+      // Guard the boundary in the store as well as the form: a rounding error
+      // on the way in must not leave a position holding 0.0001 shares forever.
+      const sold = Math.min(quantity, entry.quantity);
+      if (!(sold > 0)) return;
+
+      const remaining = entry.quantity - sold;
+
+      if (remaining <= 0) {
+        await close(id, exitPrice, exitDate);
+        return;
+      }
+
+      if (backend === "drive") {
+        const next = splitLot(
+          entriesRef.current,
+          id,
+          sold,
+          exitPrice,
+          exitDate,
+          () => crypto.randomUUID(),
+        );
+        if (next) await persistDrive(next);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient();
+
+      if (backend === "supabase" && supabase && user) {
+        // Insert the closed tranche before shrinking the open one. Neither
+        // order is atomic, but this one fails safe: an insert that lands
+        // without the follow-up update over-reports the holding, which is
+        // visible and correctable, whereas the reverse silently destroys
+        // shares the user still owns.
+        const { data, error: insertError } = await supabase
+          .from("portfolio_entries")
+          .insert({
+            user_id: user.id,
+            ticker: entry.ticker,
+            name: entry.name,
+            exchange: entry.exchange,
+            quantity: sold,
+            entry_price: entry.entryPrice,
+            entry_date: entry.entryDate,
+            strategy_id: entry.strategyId,
+            trading_style: entry.tradingStyle,
+            recommended_buy_low: entry.recommendedBuyLow,
+            recommended_buy_high: entry.recommendedBuyHigh,
+            recommended_sell_low: entry.recommendedSellLow,
+            recommended_sell_high: entry.recommendedSellHigh,
+            recommended_stop_loss: entry.recommendedStopLoss,
+            exit_price: exitPrice,
+            exit_date: exitDate,
+            note: entry.note,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("[portfolio] partial sell failed:", insertError.message);
+          return;
+        }
+
+        const { error: updateError } = await supabase
+          .from("portfolio_entries")
+          .update({ quantity: remaining })
+          .eq("id", id);
+
+        if (updateError) {
+          console.error(
+            "[portfolio] partial sell could not reduce the open lot, rolling back:",
+            updateError.message,
+          );
+          await supabase.from("portfolio_entries").delete().eq("id", data.id);
+          return;
+        }
+
+        setEntries((current) => [
+          fromRow(data),
+          ...current.map((e) => (e.id === id ? { ...e, quantity: remaining } : e)),
+        ]);
+        return;
+      }
+
+      setEntries((current) => {
+        const next =
+          splitLot(current, id, sold, exitPrice, exitDate, () => crypto.randomUUID()) ??
+          current;
+        writeLocal(next);
+        return next;
+      });
+    },
+    [user, backend, persistDrive, close],
+  );
+
   const remove = useCallback(
     async (id: string) => {
       if (backend === "drive") {
@@ -330,7 +485,9 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <PortfolioContext.Provider value={{ entries, loading, add, update, close, remove, isLocal }}>
+    <PortfolioContext.Provider
+      value={{ entries, loading, add, update, close, sell, remove, isLocal }}
+    >
       {children}
     </PortfolioContext.Provider>
   );
@@ -342,6 +499,7 @@ const DEFAULT_PORTFOLIO: PortfolioValue = {
   add: async () => {},
   update: async () => {},
   close: async () => {},
+  sell: async () => {},
   remove: async () => {},
   isLocal: true,
 };

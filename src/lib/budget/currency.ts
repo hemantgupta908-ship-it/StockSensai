@@ -196,11 +196,23 @@ export function amountRatioToPrimaryCurrencyGivenPk(
 export function formatCurrencyAmount(
   amount: number,
   currencyCode: string | null | undefined,
-  opts: { decimals?: number; showSign?: boolean; compact?: boolean; obfuscate?: boolean } = {},
+  opts: {
+    decimals?: number;
+    showSign?: boolean;
+    compact?: boolean;
+    obfuscate?: boolean;
+    /**
+     * Drop the currency symbol. For dense grids — the calendar's day cells are
+     * ~34px wide on a small phone — the symbol is the difference between the
+     * figure fitting and being truncated to an ellipsis, and it carries no
+     * information in a screen that is already denominated once above the grid.
+     */
+    symbol?: boolean;
+  } = {},
 ): string {
   const info = getCurrencyInfo(currencyCode);
   const decimals = opts.decimals ?? info?.decimals ?? 2;
-  const symbol = info?.symbol ?? "";
+  const symbol = opts.symbol === false ? "" : (info?.symbol ?? "");
 
   if (opts.obfuscate) return `${symbol}••••••`;
 

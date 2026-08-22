@@ -31,7 +31,7 @@ type StatusFilter = "all" | "open" | "closed";
 type StyleFilter = "all" | TradingStyle;
 
 export function PortfolioView() {
-  const { entries, loading, remove, close, update, isLocal } = usePortfolio();
+  const { entries, loading, remove, sell, update, isLocal } = usePortfolio();
   const { authEnabled, user } = useSession();
 
   const [addSheetOpen, setAddSheetOpen] = useState(false);
@@ -321,7 +321,7 @@ export function PortfolioView() {
 
         {/* Sheets */}
         <AddPositionSheet open={addSheetOpen || addingTicker !== undefined} initialTicker={addingTicker} onClose={() => { setAddSheetOpen(false); setAddingTicker(undefined); }} />
-        <CloseSheet entry={closing} onDismiss={() => setClosing(null)} onConfirm={close} />
+        <CloseSheet entry={closing} onDismiss={() => setClosing(null)} onConfirm={sell} />
         <EditSheet entry={editing} onDismiss={() => setEditing(null)} onConfirm={update} />
 
         {/* Floating Add Position Action Button */}
@@ -580,26 +580,78 @@ function CloseSheet({
 }: {
   entry: PortfolioEntry | null;
   onDismiss: () => void;
-  onConfirm: (id: string, exitPrice: number, exitDate: string) => Promise<void>;
+  onConfirm: (
+    id: string,
+    quantity: number,
+    exitPrice: number,
+    exitDate: string,
+  ) => Promise<void>;
 }) {
   const [exitPrice, setExitPrice] = useState("");
   const [exitDate, setExitDate] = useState(() => todayISO());
+  /**
+   * Blank means "all of it".
+   *
+   * Selling the whole position is far and away the common case, so it is what
+   * an untouched form does. Typing a smaller number is the opt-in, which keeps
+   * the extra field from becoming a step everyone has to complete.
+   */
+  const [quantity, setQuantity] = useState("");
 
+  const held = entry?.quantity ?? 0;
   const priceValue = Number(exitPrice);
-  const valid = priceValue > 0 && Boolean(exitDate);
+  const qtyValue = quantity.trim() === "" ? held : Number(quantity);
+
+  const qtyValid = Number.isFinite(qtyValue) && qtyValue > 0 && qtyValue <= held;
+  const valid = priceValue > 0 && qtyValid && Boolean(exitDate);
+  const remaining = held - qtyValue;
+  const isPartial = qtyValid && remaining > 0;
+
+  function reset() {
+    setExitPrice("");
+    setQuantity("");
+  }
 
   return (
     <Sheet
       open={entry !== null}
-      onClose={onDismiss}
-      title={entry ? `Close ${entry.ticker}` : ""}
+      onClose={() => {
+        reset();
+        onDismiss();
+      }}
+      title={entry ? `Sell ${entry.ticker}` : ""}
     >
       {entry && (
         <div className="space-y-4">
           <p className="text-footnote leading-snug text-label-secondary/60">
-            Record the price you actually exited at. This only updates your journal — no order is
-            placed anywhere.
+            Record the price and quantity you actually exited at. This only updates your journal —
+            no order is placed anywhere.
           </p>
+
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <span className="text-footnote font-medium text-label-secondary/70">Quantity</span>
+              <button
+                type="button"
+                onClick={() => setQuantity(String(held))}
+                className="numeric text-caption font-medium text-blue active:opacity-60"
+              >
+                All {formatQty(held)}
+              </button>
+            </div>
+            <AmountInput
+              value={quantity}
+              onChange={setQuantity}
+              keypadLabel="Quantity"
+              placeholder={formatQty(held)}
+              className="w-full rounded-[12px] border border-separator/50 bg-bg px-3.5 py-2.5 text-body text-label focus:border-blue focus:outline-none dark:border-white/[0.10] dark:bg-white/[0.05]"
+            />
+            {quantity.trim() !== "" && !qtyValid && (
+              <p className="mt-1.5 text-caption text-red">
+                Enter a quantity between 1 and {formatQty(held)}.
+              </p>
+            )}
+          </div>
 
           <label className="block">
             <span className="mb-1.5 block text-footnote font-medium text-label-secondary/70">
@@ -628,18 +680,26 @@ function CloseSheet({
           </label>
 
           {valid && (
-            <p className="numeric text-footnote text-label-secondary/60">
-              Result:{" "}
-              <span
-                className={cn(
-                  "font-semibold",
-                  priceValue >= entry.entryPrice ? "text-green" : "text-red",
-                )}
-              >
-                {priceValue >= entry.entryPrice ? "+" : ""}
-                {formatINR((priceValue - entry.entryPrice) * entry.quantity)}
-              </span>
-            </p>
+            <div className="space-y-1">
+              <p className="numeric text-footnote text-label-secondary/60">
+                Result on {formatQty(qtyValue)} {qtyValue === 1 ? "share" : "shares"}:{" "}
+                <span
+                  className={cn(
+                    "font-semibold",
+                    priceValue >= entry.entryPrice ? "text-green" : "text-red",
+                  )}
+                >
+                  {priceValue >= entry.entryPrice ? "+" : ""}
+                  {formatINR((priceValue - entry.entryPrice) * qtyValue)}
+                </span>
+              </p>
+              {isPartial && (
+                <p className="numeric text-caption text-label-secondary/50">
+                  {formatQty(remaining)} {remaining === 1 ? "share" : "shares"} stay open at{" "}
+                  {formatINR(entry.entryPrice)}.
+                </p>
+              )}
+            </div>
           )}
 
           <Button
@@ -647,17 +707,22 @@ function CloseSheet({
             size="lg"
             disabled={!valid}
             onClick={async () => {
-              await onConfirm(entry.id, priceValue, exitDate);
-              setExitPrice("");
+              await onConfirm(entry.id, qtyValue, priceValue, exitDate);
+              reset();
               onDismiss();
             }}
           >
-            Close position
+            {isPartial ? `Sell ${formatQty(qtyValue)}` : "Close position"}
           </Button>
         </div>
       )}
     </Sheet>
   );
+}
+
+/** Quantities are usually whole shares; only show decimals when there are any. */
+function formatQty(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 }
 
 function EditSheet({
