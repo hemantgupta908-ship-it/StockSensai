@@ -15,6 +15,7 @@ import { BrandMark } from "@/components/auth/auth-artwork";
 import { NAV_SECTIONS } from "./nav-items";
 import { isActivePath } from "./nav";
 import { useAppPathname } from "@/lib/use-app-pathname";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 
 interface MobileSidebarProps {
   open: boolean;
@@ -80,7 +81,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
             {/* Header / Brand Wordmark & Close Button */}
             <div className="flex items-center justify-between pb-4">
               <Link
-                href="/home"
+                href={DEFAULT_SIGNED_IN_PATH}
                 onClick={onClose}
                 className="flex items-center gap-2.5"
               >

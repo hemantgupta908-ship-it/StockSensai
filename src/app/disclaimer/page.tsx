@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CaretLeft, ShieldWarning } from "@phosphor-icons/react/dist/ssr";
 
 import { DISCLAIMER_FULL } from "@/components/disclaimer";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 
 export const metadata: Metadata = {
   title: "Disclaimer",
@@ -14,7 +15,7 @@ export default function DisclaimerPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
       <Link
-        href="/home"
+        href={DEFAULT_SIGNED_IN_PATH}
         className="mb-4 inline-flex items-center gap-0.5 text-body font-medium text-blue"
       >
         <CaretLeft size={22}  weight="duotone" />

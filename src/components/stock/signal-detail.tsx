@@ -12,6 +12,21 @@ import { RangeGauge } from "@/components/ui/range-gauge";
 import { DisclaimerNotice } from "@/components/disclaimer";
 
 /**
+ * True on the web build, false in the Android APK.
+ *
+ * Written as an inline `process.env` comparison rather than imported from
+ * `@/lib/mobile/config` so it can actually be eliminated. Next replaces
+ * `process.env.NEXT_PUBLIC_MOBILE` with a literal at build time, so this folds
+ * to a module-level `false` in the mobile build and the minifier drops the
+ * guarded JSX entirely — the markup and its strings are absent from the APK
+ * bundle, not merely unrendered. An imported `const` crosses a module boundary
+ * and survives minification, which is exactly what we do not want for content
+ * that must not ship. See `nav-items.ts` for why.
+ */
+const WEB_ONLY = process.env.NEXT_PUBLIC_MOBILE !== "1";
+
+
+/**
  * Full breakdown of one fired signal: the levels, the plain-language reason,
  * and — most importantly — the individual conditions with the actual numbers
  * behind each verdict. Showing the unmet conditions alongside the met ones is
@@ -64,7 +79,17 @@ export function SignalDetail({
         </div>
       </section>
 
-      {/* Levels */}
+      {/*
+        Levels — web only.
+
+        An entry band, a target and a stop are the part of a signal that reads
+        as a recommendation to trade rather than as analysis, which is what
+        Google Play's India review is looking for in an app with no SEBI
+        registration. The Android build keeps the reason and the per-condition
+        numbers below, which show how the stock scores against a published rule
+        set without telling anyone what to pay for it. See `nav-items.ts`.
+      */}
+      {WEB_ONLY && (
       <section className="rounded-card border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
         <h3 className="text-footnote font-semibold uppercase tracking-wide text-label-secondary/55">
           {isBullish ? "Suggested levels" : "Levels to watch"}
@@ -106,6 +131,7 @@ export function SignalDetail({
           </span>
         </div>
       </section>
+      )}
 
       {/* Conditions */}
       <section className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary shadow-card dark:border-white/[0.06] dark:shadow-card-dark">

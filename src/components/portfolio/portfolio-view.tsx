@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { CaretRight, ChartPie as AnalyticsIcon, DownloadSimple, Flask, Funnel, NotePencil, PencilSimple, Plus, Trash, Lightbulb, Lightning } from "@phosphor-icons/react";
@@ -24,8 +25,38 @@ import { NavBar } from "@/components/ui/nav-bar";
 import { RefreshButton } from "@/components/ui/refresh-button";
 import { usePortfolio, type PortfolioEntry } from "./portfolio-provider";
 import { AddPositionSheet } from "./add-position-sheet";
-import { PortfolioAnalytics } from "./portfolio-analytics";
+
+/**
+ * Analytics is behind a toggle that starts closed, and it pulls in
+ * `lightweight-charts` through `EquityChart` — a charting library nobody who
+ * just opens the journal to check a position needs to download. Loading it on
+ * first open trades a brief skeleton for a much smaller initial bundle.
+ */
+const PortfolioAnalytics = dynamic(
+  () => import("./portfolio-analytics").then((mod) => mod.PortfolioAnalytics),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 w-full animate-pulse rounded-card bg-fill/5" />
+    ),
+  },
+);
 import { analyzePosition } from "@/lib/portfolio/suggestions";
+
+/**
+ * True on the web build, false in the Android APK.
+ *
+ * Written as an inline `process.env` comparison rather than imported from
+ * `@/lib/mobile/config` so it can actually be eliminated. Next replaces
+ * `process.env.NEXT_PUBLIC_MOBILE` with a literal at build time, so this folds
+ * to a module-level `false` in the mobile build and the minifier drops the
+ * guarded JSX entirely — the markup and its strings are absent from the APK
+ * bundle, not merely unrendered. An imported `const` crosses a module boundary
+ * and survives minification, which is exactly what we do not want for content
+ * that must not ship. See `nav-items.ts` for why.
+ */
+const WEB_ONLY = process.env.NEXT_PUBLIC_MOBILE !== "1";
+
 
 type StatusFilter = "all" | "open" | "closed";
 type StyleFilter = "all" | TradingStyle;
@@ -133,11 +164,14 @@ export function PortfolioView() {
                 <Plus size={16} className="mr-1" />
                 Add First Position
               </Button>
-              <Link href="/home">
-                <Button size="md" variant="tinted">
-                  Browse Ideas
-                </Button>
-              </Link>
+              {/* No feed to browse on Android — see `nav-items.ts`. */}
+              {WEB_ONLY && (
+                <Link href="/home">
+                  <Button size="md" variant="tinted">
+                    Browse Ideas
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
           {/* Floating Add Position Action Button */}
@@ -393,7 +427,9 @@ function JournalCard({
     entry.recommendedSellLow !== null && markPrice >= entry.recommendedSellLow;
   const hitStop = entry.recommendedStopLoss !== null && markPrice <= entry.recommendedStopLoss;
 
-  const suggestion = !isClosed ? analyzePosition(entry, markPrice) : null;
+  // Not merely unrendered on Android: leaving the call in keeps
+  // `suggestions.ts` — and its "Resell at …" copy — in the APK bundle.
+  const suggestion = WEB_ONLY && !isClosed ? analyzePosition(entry, markPrice) : null;
 
   return (
     <article className="overflow-hidden rounded-card border border-separator/40 bg-bg-secondary shadow-card dark:border-white/[0.06] dark:shadow-card-dark transition-colors hover:bg-fill/[0.02]">
@@ -525,8 +561,17 @@ function JournalCard({
         </div>
       )}
 
-      {/* Suggestion Block */}
-      {suggestion && suggestion.action !== "HOLD" && (
+      {/*
+        Suggestion Block — web only.
+
+        "Buy 130 more to drop average to ₹216. Resell at ₹226 for a 5% profit"
+        is the most directly advisory copy in the app, and an Android build
+        aiming to clear Google Play's India financial review without a SEBI
+        registration cannot carry it. The position's own P&L, cost basis and
+        plan-versus-execution badges stay — those report what happened rather
+        than prescribe a trade. See `nav-items.ts`.
+      */}
+      {WEB_ONLY && suggestion && suggestion.action !== "HOLD" && (
         <div className="border-t border-separator/40 dark:border-white/[0.06] px-4 py-2.5">
           <div className="flex items-start sm:items-center gap-2.5 rounded-lg px-3 py-2 text-caption2 bg-fill/[0.04] dark:bg-white/[0.02]">
             <div className={cn(

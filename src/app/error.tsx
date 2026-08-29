@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/nextjs";
 import { ArrowClockwise, House, WarningCircle } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 
 /**
  * Route-level error boundary.
@@ -59,7 +60,7 @@ export default function RouteError({
         {/* A plain link, not a <Button> — `Button` renders a <button>, and an
             anchor inside one is invalid and unnavigable. */}
         <Link
-          href="/home"
+          href={DEFAULT_SIGNED_IN_PATH}
           className="inline-flex h-[52px] items-center justify-center gap-2 rounded-[14px] bg-fill/[0.12] px-6 text-body font-semibold text-label transition-colors active:bg-fill/[0.2] dark:bg-white/[0.10] dark:active:bg-white/[0.16]"
         >
           <House size={17} />

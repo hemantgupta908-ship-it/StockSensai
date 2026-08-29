@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
+
 /**
  * Web app manifest.
  *
@@ -20,7 +22,11 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "WealthSensei",
     description:
       "Rule-based screens for Indian stocks across intraday, short-term, swing, positional and long-term styles. An educational screener, not investment advice.",
-    start_url: "/home",
+    // The overview, matching where a sign-in lands and where the root
+    // redirects — an installed shortcut opening somewhere else than the app
+    // itself does is the kind of inconsistency nobody reports but everybody
+    // notices.
+    start_url: DEFAULT_SIGNED_IN_PATH,
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
@@ -36,6 +42,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
+      // Web-only, like the feed itself: `manifest.ts` is a `.ts` route and the
+      // mobile build drops those, so the Android shell never reads this list.
       { name: "Ideas", url: "/home", description: "Today's screened ideas" },
       { name: "Watchlist", url: "/watchlist", description: "Stocks you're following" },
       { name: "Portfolio", url: "/portfolio", description: "Positions you've logged" },

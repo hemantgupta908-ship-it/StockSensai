@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { House, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
 
 /**
  * 404. Reached most often from `notFound()` on the stock detail route, when a
@@ -20,7 +21,7 @@ export default function NotFound() {
       </p>
 
       <Link
-        href="/home"
+        href={DEFAULT_SIGNED_IN_PATH}
         className="mt-7 inline-flex h-[52px] items-center justify-center gap-2 rounded-[14px] bg-accent px-6 text-body font-semibold text-accent-fg shadow-pill"
       >
         <House size={17} />

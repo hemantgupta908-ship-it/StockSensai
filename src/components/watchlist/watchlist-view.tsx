@@ -17,6 +17,21 @@ import { RefreshButton } from "@/components/ui/refresh-button";
 import { AmountInput } from "@/components/ui/amount-input";
 import { useWatchlist } from "./watchlist-provider";
 
+/**
+ * True on the web build, false in the Android APK.
+ *
+ * Written as an inline `process.env` comparison rather than imported from
+ * `@/lib/mobile/config` so it can actually be eliminated. Next replaces
+ * `process.env.NEXT_PUBLIC_MOBILE` with a literal at build time, so this folds
+ * to a module-level `false` in the mobile build and the minifier drops the
+ * guarded JSX entirely — the markup and its strings are absent from the APK
+ * bundle, not merely unrendered. An imported `const` crosses a module boundary
+ * and survives minification, which is exactly what we do not want for content
+ * that must not ship. See `nav-items.ts` for why.
+ */
+const WEB_ONLY = process.env.NEXT_PUBLIC_MOBILE !== "1";
+
+
 export function WatchlistView() {
   const { items, loading, remove, isLocal, updateAlerts } = useWatchlist();
   const { authEnabled, user } = useSession();
@@ -57,15 +72,20 @@ export function WatchlistView() {
             </div>
             <p className="mt-3 text-subhead font-semibold text-label">Nothing saved yet</p>
             <p className="mx-auto mt-1.5 max-w-xs text-footnote leading-relaxed text-label-secondary/60">
-              Tap the star on any recommendation to keep an eye on it here.
+              {WEB_ONLY
+                ? "Tap the star on any recommendation to keep an eye on it here."
+                : "Search for a stock and tap the star to keep an eye on it here."}
             </p>
-            <Link
-              href="/home"
-              className="mt-4 inline-flex items-center gap-1 text-subhead font-semibold text-blue"
-            >
-              Browse ideas
-              <CaretRight size={16} />
-            </Link>
+            {/* No feed to browse on Android — see `nav-items.ts`. */}
+            {WEB_ONLY && (
+              <Link
+                href="/home"
+                className="mt-4 inline-flex items-center gap-1 text-subhead font-semibold text-blue"
+              >
+                Browse ideas
+                <CaretRight size={16} />
+              </Link>
+            )}
           </div>
         </PageContainer>
       </>

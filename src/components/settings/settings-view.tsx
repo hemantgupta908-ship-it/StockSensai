@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -31,7 +32,6 @@ import {
 import { usePreferences } from "@/components/preferences-provider";
 import {
   AppearanceSettingsSection,
-  BudgetSettingsView,
   ProfileSettingsSection,
 } from "@/components/budget/budget-settings-view";
 import { StorageCard } from "@/components/settings/storage-card";
@@ -50,6 +50,20 @@ import {
 } from "@/lib/preferences";
 import type { RiskTolerance } from "@/lib/strategies/types";
 import { THRESHOLD_PRESETS } from "@/lib/strategies/types";
+
+/**
+ * The whole budget settings screen, which only the "Budget" tab shows and
+ * which opens on "Markets". It is the largest thing this route can reach, so
+ * loading it with the tab rather than with the page keeps the default view
+ * from paying for it.
+ */
+const BudgetSettingsView = dynamic(
+  () => import("@/components/budget/budget-settings-view").then((m) => m.BudgetSettingsView),
+  {
+    ssr: false,
+    loading: () => <div className="h-96 w-full animate-pulse rounded-card bg-fill/5" />,
+  },
+);
 
 const SETTINGS_TABS = [
   { id: "markets", label: "Markets", icon: ChartLineUp, badge: "25", badgeColor: "bg-accent/15 text-accent" },

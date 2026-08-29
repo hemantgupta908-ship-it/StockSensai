@@ -16,6 +16,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CaretRight,
@@ -59,9 +60,48 @@ import { PinnedObjectives } from "./objectives-view";
 import { RecentTransactions } from "./transaction-list-view";
 import { CreditDebtWidget, UpcomingWidget } from "./upcoming-view";
 import { PoliciesWidget } from "./policies-view";
-import { SpendingSummaryWidget, CategoryBreakdownWidget, CategoryStackedBarWidget, OverallCashFlowHealthWidget, LineGraph, Heatmap } from "./analytics-view";
 import { TransactionModal } from "./transaction-modal";
 import { type BudgetSettings } from "@/lib/budget/defaults";
+
+/**
+ * The dashboard's charting widgets, loaded on demand.
+ *
+ * `analytics-view` is the largest module the overview touches, and every one of
+ * these is either below the fold or behind a `settings.show*` toggle that
+ * plenty of people leave off. Importing them statically put the whole module in
+ * front of first paint on what is now the app's landing screen. Each gets a
+ * skeleton roughly its own height so the layout does not jump when it arrives.
+ */
+const skeleton = (className: string) => {
+  const Skeleton = () => <div className={cn("animate-pulse rounded-card bg-fill/5", className)} />;
+  Skeleton.displayName = "AnalyticsWidgetSkeleton";
+  return Skeleton;
+};
+
+const SpendingSummaryWidget = dynamic(
+  () => import("./analytics-view").then((m) => m.SpendingSummaryWidget),
+  { ssr: false, loading: skeleton("h-40 w-full") },
+);
+const CategoryBreakdownWidget = dynamic(
+  () => import("./analytics-view").then((m) => m.CategoryBreakdownWidget),
+  { ssr: false, loading: skeleton("h-64 w-full") },
+);
+const CategoryStackedBarWidget = dynamic(
+  () => import("./analytics-view").then((m) => m.CategoryStackedBarWidget),
+  { ssr: false, loading: skeleton("h-64 w-full") },
+);
+const OverallCashFlowHealthWidget = dynamic(
+  () => import("./analytics-view").then((m) => m.OverallCashFlowHealthWidget),
+  { ssr: false, loading: skeleton("h-40 w-full") },
+);
+const LineGraph = dynamic(() => import("./analytics-view").then((m) => m.LineGraph), {
+  ssr: false,
+  loading: skeleton("h-56 w-full"),
+});
+const Heatmap = dynamic(() => import("./analytics-view").then((m) => m.Heatmap), {
+  ssr: false,
+  loading: skeleton("h-40 w-full"),
+});
 
 const WIDGET_META: { id: string; label: string; settingKey: keyof BudgetSettings; icon: any }[] = [
   { id: "netWorth", label: "Net Worth", settingKey: "showNetWorth", icon: TrendUp },
