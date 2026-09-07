@@ -1,17 +1,12 @@
 import {
   ArrowsLeftRight,
-  BookOpen,
   CalendarBlank,
   CalendarCheck,
   ChartLineUp,
   ChartPie,
-  CreditCard,
   Flag,
   Gear,
   House,
-  Repeat,
-  ShieldCheck,
-  Stack,
   Star,
   Wallet,
 } from "@phosphor-icons/react";
@@ -45,6 +40,14 @@ const RECOMMENDATIONS_ITEM: NavItem = {
   icon: ChartLineUp,
 };
 
+/** Also web-only, and for the same reason. */
+const WATCHLIST_ITEM: NavItem = {
+  href: "/watchlist",
+  label: "Watchlist",
+  description: "Stocks you're following",
+  icon: Star,
+};
+
 /**
  * Every destination in the product, in one list.
  *
@@ -73,7 +76,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Investing",
     items: [
-      { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
+      ...(WEB_ONLY ? [WATCHLIST_ITEM] : []),
       { href: "/portfolio", label: "Portfolio", description: "Plan versus what you did", icon: Wallet },
     ],
   },
@@ -126,7 +129,7 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 /**
- * The five that get a bottom tab on mobile.
+ * The handful that get a bottom tab on mobile.
  *
  * Twenty destinations do not fit across a phone; these are the ones worth a
  * thumb. Everything else is one tap away behind "More", which lists the
@@ -141,10 +144,18 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ArrowsLeftRight,
   },
   { href: "/portfolio", label: "Portfolio", description: "Plan versus what you did", icon: Wallet },
-  // Android has no feed to tab to; the watchlist is the useful stock
-  // destination there. See RECOMMENDATIONS_ITEM.
+  // The fourth slot is the feed on the web, and Planning on Android, which has
+  // neither the feed nor the watchlist to tab to (see RECOMMENDATIONS_ITEM).
+  // Goals, loans, policies and subscriptions are the money screens people
+  // actually return to; the strategy explainers that used to sit here are
+  // reference material, and keep their entry in Settings.
   WEB_ONLY
     ? { ...RECOMMENDATIONS_ITEM, label: "Recom." }
-    : { href: "/watchlist", label: "Watchlist", description: "Stocks you're following", icon: Star },
+    : {
+        href: "/budget/planning",
+        label: "Planning",
+        description: "Goals, loans, policies & subscriptions",
+        icon: Flag,
+      },
   { href: "/settings", label: "Settings", description: "Appearance, risk, account, budget", icon: Gear },
 ];
