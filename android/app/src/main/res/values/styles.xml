@@ -13,10 +13,23 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!--
+            Dark status bar icons, because the app opens on a light background.
+
+            The JS side re-applies this per theme (see NativeShell), but it can
+            only run once the WebView is up, and on Android 15+ the plugin call
+            that used to carry it is a no-op. Setting it on the window theme
+            means the bar is legible from the first frame, and a dark theme
+            flips it afterwards rather than fixing a bar that started white on
+            white.
+        -->
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- The splash is light too, so the same applies while it shows. -->
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
