@@ -125,6 +125,7 @@ export function SubscriptionsView() {
         }}
         editing={editing}
         defaults={{ type: TransactionSpecialType.subscription }}
+        restoreOnRelaunch
       />
     </>
   );
@@ -291,6 +292,7 @@ export function UpcomingView() {
         }}
         editing={editing}
         defaults={{ type: TransactionSpecialType.upcoming }}
+        restoreOnRelaunch
       />
     </>
   );

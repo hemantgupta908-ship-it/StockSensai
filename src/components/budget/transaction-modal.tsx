@@ -13,7 +13,7 @@ import { useShallow } from "zustand/react/shallow";
  * They share only `isExcludedFromTotals`, so neither inflates income or expense.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 
 import {
@@ -30,6 +30,14 @@ import { getWalletBalance } from "@/lib/budget/calculations";
 import { atMidday, fromDateInputValue, toDateInputValue, fromDateTimeInputValue, toDateTimeInputValue } from "@/lib/budget/period";
 import { formatCurrencyAmount, getCurrencyInfo } from "@/lib/budget/currency";
 import { amountValue, isExpression } from "@/lib/budget/expression";
+import {
+  clearTransactionDraft,
+  draftContextKey,
+  hasDraftFromPreviousLoad,
+  readTransactionDraft,
+  writeTransactionDraft,
+  type TransactionDraft,
+} from "@/lib/budget/transaction-draft";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
   Field,
@@ -46,6 +54,12 @@ import { AmountInput } from "@/components/ui/amount-input";
 import { CategoryEditor } from "./categories-view";
 
 type Tab = "expense" | "income" | "transfer";
+
+const TABS: Tab[] = ["expense", "income", "transfer"];
+
+function asTab(value: string): Tab {
+  return (TABS as string[]).includes(value) ? (value as Tab) : "expense";
+}
 
 const SPECIAL_TYPE_OPTIONS: { value: string; label: string; hint: string }[] = [
   { value: "none", label: "Default", hint: "A transaction that has already happened" },
@@ -70,6 +84,7 @@ export function TransactionModal({
   editing,
   defaults,
   defaultTab,
+  restoreOnRelaunch = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -77,6 +92,12 @@ export function TransactionModal({
   editing?: Transaction | null;
   defaults?: Partial<Transaction>;
   defaultTab?: Tab;
+  /**
+   * Put this sheet back on screen by itself when it has a draft left over from
+   * a previous page load. Set on the sheets that are an *entry point* for a new
+   * transaction; two sheets restoring the same draft would stack.
+   */
+  restoreOnRelaunch?: boolean;
 }) {
   const { wallets,
     categories,
@@ -115,10 +136,54 @@ export function TransactionModal({
   const [transferFee, setTransferFee] = useState("");
 
   const [syncPrompt, setSyncPrompt] = useState<{ next: Transaction; paired: Transaction } | null>(null);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  /** Presented because a draft outlived the page load that started it. */
+  const [relaunched, setRelaunched] = useState(false);
+
+  /**
+   * `defaults` is a fresh object literal at most call sites, so its identity
+   * changes on every render of the page underneath. The reset below is keyed on
+   * its *content*: keyed on the object, a store tick — a sync landing, a
+   * balance recomputing — would look like a new sheet and wipe a form
+   * mid-entry.
+   */
+  const defaultsKey = JSON.stringify(defaults ?? null);
+  const defaultsRef = useRef(defaults);
+  defaultsRef.current = defaults;
+  const draftContext = draftContextKey(defaults, defaultTab);
+
+  /**
+   * The form as the sheet opened it, serialised, to tell an untouched form from
+   * a started one. Held as JSON because every comparison here is an equality
+   * check, and both sides are built field-by-field in the same order.
+   */
+  const [baselineJson, setBaselineJson] = useState<string | null>(null);
+  /** Set once the reset has applied, so the mirror never saves the last sheet's values. */
+  const hydratedRef = useRef(false);
+
+  /**
+   * Android evicts a backgrounded app freely, and the WebView comes back
+   * reloaded: the page is remounted from scratch and every sheet on it is
+   * closed, including the one being typed into. The entry itself survives in
+   * the draft, so present the sheet again and let the restore below fill it.
+   */
+  useEffect(() => {
+    if (!restoreOnRelaunch || editing) return;
+    if (hasDraftFromPreviousLoad(draftContext)) setRelaunched(true);
+    // Mount only: a draft written by this page load belongs to a sheet the user
+    // is already looking at, or one they closed on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const presented = open || relaunched;
 
   // Reset the form each time the sheet opens so a previous edit never leaks in.
   useEffect(() => {
-    if (!open) return;
+    if (!presented) {
+      hydratedRef.current = false;
+      return;
+    }
+    const currentDefaults = defaultsRef.current;
     if (editing) {
       if (editing.categoryFk === TRANSFER_CATEGORY_PK && editing.pairedTransactionFk) {
         setTab("transfer");
@@ -164,29 +229,103 @@ export function TransactionModal({
       setObjectiveLoanFk(editing.objectiveLoanFk ?? "");
       setBudgetFk(editing.sharedReferenceBudgetPk ?? "");
     } else {
-      setTab(defaultTab ?? (defaults?.income ? "income" : "expense"));
-      setAmount(defaults?.amount !== undefined ? String(Math.abs(defaults.amount)) : "");
-      setName(defaults?.name ?? "");
-      setNote(defaults?.note ?? "");
-      setCategoryFk(defaults?.categoryFk ?? "");
-      setSubCategoryFk("");
-      setWalletFk(defaults?.walletFk ?? settings.primaryWalletPk);
-      setDate(toDateTimeInputValue(defaults?.dateCreated ? new Date(defaults.dateCreated) : new Date()));
-      setSpecialType(defaults?.type !== undefined && defaults.type !== null ? String(defaults.type) : "none");
-      setReoccurrence(String(BudgetReoccurence.monthly));
-      setPeriodLength("1");
-      setEndDate("");
-      setPaid(defaults?.type === undefined || defaults.type === null);
-      setObjectiveFk(defaults?.objectiveFk ?? "");
-      setObjectiveLoanFk(defaults?.objectiveLoanFk ?? "");
-      setBudgetFk("");
-      // When defaultTab is "transfer", defaults.walletFk is mapped to 'fromWallet' above.
-      // We can use an extended default payload to also pass `toWalletFk`.
-      setToWalletFk((defaults as any)?.toWalletFk ?? "");
-      setTransferFee("");
+      const initial: TransactionDraft = {
+        tab: defaultTab ?? (currentDefaults?.income ? "income" : "expense"),
+        amount: currentDefaults?.amount !== undefined ? String(Math.abs(currentDefaults.amount)) : "",
+        name: currentDefaults?.name ?? "",
+        note: currentDefaults?.note ?? "",
+        categoryFk: currentDefaults?.categoryFk ?? "",
+        subCategoryFk: "",
+        walletFk: currentDefaults?.walletFk ?? settings.primaryWalletPk,
+        date: toDateTimeInputValue(
+          currentDefaults?.dateCreated ? new Date(currentDefaults.dateCreated) : new Date(),
+        ),
+        specialType:
+          currentDefaults?.type !== undefined && currentDefaults.type !== null
+            ? String(currentDefaults.type)
+            : "none",
+        reoccurrence: String(BudgetReoccurence.monthly),
+        periodLength: "1",
+        endDate: "",
+        paid: currentDefaults?.type === undefined || currentDefaults.type === null,
+        objectiveFk: currentDefaults?.objectiveFk ?? "",
+        objectiveLoanFk: currentDefaults?.objectiveLoanFk ?? "",
+        budgetFk: "",
+        // When defaultTab is "transfer", defaults.walletFk is mapped to 'fromWallet' above.
+        // We can use an extended default payload to also pass `toWalletFk`.
+        toWalletFk: (currentDefaults as any)?.toWalletFk ?? "",
+        transferFee: "",
+      };
+
+      setBaselineJson(JSON.stringify(initial));
+      // A draft left by a sheet that was navigated away from wins over the
+      // blank form; there is nothing to restore on the first open.
+      applyDraft(readTransactionDraft(draftContext) ?? initial);
       setSyncPrompt(null);
+      setDiscardPrompt(false);
     }
-  }, [open, editing, defaults, defaultTab, settings.primaryWalletPk]);
+    hydratedRef.current = true;
+    // `defaultsKey` stands in for `defaults`, which is read through a ref — see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presented, editing, defaultsKey, defaultTab, draftContext, settings.primaryWalletPk]);
+
+  function applyDraft(values: TransactionDraft) {
+    setTab(asTab(values.tab));
+    setAmount(values.amount);
+    setName(values.name);
+    setNote(values.note);
+    setCategoryFk(values.categoryFk);
+    setSubCategoryFk(values.subCategoryFk);
+    setWalletFk(values.walletFk);
+    setDate(values.date);
+    setSpecialType(values.specialType);
+    setReoccurrence(values.reoccurrence);
+    setPeriodLength(values.periodLength);
+    setEndDate(values.endDate);
+    setPaid(values.paid);
+    setObjectiveFk(values.objectiveFk);
+    setObjectiveLoanFk(values.objectiveLoanFk);
+    setBudgetFk(values.budgetFk);
+    setToWalletFk(values.toWalletFk);
+    setTransferFee(values.transferFee);
+  }
+
+  const currentDraft: TransactionDraft = {
+    tab,
+    amount,
+    name,
+    note,
+    categoryFk,
+    subCategoryFk,
+    walletFk,
+    date,
+    specialType,
+    reoccurrence,
+    periodLength,
+    endDate,
+    paid,
+    objectiveFk,
+    objectiveLoanFk,
+    budgetFk,
+    toWalletFk,
+    transferFee,
+  };
+  const draftJson = JSON.stringify(currentDraft);
+  const isStarted = baselineJson !== null && draftJson !== baselineJson;
+
+  /**
+   * Mirror the entry on every change, so nothing is lost when this sheet is
+   * unmounted without being dismissed — a link followed, Android's back button
+   * (a navigation control here, not a close button), or the WebView going away
+   * while the app is backgrounded.
+   */
+  useEffect(() => {
+    if (!presented || editing || !hydratedRef.current) return;
+    // An untouched form is not a draft; keeping one would resurrect a blank
+    // sheet's defaults over a later sheet's.
+    if (baselineJson === null || draftJson === baselineJson) clearTransactionDraft();
+    else writeTransactionDraft(draftContext, JSON.parse(draftJson) as TransactionDraft);
+  }, [presented, editing, draftContext, draftJson, baselineJson]);
 
   const isIncome = tab === "income";
   const typeValue = specialType === "none" ? null : (Number(specialType) as TransactionSpecialType);
@@ -228,8 +367,16 @@ export function TransactionModal({
     const firstReal = visibleCategories.find(
       (c) => c.categoryPk !== BALANCE_CORRECTION_CATEGORY_PK,
     );
-    setCategoryFk(firstReal?.categoryPk ?? visibleCategories[0]?.categoryPk ?? "");
+    const next = firstReal?.categoryPk ?? visibleCategories[0]?.categoryPk ?? "";
+    setCategoryFk(next);
     setSubCategoryFk("");
+    // This default is the app's choice, not the user's, so fold it into the
+    // baseline: on its own it must not make an untouched form look started.
+    setBaselineJson((prev) =>
+      prev
+        ? JSON.stringify({ ...(JSON.parse(prev) as TransactionDraft), categoryFk: next, subCategoryFk: "" })
+        : prev,
+    );
   }, [tab, visibleCategories, categoryFk]);
 
   /** Autocomplete the category from a remembered title, as Cashew does. */
@@ -251,6 +398,41 @@ export function TransactionModal({
     tab === "transfer"
       ? Number.isFinite(numericAmount) && numericAmount > 0 && !!walletFk && !!toWalletFk && walletFk !== toWalletFk
       : Number.isFinite(numericAmount) && numericAmount !== 0 && !!categoryFk;
+
+  /**
+   * Dismissing is deliberate, so it throws the draft away — but only after
+   * asking, because a stray tap on the backdrop is not a decision to lose a
+   * half-typed entry.
+   */
+  function handleRequestClose() {
+    if (!editing && isStarted) {
+      setDiscardPrompt(true);
+      return;
+    }
+    closeSheet();
+  }
+
+  function handleDiscard() {
+    clearTransactionDraft();
+    setDiscardPrompt(false);
+    closeSheet();
+  }
+
+  /** The entry is stored now; the draft of it has nothing left to protect. */
+  function finishAndClose() {
+    if (!editing) clearTransactionDraft();
+    closeSheet();
+  }
+
+  /**
+   * `onClose` alone is not enough for a sheet this component put on screen
+   * itself: the caller's `open` is already false, so only clearing the flag
+   * here actually dismisses it.
+   */
+  function closeSheet() {
+    setRelaunched(false);
+    onClose();
+  }
 
   function handleSave() {
     if (!canSave) return;
@@ -281,7 +463,7 @@ export function TransactionModal({
       }
 
       upsertTransactions(pair);
-      onClose();
+      finishAndClose();
       return;
     }
 
@@ -345,7 +527,7 @@ export function TransactionModal({
       }
     }
 
-    onClose();
+    finishAndClose();
   }
 
   function handleConfirmSync(sync: boolean) {
@@ -386,7 +568,7 @@ export function TransactionModal({
     }
 
     setSyncPrompt(null);
-    onClose();
+    finishAndClose();
   }
 
   const fromWallet = wallets.find((w) => w.walletPk === walletFk);
@@ -396,8 +578,8 @@ export function TransactionModal({
 
   return (
     <Sheet
-      open={open}
-      onClose={onClose}
+      open={presented}
+      onClose={handleRequestClose}
       title={editing ? "Edit Transaction" : "Add Transaction"}
       maxWidth="sm:max-w-xl"
       footer={
@@ -411,7 +593,7 @@ export function TransactionModal({
               confirmLabel="Tap again to delete"
               onConfirm={() => {
                 deleteTransaction(editing.transactionPk, { includePaired: true });
-                onClose();
+                finishAndClose();
               }}
             />
           ) : null}
@@ -703,6 +885,33 @@ export function TransactionModal({
           setSubCategoryFk("");
         }}
       />
+
+      {discardPrompt ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in">
+          <div className="w-full max-w-sm rounded-[16px] bg-bg-elevated p-6 shadow-sheet">
+            <h3 className="mb-2 text-[17px] font-semibold text-label">Discard this entry?</h3>
+            <p className="mb-6 text-[15px] text-label-secondary/80">
+              What you have filled in will be lost.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-[10px] bg-fill/10 py-2.5 text-[15px] font-semibold text-label transition-colors hover:bg-fill/20"
+                onClick={() => setDiscardPrompt(false)}
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-[10px] bg-red py-2.5 text-[15px] font-semibold text-white transition-colors hover:bg-red/90"
+                onClick={handleDiscard}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {syncPrompt ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in">
