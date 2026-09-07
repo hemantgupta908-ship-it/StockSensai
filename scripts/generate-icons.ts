@@ -18,7 +18,126 @@ import path from "node:path";
 import sharp from "sharp";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
+const ASSETS_DIR = path.join(process.cwd(), "assets");
 const SOURCE = path.join(PUBLIC_DIR, "icon.svg");
+
+/**
+ * Android's adaptive-icon geometry, in fractions of the 108dp drawable.
+ *
+ * A launcher composites a background and a foreground layer, then crops the
+ * pair to a mask of its own choosing — circle, squircle, teardrop. Only the
+ * centre 72dp survives that crop, and only the centre 66dp survives it in
+ * *every* mask shape, which is the figure artwork has to respect.
+ */
+const SAFE_ZONE = 66 / 108;
+
+/**
+ * How much of the canvas the mark's bounding box may occupy, given its shape.
+ *
+ * Not `SAFE_ZONE` itself, which is the diameter of a *circle*: a box scaled to
+ * that width pushes its own corners outside the circle, and on this mark the
+ * corner is the arrowhead — the first thing a round mask cuts off. What has to
+ * fit is the box's diagonal, so the limit depends on how square the box is.
+ *
+ * Measuring it rather than assuming a square (`SAFE_ZONE / √2`, the old
+ * constant) matters here because the mark is wide and short: assuming the worst
+ * case shrank it by another 10% for clearance it never needed, and a mark that
+ * small reads as lost inside the launcher's circle.
+ */
+function markScale(width: number, height: number): number {
+  const diagonal = Math.hypot(width, height);
+  return (SAFE_ZONE * Math.max(width, height)) / diagonal;
+}
+
+/**
+ * The two layers the Android launcher icon is built from.
+ *
+ * These are generated rather than hand-drawn because the previous pair was
+ * wrong in a way that is easy to reintroduce: the foreground held the entire
+ * blue tile — mark, rounded corners and all — over a flat green background,
+ * so the launcher drew a green ring around a small blue square, and removing
+ * the padding that hid the seam only clipped the tile's corners against the
+ * mask instead.
+ *
+ * The split the format actually wants is a full-bleed background carrying the
+ * colour, and a foreground carrying nothing but the mark on transparency. The
+ * mask then cuts the background, which extends past it in every direction, and
+ * the mark sits inside the safe zone where no mask can reach it.
+ */
+async function writeAndroidLayers(svg: string): Promise<void> {
+  const CANVAS = 1024;
+
+  // Background: the tile's gradient with its rounded corners removed, so the
+  // colour runs past the mask edge instead of stopping short of it.
+  const background = svg
+    .replace(/<rect width="512" height="512" rx="114"/, '<rect width="512" height="512"')
+    .replace(/<g fill="#fff" opacity="\.17">[\s\S]*<\/svg>/, "</svg>");
+
+  await writeFile(
+    path.join(ASSETS_DIR, "icon-background.png"),
+    await sharp(Buffer.from(background)).resize(CANVAS, CANVAS).png().toBuffer(),
+  );
+
+  // Foreground: the mark alone, on transparency.
+  const markOnly = svg.replace(/<rect width="512" height="512" rx="114"[^>]*\/>/, "");
+
+  // Trim to the ink, then scale that to the safe zone and re-centre it. Doing
+  // it by measurement rather than by a hardcoded transform keeps this correct
+  // if the mark is ever redrawn at a different size within its viewBox.
+  // Two pipelines, deliberately. sharp applies `trim` before `resize` within a
+  // single one, whatever order they are called in — so `.resize(CANVAS, CANVAS)
+  // .trim()` trimmed the source and then stretched the ink to a square, which
+  // is how the shipped mark ended up 442x442 with its arrowhead distorted.
+  // Rendering first and trimming the *rendered* bitmap keeps the aspect ratio.
+  const rendered = await sharp(Buffer.from(markOnly)).resize(CANVAS, CANVAS).png().toBuffer();
+  const trimmed = await sharp(rendered).trim({ threshold: 1 }).png().toBuffer();
+
+  const ink = await sharp(trimmed).metadata();
+  const inkWidth = ink.width ?? CANVAS;
+  const inkHeight = ink.height ?? CANVAS;
+
+  // Scale the ink to the largest size its own shape allows inside the safe
+  // zone, then centre it by its bounding box. Centring the *box* rather than
+  // the canvas is the point: a mark whose ink is off to one side would
+  // otherwise sit off-centre under every mask.
+  const scale = (CANVAS * markScale(inkWidth, inkHeight)) / Math.max(inkWidth, inkHeight);
+  const width = Math.round(inkWidth * scale);
+  const height = Math.round(inkHeight * scale);
+  const fitted = await sharp(trimmed).resize(width, height).toBuffer();
+
+  await writeFile(
+    path.join(ASSETS_DIR, "icon-foreground.png"),
+    await sharp({
+      create: {
+        width: CANVAS,
+        height: CANVAS,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([
+        {
+          input: fitted,
+          left: Math.round((CANVAS - width) / 2),
+          top: Math.round((CANVAS - height) / 2),
+        },
+      ])
+      .png()
+      .toBuffer(),
+  );
+
+  // Legacy square icon, for launchers and API levels with no adaptive support.
+  await writeFile(
+    path.join(ASSETS_DIR, "icon.png"),
+    await sharp(Buffer.from(svg)).resize(CANVAS, CANVAS).png().toBuffer(),
+  );
+
+  console.log("  assets/icon-background.png  1024x1024  full-bleed gradient");
+  console.log(
+    `  assets/icon-foreground.png  1024x1024  mark ${width}x${height} inside the safe zone`,
+  );
+  console.log("  assets/icon.png             1024x1024  legacy square");
+}
 
 /**
  * Build the maskable variant.
@@ -38,8 +157,14 @@ function toMaskable(svg: string): string {
     '<rect width="512" height="512"',
   );
 
-  // Scale the drawn content to 80% about the centre, leaving the tile full-bleed.
-  const openIndex = squared.indexOf('<g fill="#fff" opacity=".17">');
+  // Scale the drawn content to 80% about the centre, leaving the tile
+  // full-bleed. "The content" is everything after the tile rect, found by that
+  // rect rather than by naming a layer, so redrawing the mark cannot silently
+  // leave half of it unscaled.
+  const tile = /<rect width="512" height="512"[^>]*\/>/.exec(squared);
+  if (!tile) throw new Error("icon.svg: no full-bleed tile rect to anchor the maskable variant to");
+
+  const openIndex = tile.index + tile[0].length;
   const closeIndex = squared.lastIndexOf("</svg>");
   const content = squared.slice(openIndex, closeIndex);
 
@@ -74,6 +199,10 @@ async function main() {
   console.log(
     `  ${"icon-maskable-512.png".padEnd(24)} 512x512  ${(maskable.length / 1024).toFixed(1)} kB`,
   );
+
+  await mkdir(ASSETS_DIR, { recursive: true });
+  await writeAndroidLayers(svg);
+  console.log("\nRun `npx capacitor-assets generate --android` to rebuild the Android mipmaps.");
 }
 
 void main();
