@@ -240,6 +240,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>("local");
   const hydrated = useRef(false);
+  /** Which account the data on screen belongs to, once there is any. */
+  const hydratedUser = useRef<string | null | undefined>(undefined);
 
   /**
    * Where this account's budget lives: its own Drive, this project's database,
@@ -377,8 +379,15 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
+    const userId = user?.id ?? null;
+
     async function load() {
-      setLoading(true);
+      // The skeleton is for the first load and for a change of account — the
+      // second because one account's figures must not sit on screen while
+      // another's are fetched. Any *other* re-run is a background refresh over
+      // data that is already there, and blanking the screen for it would
+      // unmount every open sheet, discarding whatever was being typed into one.
+      if (!hydrated.current || hydratedUser.current !== userId) setLoading(true);
       const localData = readLocalData();
       const localSettings = readLocalSettings();
 
@@ -389,6 +398,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           setRemoteStatus("local");
           setLoading(false);
           hydrated.current = true;
+          hydratedUser.current = userId;
         }
         return;
       }
@@ -446,16 +456,21 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
       hydrated.current = true;
+      hydratedUser.current = userId;
     }
 
     void load();
     return () => {
       cancelled = true;
     };
+    // Keyed on *which account*, not on the user object: Supabase issues a new
+    // object on every token refresh, and re-fetching the whole document each
+    // time the app is brought back to the foreground is pure churn.
+    //
     // `queueRemoteWrite` is a stable ref-backed callback; re-running hydration
     // on its identity would re-fetch the document on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id, backend]);
 
   // ---- cross-tab sync ----------------------------------------------------
   useEffect(() => {

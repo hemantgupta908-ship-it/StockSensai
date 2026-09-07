@@ -3,28 +3,18 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ArrowClockwise,
   BookOpen,
   CaretRight,
   ChartLineUp,
-  Coins,
-  Database,
-  Diamond,
-  FileText,
-  Gauge,
-  Lightning,
   List,
-  LockKey,
   Palette,
   RocketLaunch,
   Scales,
   ShieldCheck,
   Sparkle,
   SquaresFour,
-  Target,
   TrendUp,
   Wallet,
 } from "@phosphor-icons/react";
@@ -38,17 +28,12 @@ import { StorageCard } from "@/components/settings/storage-card";
 import { DataSourceCard } from "@/components/settings/data-source-card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PageContainer } from "@/components/ui/page-container";
-import { Card, SectionLabel } from "@/components/ui/card";
+import { SectionLabel } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
-  FEED_VIEWS,
   FEED_VIEW_DESCRIPTIONS,
-  FEED_VIEW_LABELS,
   RISK_DESCRIPTIONS,
-  RISK_LABELS,
-  RISK_TOLERANCES,
 } from "@/lib/preferences";
-import type { RiskTolerance } from "@/lib/strategies/types";
 import { THRESHOLD_PRESETS } from "@/lib/strategies/types";
 
 /**
@@ -65,6 +50,19 @@ const BudgetSettingsView = dynamic(
   },
 );
 
+/**
+ * The feed exists on the web only, so the settings that shape it do too.
+ *
+ * Written inline rather than imported from `@/lib/mobile/config` on purpose:
+ * Next substitutes a literal for `process.env.NEXT_PUBLIC_MOBILE` at build
+ * time, so a module-local `const` folds and the minifier drops the dead branch
+ * entirely. See the same note in `nav-items.ts`.
+ *
+ * Risk tolerance is deliberately *not* gated: the stock screen ships in the
+ * APK, and its analysis is resolved against these thresholds.
+ */
+const WEB_ONLY = process.env.NEXT_PUBLIC_MOBILE !== "1";
+
 const SETTINGS_TABS = [
   { id: "markets", label: "Markets", icon: ChartLineUp, badge: "25", badgeColor: "bg-accent/15 text-accent" },
   { id: "appearance", label: "Appearance", icon: Palette, badge: "14", badgeColor: "bg-fill/10 text-label-secondary" },
@@ -74,23 +72,10 @@ const SETTINGS_TABS = [
 type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
 export function SettingsView() {
-  const router = useRouter();
   const { riskTolerance, setRiskTolerance, feedView, setFeedView } = usePreferences();
   const [activeTab, setActiveTab] = useState<SettingsTab>("markets");
-  const [purgingCache, setPurgingCache] = useState(false);
-  const [cacheMessage, setCacheMessage] = useState<string | null>(null);
 
   const thresholds = THRESHOLD_PRESETS[riskTolerance];
-
-  function handlePurgeCache() {
-    setPurgingCache(true);
-    setCacheMessage(null);
-    setTimeout(() => {
-      setPurgingCache(false);
-      setCacheMessage("✓ Market cache refreshed!");
-      setTimeout(() => setCacheMessage(null), 3000);
-    }, 600);
-  }
 
   return (
     <PageContainer width="wide" className="space-y-5 pb-16">
@@ -207,7 +192,8 @@ export function SettingsView() {
             </div>
           </section>
 
-          {/* Ideas Layout Density */}
+          {/* Ideas Layout Density — nothing to lay out where there is no feed. */}
+          {WEB_ONLY ? (
           <section className="space-y-2">
             <SectionLabel>Feed Layout</SectionLabel>
             <div className="rounded-2xl border border-separator/40 bg-bg-secondary p-4 shadow-card dark:border-white/[0.08] dark:shadow-card-dark space-y-3">
@@ -234,6 +220,7 @@ export function SettingsView() {
               </p>
             </div>
           </section>
+          ) : null}
 
           {/* Android only — renders nothing on the web. */}
           <DataSourceCard />
@@ -259,28 +246,6 @@ export function SettingsView() {
                 </div>
                 <CaretRight size={15} className="text-label-secondary/50 group-hover:translate-x-0.5 transition-transform" />
               </Link>
-
-              <button
-                type="button"
-                onClick={handlePurgeCache}
-                disabled={purgingCache}
-                className="w-full flex items-center justify-between p-3.5 hover:bg-fill/5 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/15 text-blue-500">
-                    <ArrowClockwise size={17} className={cn(purgingCache && "animate-spin text-accent")} />
-                  </div>
-                  <div>
-                    <p className="text-subhead font-semibold text-label">
-                      {cacheMessage || "Market Cache & Ticker Index"}
-                    </p>
-                    <p className="text-caption2 text-label-secondary/60">
-                      {purgingCache ? "Purging cache..." : "4.8 MB stored • Tap to refresh"}
-                    </p>
-                  </div>
-                </div>
-                <CaretRight size={15} className="text-label-secondary/50 group-hover:translate-x-0.5 transition-transform" />
-              </button>
 
               <Link
                 href="/disclaimer"

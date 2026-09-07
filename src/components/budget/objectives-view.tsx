@@ -379,6 +379,7 @@ export function ObjectiveCard({
               }
             : { objectiveFk: objective.objectivePk, income: objective.income }
         }
+        restoreOnRelaunch
       />
     </>
   );

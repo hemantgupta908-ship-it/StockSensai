@@ -28,10 +28,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "tsx --tsconfig scripts/tsconfig.json scripts/generate-icons.ts",
+    "icons:android": "npm run icons && capacitor-assets generate --android && tsx --tsconfig scripts/tsconfig.json scripts/adaptive-icon-xml.ts",
     "build:mobile": "cross-env NEXT_PUBLIC_MOBILE=1 next build",
     "sync:android": "npm run build:mobile && cap sync android",
     "android": "npm run sync:android && cap open android",
-    "android:apk": "npm run sync:android && cd android && gradlew.bat assembleDebug",
+    "android:apk": "npm run sync:android && cd android && .\\gradlew.bat assembleDebug",
     "check:device": "tsx --tsconfig scripts/tsconfig.json scripts/check-device-engine.ts"
   },
   "dependencies": {

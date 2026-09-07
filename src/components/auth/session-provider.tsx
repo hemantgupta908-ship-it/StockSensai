@@ -21,6 +21,21 @@ const SessionContext = createContext<SessionValue>({
   signOut: async () => {},
 });
 
+/**
+ * Keep the object we already have when the session still describes the same
+ * person.
+ *
+ * Supabase hands back a *new* `User` on every token refresh, and Android fires
+ * one every time the app returns to the foreground. Storing it re-runs every
+ * effect keyed on `user` — including the budget provider's re-hydration, which
+ * puts a skeleton on screen and so unmounts everything under it, a half-filled
+ * transaction sheet included. Nothing downstream cares that the object is new;
+ * they care which account it is.
+ */
+function keepIfSamePerson(previous: User | null, next: User | null): User | null {
+  return previous && next && previous.id === next.id ? previous : next;
+}
+
 export function SessionProvider({
   initialUser = null,
   children,
@@ -39,14 +54,14 @@ export function SessionProvider({
     }
 
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
+      setUser((prev) => keepIfSamePerson(prev, data.user ?? null));
       setLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      setUser((prev) => keepIfSamePerson(prev, session?.user ?? null));
       setLoading(false);
     });
 

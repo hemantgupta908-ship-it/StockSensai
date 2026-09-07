@@ -110,33 +110,78 @@ export function NativeShell() {
   useEffect(() => {
     if (!IS_MOBILE) return;
 
+    let remove: (() => void) | undefined;
+    let cancelled = false;
+
+    /**
+     * Each call is guarded on its own.
+     *
+     * They used to share one `try`, and on Android 15+ that cost the app a
+     * readable status bar: `setBackgroundColor` is a no-op there and can throw,
+     * which skipped the `setStyle` behind it — leaving white icons on the
+     * app's light background, illegible on every screen. The style is also
+     * applied *first* now, because it is the one that matters.
+     */
+    async function applyStatusBar() {
+      const { StatusBar, Style } = await import("@capacitor/status-bar");
+
+      // Light content for a dark theme, dark content for a light one. Capacitor
+      // names these after the *content*, so `Style.Dark` is the white-icon one.
+      try {
+        await StatusBar.setStyle({ style: resolved === "dark" ? Style.Dark : Style.Light });
+      } catch {
+        // Falls back to `android:windowLightStatusBar` from the app theme.
+      }
+
+      // Do NOT overlay the WebView.
+      //
+      // Overlaying is the iOS arrangement: the page draws under the status
+      // bar and reserves the space with `env(safe-area-inset-top)`. Android's
+      // WebView does not populate that variable for the status bar — it stays
+      // `0px` — so every `safe-top` header reserved nothing and rendered
+      // underneath the clock and battery icons.
+      //
+      // Letting the system inset the WebView instead means the page starts
+      // below the status bar, `safe-top` correctly resolves to zero, and the
+      // headers sit where they are supposed to.
+      try {
+        await StatusBar.setOverlaysWebView({ overlay: false });
+      } catch {
+        // Nothing to undo — the page copes either way.
+      }
+
+      // The bar then needs its own fill, because it is no longer showing the
+      // page behind it. It is read from the live theme rather than hardcoded:
+      // the app ships fourteen colour schemes, and a fixed black would show a
+      // dark band above Sepia and Cream.
+      try {
+        await StatusBar.setBackgroundColor({ color: readThemeBackground() });
+      } catch {
+        // Android 15+ ignores this; the page's own background shows through.
+      }
+    }
+
     void (async () => {
       try {
-        const { StatusBar, Style } = await import("@capacitor/status-bar");
+        await applyStatusBar();
 
-        // Do NOT overlay the WebView.
-        //
-        // Overlaying is the iOS arrangement: the page draws under the status
-        // bar and reserves the space with `env(safe-area-inset-top)`. Android's
-        // WebView does not populate that variable for the status bar — it stays
-        // `0px` — so every `safe-top` header reserved nothing and rendered
-        // underneath the clock and battery icons.
-        //
-        // Letting the system inset the WebView instead means the page starts
-        // below the status bar, `safe-top` correctly resolves to zero, and the
-        // headers sit where they are supposed to.
-        await StatusBar.setOverlaysWebView({ overlay: false });
-
-        // The bar then needs its own fill, because it is no longer showing the
-        // page behind it. It is read from the live theme rather than hardcoded:
-        // the app ships fourteen colour schemes, and a fixed black would show a
-        // dark band above Sepia and Cream.
-        await StatusBar.setBackgroundColor({ color: readThemeBackground() });
-        await StatusBar.setStyle({ style: resolved === "dark" ? Style.Dark : Style.Light });
+        // Returning from another app can hand the window back with the system's
+        // own appearance, so re-apply on resume rather than only at mount.
+        const { App } = await import("@capacitor/app");
+        const handle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void applyStatusBar();
+        });
+        if (cancelled) void handle.remove();
+        else remove = () => void handle.remove();
       } catch {
         // Older WebViews without the plugin keep the system default.
       }
     })();
+
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
   }, [resolved]);
 
   // --- Splash screen --------------------------------------------------------

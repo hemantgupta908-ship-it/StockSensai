@@ -1504,6 +1504,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
         editing={editing}
         defaults={modalDefaults ?? { walletFk: walletPk }}
         defaultTab={modalDefaultTab}
+        restoreOnRelaunch
       />
 
       {importOpen ? (

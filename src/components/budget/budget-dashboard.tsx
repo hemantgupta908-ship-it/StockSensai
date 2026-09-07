@@ -231,9 +231,13 @@ export function BudgetDashboard() {
         className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent w-full"
       >
         <Card className="relative overflow-hidden flex flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
-          {/* Subtle Background Net Worth Sparkline Curve */}
+          {/*
+            The net-worth curve, drawn as a floor under the figure rather
+            than a wash behind it. Full-bleed, it ran straight through the
+            digits — which reads as a rendering fault, not a background.
+          */}
           {sparklineData ? (
-            <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-75 transition-opacity group-hover:opacity-90">
+            <div className="absolute inset-x-0 bottom-0 h-[45%] pointer-events-none opacity-40 dark:opacity-60 transition-opacity group-hover:opacity-70">
               <svg
                 viewBox={`0 0 ${sparklineData.w} ${sparklineData.h}`}
                 className="h-full w-full overflow-visible"
@@ -414,9 +418,13 @@ export function BudgetDashboard() {
                 className="text-left transition-transform active:scale-[0.98] outline-none rounded-[24px] focus-visible:ring-2 focus-visible:ring-accent h-full flex flex-col"
               >
                 <Card className="relative overflow-hidden flex h-full flex-col justify-center !py-7 text-center hover:bg-fill/5 transition-colors group">
-                  {/* Subtle Background Net Worth Sparkline Curve */}
+                  {/*
+            The net-worth curve, drawn as a floor under the figure rather
+            than a wash behind it. Full-bleed, it ran straight through the
+            digits — which reads as a rendering fault, not a background.
+          */}
                   {sparklineData ? (
-                    <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-75 transition-opacity group-hover:opacity-90">
+                    <div className="absolute inset-x-0 bottom-0 h-[45%] pointer-events-none opacity-40 dark:opacity-60 transition-opacity group-hover:opacity-70">
                       <svg
                         viewBox={`0 0 ${sparklineData.w} ${sparklineData.h}`}
                         className="h-full w-full overflow-visible"
@@ -562,7 +570,7 @@ export function BudgetDashboard() {
       </div>
 
       <AddFab onClick={() => setAddOpen(true)} label="Add transaction" />
-      <TransactionModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <TransactionModal open={addOpen} onClose={() => setAddOpen(false)} restoreOnRelaunch />
       <NetWorthSettingsModal open={netWorthSettingsOpen} onClose={() => setNetWorthSettingsOpen(false)} />
     </>
   );

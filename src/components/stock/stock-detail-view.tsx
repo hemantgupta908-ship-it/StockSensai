@@ -31,6 +31,14 @@ import { SignalDetail } from "./signal-detail";
 import { FundamentalsPanel } from "./fundamentals-panel";
 import { LogTradeButton } from "@/components/portfolio/log-trade-button";
 
+/**
+ * True on the web build, false in the Android APK. Inline `process.env` rather
+ * than the imported `IS_MOBILE` so the guarded markup folds away at build time
+ * instead of shipping unrendered — see `nav-items.ts`.
+ */
+const WEB_ONLY = process.env.NEXT_PUBLIC_MOBILE !== "1";
+
+
 interface Props {
   instrument: Instrument;
   quote: Quote;
@@ -143,12 +151,15 @@ export function StockDetailView({
                 price={quote.price}
                 signal={selected}
               />
-              <WatchlistButton
-                ticker={instrument.ticker}
-                name={instrument.name}
-                exchange={instrument.exchange}
-                currentPrice={quote.price}
-              />
+              {/* The watchlist is web-only; see `nav-items.ts`. */}
+              {WEB_ONLY && (
+                <WatchlistButton
+                  ticker={instrument.ticker}
+                  name={instrument.name}
+                  exchange={instrument.exchange}
+                  currentPrice={quote.price}
+                />
+              )}
             </div>
           </div>
 
