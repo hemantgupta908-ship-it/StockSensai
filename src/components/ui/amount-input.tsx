@@ -152,13 +152,32 @@ function KeypadKey({
   variant = "digit",
   className,
   ariaLabel,
+  dismisses = false,
 }: {
   label: React.ReactNode;
   onPress: () => void;
   variant?: "digit" | "operator" | "action" | "confirm";
   className?: string;
   ariaLabel?: string;
+  /**
+   * Whether pressing this key takes the pad off screen.
+   *
+   * Such a key has to act on `click`, not on pointer-down. Unmounting the pad
+   * mid-gesture leaves the browser to deliver the click of that same tap to
+   * whatever is underneath — and directly underneath `Done` is the host sheet's
+   * footer button. One tap on Done was saving the transaction, or arming the
+   * delete on an edit.
+   *
+   * `preventDefault` on pointer-down still runs, so the focused field is not
+   * blurred before the pad decides what to do.
+   */
+  dismisses?: boolean;
 }) {
+  function act() {
+    tapFeedback();
+    onPress();
+  }
+
   return (
     <button
       type="button"
@@ -167,9 +186,9 @@ function KeypadKey({
       // would first blur that field, settling the value mid-entry.
       onPointerDown={(event) => {
         event.preventDefault();
-        tapFeedback();
-        onPress();
+        if (!dismisses) act();
       }}
+      onClick={dismisses ? act : undefined}
       className={cn(
         "flex h-12 select-none items-center justify-center rounded-[14px] text-title3 font-medium",
         "transition-transform active:scale-95",
@@ -226,14 +245,16 @@ function Keypad({
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      {/*
+        Dismissed on click for the same reason as `Done` — closing during
+        pointer-down would hand the click of that tap to the sheet underneath.
+      */}
       <button
         type="button"
         aria-label="Close keypad"
         tabIndex={-1}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          onClose();
-        }}
+        onPointerDown={(event) => event.preventDefault()}
+        onClick={onClose}
         className="flex-1 cursor-default"
       />
 
@@ -310,6 +331,7 @@ function Keypad({
             }
             variant="confirm"
             className="col-span-2"
+            dismisses
             onPress={onClose}
           />
         </div>
