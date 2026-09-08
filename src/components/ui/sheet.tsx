@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
+import { useDismissible } from "@/lib/dismissible";
 
 interface SheetProps {
   open: boolean;
@@ -81,6 +82,10 @@ export function Sheet({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // Android's hardware back is this environment's Escape: it closes the sheet
+  // rather than navigating the page underneath it away.
+  useDismissible(open, onClose);
 
   if (!mounted || !open) return null;
 

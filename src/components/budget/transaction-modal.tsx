@@ -38,6 +38,7 @@ import {
   writeTransactionDraft,
   type TransactionDraft,
 } from "@/lib/budget/transaction-draft";
+import { useDismissible } from "@/lib/dismissible";
 import { useBudget, useCategoryLookup } from "./budget-provider";
 import {
   Field,
@@ -398,6 +399,15 @@ export function TransactionModal({
     tab === "transfer"
       ? Number.isFinite(numericAmount) && numericAmount > 0 && !!walletFk && !!toWalletFk && walletFk !== toWalletFk
       : Number.isFinite(numericAmount) && numericAmount !== 0 && !!categoryFk;
+
+  /*
+   * Both prompts are drawn over the sheet, so Android's hardware back answers
+   * the question in front of it rather than dismissing the form underneath.
+   * Backing out of the sync prompt writes nothing: the entry is still on the
+   * form, unsaved, which is where a cancelled decision should leave it.
+   */
+  useDismissible(discardPrompt, () => setDiscardPrompt(false));
+  useDismissible(syncPrompt !== null, () => setSyncPrompt(null));
 
   /**
    * Dismissing is deliberate, so it throws the draft away — but only after

@@ -11,10 +11,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent } from "@testing-library/react";
+import { act, cleanup, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 
 import { TransactionModal } from "./transaction-modal";
+import { dismissTopOverlay, openOverlayCount } from "@/lib/dismissible";
 import { renderWithBudget, screen } from "@/test/render-budget";
 
 afterEach(cleanup);
@@ -178,5 +179,114 @@ describe("TransactionModal drafts", () => {
     await renderWithBudget(host(<TransactionModal open onClose={noop} />));
     expect(amountField().value).toBe("");
     expect(titleField().value).toBe("");
+  });
+});
+
+/**
+ * Android's hardware back button, as `NativeShell` wires it: close the topmost
+ * overlay, and only navigate when `dismissTopOverlay` reports there was none.
+ *
+ * The bug this pins: back on the add-transaction form fell straight through to
+ * `router.back()`, which popped the transactions list off the history and left
+ * the user on the home screen — a sheet is not a route, so the router had no
+ * idea a form was on top of it.
+ */
+function pressBack(): boolean {
+  let navigates = false;
+  act(() => {
+    navigates = !dismissTopOverlay();
+  });
+  return navigates;
+}
+
+/**
+ * A touch device, which is what makes `AmountInput` present the app's own
+ * keypad. jsdom has no `matchMedia` at all, so without this the sheet renders
+ * in its pointer-device form and the keypad never appears.
+ */
+function useTouchDevice() {
+  const original = window.matchMedia;
+  beforeEach(() => {
+    // The pad scrolls its field into view on open, from a `requestAnimationFrame`
+    // that outlives the test. jsdom implements neither, and an unhandled throw
+    // in a stray frame fails the run from outside any test.
+    Element.prototype.scrollIntoView = () => {};
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("coarse"),
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+}
+
+describe("TransactionModal and the hardware back button", () => {
+  it("leaves nothing registered when no sheet is on screen", async () => {
+    await renderWithBudget(host(<TransactionModal open={false} onClose={noop} />));
+    expect(openOverlayCount()).toBe(0);
+    // Nothing to close, so the back handler falls through and navigates.
+    expect(pressBack()).toBe(true);
+  });
+
+  it("closes an untouched form instead of navigating", async () => {
+    const onClose = vi.fn();
+    await renderWithBudget(host(<TransactionModal open onClose={onClose} />));
+
+    expect(pressBack()).toBe(false);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("asks before throwing away a started entry", async () => {
+    const onClose = vi.fn();
+    await renderWithBudget(host(<TransactionModal open onClose={onClose} />));
+    fill("120", "Groceries");
+
+    expect(pressBack()).toBe(false);
+    expect(screen.getByText("Discard this entry?")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("backs out of the discard prompt without losing the entry", async () => {
+    const onClose = vi.fn();
+    await renderWithBudget(host(<TransactionModal open onClose={onClose} />));
+    fill("120", "Groceries");
+
+    pressBack();
+    // The prompt is above the sheet, so this back answers the prompt.
+    expect(pressBack()).toBe(false);
+    expect(screen.queryByText("Discard this entry?")).toBeNull();
+    expect(amountField().value).toBe("120");
+    expect(onClose).not.toHaveBeenCalled();
+
+    // And the form is still what back is aimed at: asking a question instead
+    // of closing must not hand the next press to the router.
+    expect(pressBack()).toBe(false);
+    expect(screen.getByText("Discard this entry?")).toBeTruthy();
+  });
+
+  describe("with the keypad up", () => {
+    useTouchDevice();
+
+    it("takes the keypad down before the form", async () => {
+      const onClose = vi.fn();
+      await renderWithBudget(host(<TransactionModal open onClose={onClose} />));
+
+      // The amount field autofocuses, which on a touch device presents the pad.
+      expect(screen.getByLabelText("Amount keypad")).toBeTruthy();
+
+      expect(pressBack()).toBe(false);
+      expect(screen.queryByLabelText("Amount keypad")).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+
+      expect(pressBack()).toBe(false);
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });

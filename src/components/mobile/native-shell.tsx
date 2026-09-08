@@ -7,6 +7,7 @@ import { IS_MOBILE } from "@/lib/mobile/config";
 import { deepLinkToPath } from "@/lib/auth/callback-url";
 import { useTheme } from "@/components/theme-provider";
 import { useAppPathname } from "@/lib/use-app-pathname";
+import { dismissTopOverlay } from "@/lib/dismissible";
 
 /**
  * The page background, as `#rrggbb`, for the status bar to match.
@@ -55,6 +56,12 @@ export function NativeShell() {
       try {
         const { App } = await import("@capacitor/app");
         const handle = await App.addListener("backButton", ({ canGoBack }) => {
+          // An overlay on screen is the thing back is aimed at. A sheet is not
+          // a route, so navigating instead took the page underneath it away:
+          // back from the add-transaction form landed on the home screen
+          // rather than on the transactions list it was opened from.
+          if (dismissTopOverlay()) return;
+
           // Android's back button is a *navigation* control, not a close
           // button. Without this it exits the app from any screen, which reads
           // as a crash when it happens three taps into the budget section.

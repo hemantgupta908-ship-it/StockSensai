@@ -7,6 +7,7 @@ import { Backspace, Check } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { inputClass } from "@/components/ui/field";
 import { evaluateExpression, isExpression } from "@/lib/budget/expression";
+import { useDismissible } from "@/lib/dismissible";
 
 /**
  * Amount entry with the app's own keypad.
@@ -235,6 +236,10 @@ function Keypad({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
+
+  // Registered after the sheet that hosts it, so hardware back takes the pad
+  // down first and leaves the form standing — the same order as Escape.
+  useDismissible(true, onClose);
 
   const preview = useMemo(() => evaluateExpression(value), [value]);
   const showPreview = isExpression(value);

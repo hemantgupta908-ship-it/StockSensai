@@ -16,6 +16,7 @@ import { NAV_SECTIONS } from "./nav-items";
 import { isActivePath } from "./nav";
 import { useAppPathname } from "@/lib/use-app-pathname";
 import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth/destination";
+import { useDismissible } from "@/lib/dismissible";
 
 interface MobileSidebarProps {
   open: boolean;
@@ -52,6 +53,9 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
+
+  // Hardware back closes the drawer instead of navigating behind it.
+  useDismissible(open, onClose);
 
   return (
     <AnimatePresence>

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { inputClass } from "./field";
+import { useDismissible } from "@/lib/dismissible";
 
 /**
  * Styled dropdown that accepts the same children as a native `<select>`.
@@ -88,6 +89,13 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
       ?.querySelector(`[data-index="${activeIndex}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [open, activeIndex]);
+
+  // An open popup is what hardware back should shut, not the screen behind it.
+  // Focus goes back to the trigger, the same as Escape.
+  useDismissible(open, () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  });
 
   function commit(option: ParsedOption) {
     props.onChange?.({
