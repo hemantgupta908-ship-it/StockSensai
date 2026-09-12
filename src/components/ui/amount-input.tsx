@@ -191,12 +191,18 @@ function KeypadKey({
       }}
       onClick={dismisses ? act : undefined}
       className={cn(
-        "flex h-12 select-none items-center justify-center rounded-[14px] text-title3 font-medium",
-        "transition-transform active:scale-95",
+        // 56px, comfortably past both the 44pt Apple and 48dp Material floors.
+        // The old 48px sat exactly on the Material minimum, which is the size
+        // you pick when a control is incidental — this one is the whole screen.
+        "flex h-14 select-none items-center justify-center rounded-[18px] text-[22px] font-medium",
+        "transition-[transform,background-color] duration-100 active:scale-[0.96]",
+        // Three tiers, so the pad can be read at a glance instead of scanned:
+        // digits carry the surface, operators are a tinted column of their own,
+        // and the utilities recede until you look for them.
         variant === "digit" && "bg-fill/10 text-label active:bg-fill/20",
-        variant === "operator" && "bg-fill/[0.07] text-accent active:bg-fill/20",
-        variant === "action" && "bg-fill/[0.07] text-label-secondary active:bg-fill/20",
-        variant === "confirm" && "bg-accent text-accent-fg active:brightness-95",
+        variant === "operator" && "bg-accent/[0.14] font-semibold text-accent active:bg-accent/25",
+        variant === "action" && "bg-fill/[0.05] text-label-secondary active:bg-fill/15",
+        variant === "confirm" && "bg-accent font-semibold text-accent-fg active:brightness-95",
         className,
       )}
     >
@@ -244,6 +250,22 @@ function Keypad({
   const preview = useMemo(() => evaluateExpression(value), [value]);
   const showPreview = isExpression(value);
 
+  /**
+   * What the big line says, and how big it can afford to be.
+   *
+   * While an expression is being built the headline shows its *result* and the
+   * raw keystrokes move to a second line, rather than the two swapping places
+   * in one slot — you can see both what you typed and what it comes to.
+   *
+   * The size steps down on long numbers instead of letting them ellipsize: a
+   * truncated amount is worse than a smaller one, because the digits that get
+   * cut are the ones that decide the magnitude.
+   */
+  const invalid = showPreview && preview === null;
+  const readout = showPreview ? (invalid ? "—" : String(preview)) : value || "0";
+  const readoutSize =
+    readout.length > 12 ? "text-[26px]" : readout.length > 9 ? "text-[32px]" : "text-[40px]";
+
   const press = useCallback((key: string) => onChange(applyKey(value, key)), [onChange, value]);
 
   if (!mounted) return null;
@@ -266,49 +288,59 @@ function Keypad({
       <div
         role="group"
         aria-label="Amount keypad"
-        className="material-thick relative z-10 rounded-t-sheet border-t border-separator/50 px-3 pt-3 shadow-sheet motion-safe:animate-sheet-in pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+        className="material-thick relative z-10 rounded-t-sheet border-t border-separator/50 px-4 pt-3 shadow-sheet motion-safe:animate-sheet-in pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
       >
-        <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
-          <span className="truncate text-caption font-semibold uppercase tracking-wider text-label-secondary/60">
-            {label ?? "Amount"}
-          </span>
-          <span
-            className={cn(
-              "numeric truncate text-right text-title3 font-semibold",
-              showPreview && preview === null ? "text-red" : "text-label",
-            )}
-          >
-            {currencySymbol}
-            {showPreview ? (preview === null ? "—" : preview) : value || "0"}
-          </span>
+        {/*
+          The readout, not a caption.
+
+          This used to be a one-line strip with the label on the left and the
+          value on the right at 20px — smaller than the digits on the keys, for
+          the one thing on the pad you are actually looking at. It is now the
+          headline: right-aligned like a calculator and like the field it is
+          standing in for, sharing the label's baseline so a short amount does
+          not open the pad on a band of empty space, with the currency mark set
+          quieter beside it so the number reads first.
+        */}
+        <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
+          <div className="min-w-0">
+            <div className="truncate text-caption font-semibold uppercase tracking-wider text-label-secondary/60">
+              {label ?? "Amount"}
+            </div>
+            {showPreview ? (
+              <div className="numeric truncate text-footnote text-label-secondary/70">{value}</div>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            {currencySymbol ? (
+              <span className="shrink-0 text-title3 font-medium text-label-secondary/50">
+                {currencySymbol}
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "numeric min-w-0 truncate font-semibold leading-none tracking-tight",
+                readoutSize,
+                invalid ? "text-red" : "text-label",
+              )}
+            >
+              {readout}
+            </span>
+          </div>
         </div>
 
+        {/*
+          Five rows, not six.
+
+          The old top row spent two of its four slots on "(" and ")", which no
+          amount on an expense form has ever needed — the arithmetic this pad
+          exists for is "886.38-878" and "1200/3". Their slots go to the keys
+          that were crowded out, and dropping the separate "=" (the headline
+          already shows the running result, and Done settles it) buys Done a
+          target worth half the pad.
+        */}
         <div className="grid grid-cols-4 gap-2">
           <KeypadKey label="C" ariaLabel="Clear" variant="action" onPress={() => onChange("")} />
-          <KeypadKey label="(" variant="action" onPress={() => press("(")} />
-          <KeypadKey label=")" variant="action" onPress={() => press(")")} />
-          <KeypadKey
-            label={<Backspace size={22} />}
-            ariaLabel="Backspace"
-            variant="action"
-            onPress={() => onChange(value.slice(0, -1))}
-          />
-
-          {["7", "8", "9"].map((digit) => (
-            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
-          ))}
-          <KeypadKey label="÷" ariaLabel="Divide" variant="operator" onPress={() => press("÷")} />
-
-          {["4", "5", "6"].map((digit) => (
-            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
-          ))}
-          <KeypadKey label="×" ariaLabel="Multiply" variant="operator" onPress={() => press("×")} />
-
-          {["1", "2", "3"].map((digit) => (
-            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
-          ))}
-          <KeypadKey label="−" ariaLabel="Minus" variant="operator" onPress={() => press("-")} />
-
           <KeypadKey
             label={allowNegative ? "±" : "00"}
             ariaLabel={allowNegative ? "Toggle sign" : "Double zero"}
@@ -317,17 +349,31 @@ function Keypad({
               onChange(allowNegative ? toggleSign(value) : applyKey(applyKey(value, "0"), "0"))
             }
           />
-          <KeypadKey label="0" onPress={() => press("0")} />
-          <KeypadKey label="." onPress={() => press(".")} />
+          <KeypadKey
+            label={<Backspace size={22} />}
+            ariaLabel="Backspace"
+            variant="action"
+            onPress={() => onChange(value.slice(0, -1))}
+          />
+          <KeypadKey label="÷" ariaLabel="Divide" variant="operator" onPress={() => press("÷")} />
+
+          {["7", "8", "9"].map((digit) => (
+            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
+          ))}
+          <KeypadKey label="×" ariaLabel="Multiply" variant="operator" onPress={() => press("×")} />
+
+          {["4", "5", "6"].map((digit) => (
+            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
+          ))}
+          <KeypadKey label="−" ariaLabel="Minus" variant="operator" onPress={() => press("-")} />
+
+          {["1", "2", "3"].map((digit) => (
+            <KeypadKey key={digit} label={digit} onPress={() => press(digit)} />
+          ))}
           <KeypadKey label="+" ariaLabel="Plus" variant="operator" onPress={() => press("+")} />
 
-          <KeypadKey
-            label="="
-            ariaLabel="Evaluate"
-            variant="action"
-            className="col-span-2"
-            onPress={() => onChange(settle(value))}
-          />
+          <KeypadKey label="0" onPress={() => press("0")} />
+          <KeypadKey label="." onPress={() => press(".")} />
           <KeypadKey
             label={
               <span className="flex items-center gap-1.5 text-headline">
