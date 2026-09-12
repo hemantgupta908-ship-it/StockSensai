@@ -26,3 +26,9 @@ android/.gradle
 android/app/src/main/assets/public
 android/app/src/main/res/xml/config.xml
 android/local.properties
+
+# Release signing — the upload key and its passwords. Never commit these:
+# losing control of the key means losing control of the listing.
+android/keystore.properties
+*.jks
+*.keystore

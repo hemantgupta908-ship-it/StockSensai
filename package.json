@@ -34,6 +34,7 @@
     "sync:android": "npm run build:mobile && cap sync android",
     "android": "npm run sync:android && cap open android",
     "android:apk": "npm run sync:android && cd android && .\\gradlew.bat assembleDebug",
+    "android:bundle": "npm run sync:android && cd android && .\\gradlew.bat bundleRelease",
     "check:device": "tsx --tsconfig scripts/tsconfig.json scripts/check-device-engine.ts"
   },
   "dependencies": {

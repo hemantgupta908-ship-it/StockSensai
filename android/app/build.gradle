@@ -1,5 +1,24 @@
 apply plugin: 'com.android.application'
 
+/*
+ * Release signing, read from a file that is never committed.
+ *
+ * `keystore.properties` holds the path to the upload key and its passwords, so
+ * it stays out of git — see the root `.gitignore`. Copy
+ * `keystore.properties.example` and fill it in; `keystore.properties.example`
+ * documents the four keys and how to generate the key itself.
+ *
+ * When the file is absent the release build goes *unsigned* rather than
+ * failing, so a fresh clone, CI, and `assembleDebug` all keep working for
+ * anyone who has not been given the key.
+ */
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKey = keystorePropertiesFile.exists()
+if (hasReleaseKey) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace "com.wealthsensei.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,8 +35,25 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseKey) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
+            // Left off deliberately: Capacitor plugins are reached reflectively
+            // from the WebView bridge, and R8 strips them without a keep-list
+            // this project has not written yet. Turning it on is a change to
+            // make with a device smoke test, not on the way to a first upload.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
