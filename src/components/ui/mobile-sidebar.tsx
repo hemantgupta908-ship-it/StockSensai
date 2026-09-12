@@ -80,7 +80,18 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", stiffness: 350, damping: 35, mass: 0.9 }}
-            className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-separator/40 bg-bg-elevated p-5 shadow-2xl dark:border-white/[0.08]"
+            /*
+              The drawer spans the whole window, so it has to reserve the system
+              bars itself.
+
+              Every other surface does: the headers carry `safe-top`, the sheets
+              pad for `safe-area-inset-bottom`. This one had a flat `p-5`, which
+              is 20px against a status bar nearer 46 — so the mark and the
+              product name came out underneath the clock and the network icons.
+              `targetSdk` is 35, so Android 15+ draws the window edge to edge and
+              `setOverlaysWebView(false)` cannot opt out of it.
+            */
+            className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-separator/40 bg-bg-elevated px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl dark:border-white/[0.08]"
           >
             {/* Header / Brand Wordmark & Close Button */}
             <div className="flex items-center justify-between pb-4">
