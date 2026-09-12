@@ -7,6 +7,13 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3002,
       "autoPort": false
+    },
+    {
+      "name": "stockpilot-mobile",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:mobile"],
+      "port": 3003,
+      "autoPort": false
     }
   ]
 }

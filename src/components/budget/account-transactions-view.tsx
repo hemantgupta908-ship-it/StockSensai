@@ -535,7 +535,7 @@ export function AccountTransactionsView({ walletPk }: { walletPk: string }) {
               onClick={() => {
                 router.push("/budget");
               }}
-              className="-ml-1 flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
+              className="tap-target -ml-1 flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
               aria-label="Go back to Overview"
               title="Go back to Overview"
             >

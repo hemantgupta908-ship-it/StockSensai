@@ -153,7 +153,7 @@ export function PoliciesView() {
           description="Track LIC and other insurance, SIPs, PPF, recurring and fixed deposits — their premiums, due dates and maturity."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {visible.map((policy) => (
             <PolicyCard
               key={policy.policyPk}

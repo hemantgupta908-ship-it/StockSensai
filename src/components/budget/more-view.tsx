@@ -406,7 +406,7 @@ function AssociatedTitlesSheet({ open, onClose }: { open: boolean; onClose: () =
                   type="button"
                   onClick={() => deleteAssociatedTitle(t.associatedTitlePk)}
                   aria-label={`Delete ${t.title}`}
-                  className="shrink-0 rounded-full p-1.5 text-label-secondary/50 hover:bg-fill/15"
+                  className="tap-target shrink-0 rounded-full p-1.5 text-label-secondary/50 hover:bg-fill/15"
                 >
                   <Trash size={15} />
                 </button>

@@ -84,7 +84,7 @@ export function BudgetHeader({
           <button
             type="button"
             onClick={() => (backHref ? router.push(backHref) : router.back())}
-            className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-all hover:bg-fill/[0.12] active:scale-95"
+            className="tap-target -ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-all hover:bg-fill/[0.12] active:scale-95"
             aria-label="Go back"
             title="Go back"
           >
@@ -94,7 +94,7 @@ export function BudgetHeader({
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
+            className="tap-target -ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-label transition-colors hover:bg-fill/[0.12] lg:hidden focus:outline-none"
             aria-label="Open menu"
           >
             <div className="flex w-[18px] flex-col gap-[4px]">

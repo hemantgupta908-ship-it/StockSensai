@@ -128,7 +128,7 @@ export function Sheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-label-secondary/60 transition-colors hover:bg-fill/15"
+            className="tap-target -mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-label-secondary/60 transition-colors hover:bg-fill/15"
           >
             <X size={18} />
           </button>

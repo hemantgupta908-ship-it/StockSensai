@@ -98,7 +98,7 @@ export default async function StrategyPage({ params }: PageProps) {
         </Section>
 
         {/* Entry / exit */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Section title="Entry logic">
             <p className="text-footnote leading-relaxed text-label-secondary/75">
               {explainer.entryLogic}

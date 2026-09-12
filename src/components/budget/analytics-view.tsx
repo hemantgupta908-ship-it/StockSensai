@@ -1156,26 +1156,34 @@ export function OverallCashFlowHealthWidget() {
           </div>
         </div>
 
-        {/* Metric Pillars in a horizontally scrollable strip on mobile, flex row on desktop */}
-        <div className="flex items-center gap-2.5 sm:gap-6 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
-          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
+        {/*
+          Four metrics, two by two on a phone and a row from `sm` up.
+
+          This was a hidden-scrollbar strip, which on a 375px screen showed two
+          and a half tiles and cut "Savings Rate" mid-word — with the bar hidden
+          there was nothing to say the rest was reachable, so it read as broken
+          rather than scrollable. Four tiles will not fit across a phone at a
+          legible size, so they stack instead of hiding.
+        */}
+        <div className="grid grid-cols-2 gap-2.5 py-0.5 sm:flex sm:items-center sm:gap-6">
+          <div className="min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Spend</p>
             <Amount value={stats.avgMonthlySpend} className="text-subhead font-bold text-red" animated />
           </div>
 
-          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
+          <div className="min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Avg Income</p>
             <Amount value={stats.avgMonthlyIncome} className="text-subhead font-bold text-green" animated />
           </div>
 
-          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
+          <div className="min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Savings Rate</p>
             <span className={cn("text-subhead font-bold tabular-nums block", stats.savingsRate >= 0 ? "text-green" : "text-red")}>
               {stats.savingsRate >= 0 ? `+${stats.savingsRate}%` : `${stats.savingsRate}%`}
             </span>
           </div>
 
-          <div className="shrink-0 min-w-[110px] sm:min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
+          <div className="min-w-0 px-3 py-1.5 rounded-xl bg-fill/5 border border-separator/10 sm:border-none sm:bg-transparent sm:p-0 sm:text-right">
             <p className="text-[9px] uppercase tracking-wider font-semibold text-label-secondary/50">Est. Runway</p>
             <span className="text-subhead font-bold text-label tabular-nums block">
               {stats.runwayMonths}

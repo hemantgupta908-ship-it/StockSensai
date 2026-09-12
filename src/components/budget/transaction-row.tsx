@@ -138,16 +138,31 @@ export function TransactionRow({
               large && "lg:text-footnote",
             )}
           >
-            {overdue ? (
-              <span className="flex items-center gap-0.5 font-medium text-red">
-                <Clock size={10} /> Overdue
-              </span>
-            ) : unsettled ? (
-              <span className="flex items-center gap-0.5 font-medium text-amber">
-                <Clock size={10} /> Upcoming
+            {/*
+              The clock alone, until there is room for the word.
+
+              Spelled out, this badge took about 58px of a 375px row and left
+              the description under a fifth of its width — "Balance Correction ·
+              HDFC Bank · Monthly" rendered as "Bal…". Moving it up to the title
+              only moved the damage onto the name. The icon carries the same
+              meaning at a fifth of the cost, and the label is still on it for
+              anyone reading by touch or by pointer.
+            */}
+            {overdue || unsettled ? (
+              <span
+                className={cn(
+                  "flex shrink-0 items-center gap-0.5 font-medium",
+                  overdue ? "text-red" : "text-amber",
+                )}
+                title={overdue ? "Overdue" : "Upcoming"}
+              >
+                <Clock size={10} aria-label={overdue ? "Overdue" : "Upcoming"} />
+                <span className="hidden lg:inline">{overdue ? "Overdue" : "Upcoming"}</span>
               </span>
             ) : null}
-            {transaction.skipPaid ? <span className="text-label-secondary/50">Skipped</span> : null}
+            {transaction.skipPaid ? (
+              <span className="shrink-0 text-label-secondary/50">Skipped</span>
+            ) : null}
             <span className="truncate">
               {showDate ? `${new Date(transaction.dateCreated).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} · ` : ""}
               {transfer && pairedWallet ? (
@@ -177,12 +192,12 @@ export function TransactionRow({
       </button>
 
       {showActions && unsettled ? (
-        <div className="flex shrink-0 gap-1">
+        <div className="flex shrink-0 gap-2">
           <button
             type="button"
             onClick={skip}
             aria-label="Skip"
-            className="rounded-full p-1.5 text-label-secondary/50 transition-colors hover:bg-fill/15"
+            className="tap-target rounded-full p-2.5 text-label-secondary/50 transition-colors hover:bg-fill/15"
           >
             <SkipForward size={15} />
           </button>
@@ -190,7 +205,7 @@ export function TransactionRow({
             type="button"
             onClick={pay}
             aria-label="Mark as paid"
-            className="rounded-full bg-accent/15 p-1.5 text-accent transition-colors hover:bg-accent/20"
+            className="tap-target rounded-full bg-accent/15 p-2.5 text-accent transition-colors hover:bg-accent/20"
           >
             <Check size={15} />
           </button>

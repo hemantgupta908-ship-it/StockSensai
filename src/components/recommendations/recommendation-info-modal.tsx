@@ -75,7 +75,7 @@ export function RecommendationInfoModal({
 
           <button
             onClick={onClose}
-            className="rounded-full p-1.5 text-label-secondary/60 transition-colors hover:bg-fill/[0.12] hover:text-label"
+            className="tap-target rounded-full p-1.5 text-label-secondary/60 transition-colors hover:bg-fill/[0.12] hover:text-label"
           >
             <X size={20} />
           </button>

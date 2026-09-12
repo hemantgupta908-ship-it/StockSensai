@@ -372,6 +372,32 @@
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
+
+  /*
+   * Give a small control a finger-sized hit area without resizing it.
+   *
+   * Apple asks for 44pt and Material for 48dp, but both measure the *target*,
+   * not the ink: Material's own guidance is that a 24dp icon sits inside a
+   * 48dp target. The icon buttons in this app are drawn at 27-36px because
+   * that is the right visual weight next to 15px body text — making them 44px
+   * of visible chrome would turn every row into a row of buttons.
+   *
+   * So the button keeps its size and an invisible centred pseudo-element
+   * carries the touch. `position: relative` is set here rather than relied on,
+   * since most call sites have no reason to declare it.
+   */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: max(100%, 44px);
+    width: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }
 
 @layer utilities {

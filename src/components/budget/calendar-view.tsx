@@ -188,7 +188,7 @@ export function CalendarView() {
 
   return (
     <div className="pb-2 select-none">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
       {/*
         Calendar column — centred and phone-width until the grid splits.
 

@@ -114,7 +114,7 @@ export function ObjectivesView({ type }: { type: ObjectiveType }) {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {visible.map((objective) => (
             <ObjectiveCard
               key={objective.objectivePk}

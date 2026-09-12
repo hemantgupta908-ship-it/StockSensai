@@ -124,7 +124,7 @@ export function CategoriesView() {
       {visible.length === 0 ? (
         <EmptyState icon={Shapes} title="No categories found" description="Tap the ＋ button to create your first category." />
       ) : (
-        <div className="grid gap-3.5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
           {visible.map((category) => {
             const subs = subsByParent.get(category.categoryPk) ?? [];
             const isExpanded = expandedPks.has(category.categoryPk);
@@ -175,7 +175,7 @@ export function CategoriesView() {
                       <button
                         type="button"
                         onClick={(e) => toggleExpand(category.categoryPk, e)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-label-secondary hover:bg-fill/10 active:scale-95 transition-all"
+                        className="tap-target flex h-8 w-8 items-center justify-center rounded-full text-label-secondary hover:bg-fill/10 active:scale-95 transition-all"
                         aria-label={isExpanded ? "Collapse subcategories" : "Expand subcategories"}
                       >
                         <CaretDown
@@ -192,7 +192,7 @@ export function CategoriesView() {
                           setPresetParentPk(undefined);
                           setEditorOpen(true);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-label-secondary/60 hover:text-label hover:bg-fill/10 active:scale-95 transition-all"
+                        className="tap-target flex h-8 w-8 items-center justify-center rounded-full text-label-secondary/60 hover:text-label hover:bg-fill/10 active:scale-95 transition-all"
                         title="Edit category"
                       >
                         <PencilSimpleLine size={15} weight="bold" />
@@ -298,7 +298,7 @@ export function CategoriesView() {
             <span>System Categories</span>
           </p>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {transfer ? (
               <div
                 onClick={() => {

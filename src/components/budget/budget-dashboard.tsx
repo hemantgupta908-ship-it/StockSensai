@@ -214,7 +214,7 @@ export function BudgetDashboard() {
 
   if (loading) {
     return (
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="h-32 animate-pulse rounded-card bg-bg-secondary" />
         ))}
@@ -410,7 +410,7 @@ export function BudgetDashboard() {
         {/* Hero Section: Net Worth + Accounts + Stat Strip + Full-Width Monthly Averages */}
         <div className="mb-6 space-y-4">
           {/* Row 1 & 2 Grid: Net Worth (spanning 2-row height) + Accounts & Stat Strip */}
-          <div className="grid gap-4 lg:grid-cols-[minmax(260px,340px)_1fr] items-stretch">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(260px,340px)_1fr] items-stretch">
             {settings.showNetWorth ? (
               <button 
                 type="button" 
@@ -580,7 +580,7 @@ function SeeAll({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="group flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-footnote font-semibold text-accent transition-all hover:bg-accent/20 active:scale-95"
+      className="tap-target group flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-footnote font-semibold text-accent transition-all hover:bg-accent/20 active:scale-95"
     >
       <span>See all</span>
       <div className="transition-transform duration-300 ease-out group-hover:translate-x-0.5">
@@ -737,7 +737,7 @@ export function DashboardHeaderAction() {
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
+          className="tap-target flex h-9 w-9 items-center justify-center rounded-xl text-label hover:bg-fill/10 active:scale-95 transition-all focus:outline-none"
           aria-label="More options"
           title="More options"
         >

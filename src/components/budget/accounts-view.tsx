@@ -123,7 +123,7 @@ export function AccountsView() {
 
               <div
                 className={cn(
-                  "grid gap-4",
+                  "grid grid-cols-1 gap-4",
                   group.type === "credit" ? "md:grid-cols-2" : "",
                   group.type === "bank" ? "md:grid-cols-2 lg:grid-cols-3" : "",
                   (group.type === "cash" || group.type === "investment") ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "",
@@ -216,7 +216,7 @@ export function AccountsView() {
                           type="button"
                           aria-label={`Options for ${wallet.name}`}
                           onClick={() => setOpenMenuWalletPk(openMenuWalletPk === wallet.walletPk ? null : wallet.walletPk)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-label-secondary/60 transition-colors hover:bg-fill/15 hover:text-label active:scale-95"
+                          className="tap-target flex h-8 w-8 items-center justify-center rounded-lg text-label-secondary/60 transition-colors hover:bg-fill/15 hover:text-label active:scale-95"
                         >
                           <DotsThreeVertical size={18} weight="bold" />
                         </button>
