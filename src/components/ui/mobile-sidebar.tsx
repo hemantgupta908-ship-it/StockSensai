@@ -133,44 +133,63 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
 
             {/* Navigation List */}
             <nav className="flex-1 overflow-y-auto pt-1">
-              {NAV_SECTIONS.map((section) => {
-                const mobileItems = section.items.filter((item) => item.label !== "Settings");
-                if (mobileItems.length === 0) return null;
+              {/*
+                Every section, and every item's description with it.
 
-                return (
-                  <div key={section.title} className="mb-4">
-                    <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
-                      {section.title}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {mobileItems.map((item) => {
-                        const active = isActivePath(pathname, item.href);
-                        const Icon = item.icon;
-                        return (
-                          <li key={item.href}>
-                            <Link
-                              href={item.href}
-                              onClick={onClose}
-                              prefetch={true}
-                              className={cn(
-                                "flex items-center gap-3 rounded-ios px-3.5 py-2.5 transition-colors",
-                                active
-                                  ? "bg-accent/15 text-accent dark:bg-accent/20"
-                                  : "text-label hover:bg-fill/[0.08]",
-                              )}
-                            >
-                              <Icon size={20} weight="regular" className="shrink-0" />
-                              <span className={cn("text-subhead", active && "font-semibold")}>
+                Settings used to be filtered out here because the tab bar also
+                carries it — but so do Home, Transactions, Portfolio and
+                Planning, and those were listed. The one exception only cost the
+                drawer its whole "Organise" section, which is why the list
+                stopped half way down and left a screen of nothing under it.
+
+                The descriptions were already written on every item and simply
+                never rendered. They are what the space is for: a drawer that
+                says what each screen holds beats a drawer that lists seven
+                words and a void.
+              */}
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.title} className="mb-4">
+                  <p className="px-3.5 pb-1 text-caption2 font-semibold uppercase tracking-wide text-label-secondary/50">
+                    {section.title}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = isActivePath(pathname, item.href);
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            prefetch={true}
+                            className={cn(
+                              "flex items-center gap-3 rounded-ios px-3.5 py-2 transition-colors",
+                              active
+                                ? "bg-accent/15 text-accent dark:bg-accent/20"
+                                : "text-label hover:bg-fill/[0.08]",
+                            )}
+                          >
+                            <Icon size={20} weight="regular" className="shrink-0" />
+                            <span className="min-w-0">
+                              <span className={cn("block text-subhead", active && "font-semibold")}>
                                 {item.label}
                               </span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                );
-              })}
+                              <span
+                                className={cn(
+                                  "block truncate text-caption2",
+                                  active ? "text-accent/70" : "text-label-secondary/50",
+                                )}
+                              >
+                                {item.description}
+                              </span>
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
             </nav>
 
             {/* Profile & Logout Footer */}
