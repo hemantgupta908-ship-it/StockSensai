@@ -208,7 +208,7 @@ export function MobileSidebar({ open, onClose, onOpenSearch }: MobileSidebarProp
                   }}
                   title="Sign out"
                   aria-label="Sign out"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red text-white shadow-xs hover:bg-red/90 transition-colors focus:outline-none"
+                  className="tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-label-secondary transition-colors hover:bg-fill/15 hover:text-label focus:outline-none"
                 >
                   <SignOut size={18} weight="regular" />
                 </button>
